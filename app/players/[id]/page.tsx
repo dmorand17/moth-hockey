@@ -1,0 +1,399 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { TeamBadge } from "@/components/TeamBadge";
+import { SectionHeader } from "@/components/SectionHeader";
+import { AwardBadge } from "@/components/AwardBadge";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { initials } from "@/lib/format";
+
+type SeasonStatsRow = {
+  season_id: string;
+  season_name: string;
+  season_type: "spring" | "fall" | "winter";
+  year: number;
+  position: "forward" | "defense" | "goalie";
+  team?: { name: string; slug: string; color: string };
+  gp: number;
+  goals: number;
+  assists: number;
+  points: number;
+  penalties: number;
+  ps_taken: number;
+  ps_made: number;
+  ga: number | null;
+  ps_faced: number | null;
+  ps_saved: number | null;
+  isCurrent: boolean;
+};
+
+const AWARD_LABELS: Record<string, string> = {
+  champion: "Champion",
+  mvp: "MVP",
+  mvd: "MVD",
+  goon: "Goon",
+  sniper: "Sniper",
+  playmaker: "Playmaker",
+  vezina: "Vezina",
+  iron_man: "Iron Man",
+  most_hat_tricks: "Most Hat Tricks",
+};
+
+// Order in which badges are displayed (most prestigious first)
+const AWARD_ORDER = ["champion", "mvp", "mvd", "vezina", "sniper", "most_hat_tricks", "playmaker", "iron_man", "goon"];
+
+export default async function PlayerPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createSupabaseServerClient();
+
+  const { data: player } = await supabase
+    .from("players")
+    .select("id, first_name, last_name")
+    .eq("id", id)
+    .single();
+  if (!player) notFound();
+
+  const [
+    { data: rosterRows },
+    { data: appearances },
+    { data: events },
+    { data: historyRows },
+    { data: seasons },
+    { data: awards },
+  ] = await Promise.all([
+    supabase
+      .from("team_players")
+      .select("position, jersey_number, team:team_id(name, slug, color), season:season_id(id, name, season_type, year, is_current)")
+      .eq("player_id", id),
+    supabase
+      .from("game_appearances")
+      .select("game_id, team_id, game:game_id(season_id, status)")
+      .eq("player_id", id),
+    supabase
+      .from("game_events")
+      .select(
+        "type, team_id, player_id, assist1_player_id, assist2_player_id, penalty_type, penalty_shot_result, penalty_shot_taker_id, game_id",
+      ),
+    supabase
+      .from("season_player_stats")
+      .select(
+        "season_id, position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, team:team_id(name, slug, color)",
+      )
+      .eq("player_id", id),
+    supabase
+      .from("seasons")
+      .select("id, name, season_type, year, is_current"),
+    supabase
+      .from("player_awards")
+      .select("award_type, season:season_id(name, year, season_type)")
+      .eq("player_id", id),
+  ]);
+
+  const currentRoster = (rosterRows ?? []).find((r) => r.season?.is_current);
+  const isGoalie = currentRoster?.position === "goalie";
+
+  // ----- Build current-season stats from live events -----
+  const finalAppearances = (appearances ?? []).filter((a) => a.game?.status === "final");
+  const myCurrentGameIds = new Set(finalAppearances.map((a) => a.game_id));
+  const myCurrentTeamByGame = new Map(finalAppearances.map((a) => [a.game_id, a.team_id]));
+
+  const currentSeason = (seasons ?? []).find((s) => s.is_current);
+  const currentSeasonStats = {
+    gp: 0, goals: 0, assists: 0, penalties: 0, ps_taken: 0, ps_made: 0,
+    ga: 0, ps_faced: 0, ps_saved: 0,
+  };
+  if (currentSeason) {
+    currentSeasonStats.gp = finalAppearances.length;
+    for (const e of events ?? []) {
+      if (!myCurrentGameIds.has(e.game_id)) continue;
+      if (e.type === "goal") {
+        if (e.player_id === id) currentSeasonStats.goals++;
+        if (e.assist1_player_id === id || e.assist2_player_id === id) currentSeasonStats.assists++;
+      } else if (e.type === "penalty") {
+        if (e.player_id === id) currentSeasonStats.penalties++;
+        if (e.penalty_shot_taker_id === id) {
+          currentSeasonStats.ps_taken++;
+          if (e.penalty_shot_result === "goal") currentSeasonStats.ps_made++;
+        }
+      }
+    }
+    if (isGoalie) {
+      for (const a of finalAppearances) {
+        const myTeam = myCurrentTeamByGame.get(a.game_id);
+        for (const e of events ?? []) {
+          if (e.game_id !== a.game_id) continue;
+          if (e.type === "goal" && e.team_id !== myTeam) currentSeasonStats.ga++;
+          else if (e.type === "penalty" && e.team_id === myTeam) {
+            currentSeasonStats.ps_faced++;
+            if (e.penalty_shot_result === "saved") currentSeasonStats.ps_saved++;
+            else if (e.penalty_shot_result === "goal") currentSeasonStats.ga++;
+          }
+        }
+      }
+    }
+  }
+
+  // ----- Build per-season rows: current (live) + historical (imported) -----
+  const seasonById = new Map((seasons ?? []).map((s) => [s.id, s]));
+  const rosterByseason = new Map(
+    (rosterRows ?? []).filter((r) => r.season).map((r) => [r.season!.id, r]),
+  );
+  const rows: SeasonStatsRow[] = [];
+
+  if (currentSeason && currentSeasonStats.gp > 0) {
+    const r = rosterByseason.get(currentSeason.id);
+    rows.push({
+      season_id: currentSeason.id,
+      season_name: currentSeason.name,
+      season_type: currentSeason.season_type,
+      year: currentSeason.year,
+      position: (r?.position ?? "forward") as "forward" | "defense" | "goalie",
+      team: r?.team ? { name: r.team.name, slug: r.team.slug, color: r.team.color } : undefined,
+      gp: currentSeasonStats.gp,
+      goals: currentSeasonStats.goals,
+      assists: currentSeasonStats.assists,
+      points: currentSeasonStats.goals + currentSeasonStats.assists,
+      penalties: currentSeasonStats.penalties,
+      ps_taken: currentSeasonStats.ps_taken,
+      ps_made: currentSeasonStats.ps_made,
+      ga: isGoalie ? currentSeasonStats.ga : null,
+      ps_faced: isGoalie ? currentSeasonStats.ps_faced : null,
+      ps_saved: isGoalie ? currentSeasonStats.ps_saved : null,
+      isCurrent: true,
+    });
+  }
+
+  for (const h of historyRows ?? []) {
+    const s = seasonById.get(h.season_id);
+    if (!s) continue;
+    rows.push({
+      season_id: h.season_id,
+      season_name: s.name,
+      season_type: s.season_type,
+      year: s.year,
+      position: h.position as "forward" | "defense" | "goalie",
+      team: h.team ? { name: h.team.name, slug: h.team.slug, color: h.team.color } : undefined,
+      gp: h.games_played,
+      goals: h.goals,
+      assists: h.assists,
+      points: h.goals + h.assists,
+      penalties: h.penalties,
+      ps_taken: h.penalty_shots_taken,
+      ps_made: h.penalty_shots_made,
+      ga: h.goals_against,
+      ps_faced: h.penalty_shots_faced,
+      ps_saved: h.penalty_shots_saved,
+      isCurrent: false,
+    });
+  }
+
+  // Sort newest → oldest
+  const SEASON_ORDER: Record<string, number> = { winter: 3, fall: 2, spring: 1 };
+  rows.sort((a, b) => b.year - a.year || (SEASON_ORDER[b.season_type] - SEASON_ORDER[a.season_type]));
+
+  // All-time totals
+  const totals = rows.reduce(
+    (acc, r) => ({
+      gp: acc.gp + r.gp,
+      goals: acc.goals + r.goals,
+      assists: acc.assists + r.assists,
+      points: acc.points + r.points,
+      penalties: acc.penalties + r.penalties,
+      ps_taken: acc.ps_taken + r.ps_taken,
+      ps_made: acc.ps_made + r.ps_made,
+      ga: acc.ga + (r.ga ?? 0),
+      ps_faced: acc.ps_faced + (r.ps_faced ?? 0),
+      ps_saved: acc.ps_saved + (r.ps_saved ?? 0),
+    }),
+    { gp: 0, goals: 0, assists: 0, points: 0, penalties: 0, ps_taken: 0, ps_made: 0, ga: 0, ps_faced: 0, ps_saved: 0 },
+  );
+
+  // Awards: group by type with the season names where each was earned
+  const awardSeasons: Record<string, string[]> = {};
+  for (const a of awards ?? []) {
+    if (!AWARD_LABELS[a.award_type]) continue; // hide unknown types
+    const seasonName = a.season?.name ?? "Unknown season";
+    (awardSeasons[a.award_type] ||= []).push(seasonName);
+  }
+  // Sort each badge's season list newest-first by year if we have it
+  for (const k of Object.keys(awardSeasons)) {
+    awardSeasons[k].sort().reverse();
+  }
+  const orderedAwards = Object.entries(awardSeasons).sort(
+    (a, b) => (AWARD_ORDER.indexOf(a[0]) - AWARD_ORDER.indexOf(b[0])),
+  );
+
+  const teamColor = currentRoster?.team?.color ?? "#6b7280";
+
+  return (
+    <div className="space-y-10">
+      <Link href="/teams" className="rise eyebrow hover:text-ink transition-colors inline-block">
+        ← Teams
+      </Link>
+
+      {/* Hero */}
+      <section
+        className="rise panel p-6 md:p-10 relative"
+        style={{
+          background: `linear-gradient(135deg, ${teamColor}1f 0%, transparent 60%), var(--board-2)`,
+        }}
+      >
+        <div
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-1.5"
+          style={{ background: teamColor, boxShadow: `0 0 30px ${teamColor}99` }}
+        />
+        <div className="flex items-center gap-5 md:gap-8">
+          <div className="relative h-24 w-24 md:h-32 md:w-32 shrink-0 scoreboard flex flex-col items-center justify-center">
+            {currentRoster?.jersey_number ? (
+              <>
+                <div className="eyebrow text-[9px]">No.</div>
+                <div className="digit text-[44px] md:text-[60px] leading-none mt-1" style={{ color: teamColor, textShadow: `0 0 16px ${teamColor}99` }}>
+                  {currentRoster.jersey_number}
+                </div>
+              </>
+            ) : (
+              <div className="font-display text-[42px] md:text-[58px]" style={{ color: teamColor }}>
+                {initials(player.first_name, player.last_name)}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="eyebrow text-goal">{isGoalie ? "Goalie" : "Skater"}</div>
+            <h1 className="font-display text-[36px] md:text-[64px] leading-[0.92] tracking-[0.04em] mt-1">
+              <span className="text-ink-dim">{player.first_name.toUpperCase()}</span>
+              <br />
+              {player.last_name.toUpperCase()}
+            </h1>
+            {currentRoster?.team && (
+              <div className="mt-3 flex items-center gap-3">
+                <TeamBadge {...currentRoster.team} />
+                <span className="eyebrow">{currentRoster.position}</span>
+              </div>
+            )}
+            {orderedAwards.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-start gap-2">
+                {orderedAwards.map(([type, seasonsList]) => (
+                  <AwardBadge
+                    key={type}
+                    type={type}
+                    label={AWARD_LABELS[type]}
+                    seasons={seasonsList}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Career table */}
+      <section className="rise delay-1">
+        <SectionHeader eyebrow="Career" title={isGoalie ? "Goaltending Record" : "Skater Stats"} />
+        {rows.length === 0 ? (
+          <div className="panel-bare p-6 stripes">
+            <div className="eyebrow mb-2 text-goal">No games yet</div>
+            <p className="text-ink-dim text-[14px]">
+              This player hasn&apos;t logged any games. Stats will appear here as they take the ice.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="panel overflow-x-auto">
+              <table className="board-table min-w-[680px]">
+                <thead>
+                  <tr>
+                    <th className="text-left pl-5">Season</th>
+                    <th className="text-left">Team</th>
+                    <th className="text-right">GP</th>
+                    {isGoalie ? (
+                      <>
+                        <th className="text-right">GA</th>
+                        <th className="text-right">PSF</th>
+                        <th className="text-right pr-5">PSV</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="text-right">G</th>
+                        <th className="text-right">A</th>
+                        <th className="text-right">PEN</th>
+                        <th className="text-right">PS</th>
+                        <th className="text-right">PSG</th>
+                        <th className="text-right pr-5">PTS</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.season_id}>
+                      <td className="pl-5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-ink">{r.season_name}</span>
+                          {r.isCurrent && (
+                            <span className="chip chip-final text-[9px] px-1.5 py-0.5">CURRENT</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>{r.team ? <TeamBadge {...r.team} size="sm" /> : <span className="text-ink-faint">—</span>}</td>
+                      <td className="text-right tnum text-ink-dim">{r.gp}</td>
+                      {isGoalie ? (
+                        <>
+                          <td className="text-right tnum text-ink-dim">{r.ga ?? "—"}</td>
+                          <td className="text-right tnum text-ink-dim">{r.ps_faced ?? "—"}</td>
+                          <td className="text-right pr-5 tnum text-ink">{r.ps_saved ?? "—"}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="text-right tnum text-ink">{r.goals}</td>
+                          <td className="text-right tnum text-ink-dim">{r.assists}</td>
+                          <td className="text-right tnum text-ink-dim">{r.penalties}</td>
+                          <td className="text-right tnum text-ink-dim">{r.ps_taken}</td>
+                          <td className="text-right tnum text-ink-dim">{r.ps_made}</td>
+                          <td className="text-right pr-5 digit text-lg text-ink">{r.points}</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                  {/* All-time totals */}
+                  <tr className="border-t-2 border-rule-strong bg-board-3/30">
+                    <td className="pl-5">
+                      <span className="font-display tracking-[0.14em] text-goal">ALL-TIME</span>
+                    </td>
+                    <td><span className="text-ink-faint">—</span></td>
+                    <td className="text-right tnum text-ink">{totals.gp}</td>
+                    {isGoalie ? (
+                      <>
+                        <td className="text-right tnum text-ink">{totals.ga}</td>
+                        <td className="text-right tnum text-ink">{totals.ps_faced}</td>
+                        <td className="text-right pr-5 digit text-lg text-ink">{totals.ps_saved}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="text-right tnum text-ink">{totals.goals}</td>
+                        <td className="text-right tnum text-ink">{totals.assists}</td>
+                        <td className="text-right tnum text-ink">{totals.penalties}</td>
+                        <td className="text-right tnum text-ink">{totals.ps_taken}</td>
+                        <td className="text-right tnum text-ink">{totals.ps_made}</td>
+                        <td className="text-right pr-5 digit text-xl text-goal">{totals.points}</td>
+                      </>
+                    )}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
+              {isGoalie
+                ? "GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved."
+                : "PEN = penalties committed. PS = penalty shots taken; PSG = penalty shots scored."}
+            </p>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+

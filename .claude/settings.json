@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(echo *)",
+      "Bash(wc *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git remote*)",
+      "Bash(git fetch*)",
+
+      "Bash(bun install)",
+      "Bash(bun add *)",
+      "Bash(bun remove *)",
+      "Bash(bun run *)",
+      "Bash(bun *)",
+      "Bash(bunx *)",
+
+      "Bash(supabase status*)",
+      "Bash(supabase start*)",
+      "Bash(supabase stop*)",
+      "Bash(supabase db *)",
+      "Bash(supabase gen *)",
+      "Bash(supabase migration *)",
+      "Bash(supabase init*)",
+
+      "Bash(docker ps*)",
+      "Bash(docker info*)",
+      "Bash(docker logs*)",
+      "Bash(docker exec supabase_db_moth-hockey *)",
+
+      "Bash(curl -s *http://localhost:*)",
+      "Bash(curl -s *http://127.0.0.1:*)",
+      "Bash(lsof -ti:*)",
+      "Bash(lsof -i :*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(supabase db reset --linked*)",
+      "Bash(docker rm *)",
+      "Bash(docker volume rm *)"
+    ]
+  }
+}

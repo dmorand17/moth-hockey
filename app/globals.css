@@ -1,26 +1,236 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #f4f6f8;
+  --ink-dim: #b3b9c4;
+  --ink-faint: #6b7280;
+
+  --board: #0b0d10;
+  --board-2: #13161b;
+  --board-3: #1a1e25;
+  --rule: #262b34;
+  --rule-strong: #3a4150;
+
+  --ice: #7ce3f0;
+  --goal: #ff3838;
+  --goal-glow: #ff5757;
+  --neutral: #f4f6f8;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--board);
+  --color-board: var(--board);
+  --color-board-2: var(--board-2);
+  --color-board-3: var(--board-3);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-foreground: var(--ink);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
+  --color-ice: var(--ice);
+  --color-goal: var(--goal);
+  --color-goal-glow: var(--goal-glow);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-bebas);
+  --font-mono: var(--font-jetbrains);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--board);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 50% -200px, rgba(124, 227, 240, 0.06), transparent 70%),
+    radial-gradient(900px 500px at 100% 100%, rgba(255, 56, 56, 0.04), transparent 60%),
+    var(--board);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Subtle ice grain overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.025 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity: 0.7;
+  mix-blend-mode: overlay;
+}
+
+/* Display lockup */
+.font-display {
+  font-family: var(--font-bebas), "Impact", "Helvetica Neue", sans-serif;
+  letter-spacing: 0.02em;
+}
+.font-mono {
+  font-family: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Goal line — red under section headers */
+.goal-line {
+  position: relative;
+}
+.goal-line::after {
+  content: "";
+  display: block;
+  height: 2px;
+  margin-top: 0.65rem;
+  background: linear-gradient(90deg, var(--goal) 0%, var(--goal) 56px, var(--rule) 56px, var(--rule) 100%);
+}
+
+/* Eyebrow tag — small monospace label */
+.eyebrow {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+/* Rink panel — used on cards/tables */
+.panel {
+  background: linear-gradient(180deg, var(--board-2) 0%, color-mix(in srgb, var(--board-2) 92%, var(--board) 8%) 100%);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  position: relative;
+}
+
+.panel-bare {
+  background: var(--board-2);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+/* Scoreboard digit panel */
+.scoreboard {
+  background:
+    linear-gradient(180deg, #07090c 0%, #0b0e13 100%);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.digit {
+  font-family: var(--font-jetbrains), monospace;
+  font-feature-settings: "tnum" 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Period chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 2px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--board-3);
+  border: 1px solid var(--rule);
+  color: var(--ink-dim);
+}
+.chip-live {
+  color: var(--goal);
+  border-color: rgba(255, 56, 56, 0.4);
+  background: rgba(255, 56, 56, 0.08);
+}
+.chip-final {
+  color: var(--ice);
+  border-color: rgba(124, 227, 240, 0.3);
+  background: rgba(124, 227, 240, 0.06);
+}
+
+/* Pulsing red live dot */
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--goal);
+  box-shadow: 0 0 8px var(--goal-glow);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Team color swatch */
+.swatch {
+  position: relative;
+  display: inline-block;
+}
+.swatch::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  pointer-events: none;
+}
+
+/* Generic content prose */
+.prose-rink p { line-height: 1.65; color: var(--ink-dim); }
+.prose-rink h2, .prose-rink h3 { color: var(--ink); }
+
+/* Page transition */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.delay-1 { animation-delay: 60ms; }
+.delay-2 { animation-delay: 120ms; }
+.delay-3 { animation-delay: 180ms; }
+.delay-4 { animation-delay: 240ms; }
+
+/* Scoreboard table styling */
+table.board-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.board-table thead th {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 500;
+  padding: 0.85rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--board-2) 70%, var(--board));
+}
+table.board-table tbody td {
+  padding: 0.85rem 0.6rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+  font-size: 14px;
+}
+table.board-table tbody tr:last-child td { border-bottom: none; }
+table.board-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--board-3) 55%, transparent);
+}
+
+/* Diagonal stripe for inactive/muted UI */
+.stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0,
+    transparent 6px,
+    rgba(255, 255, 255, 0.03) 6px,
+    rgba(255, 255, 255, 0.03) 7px
+  );
 }

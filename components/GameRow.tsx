@@ -1,0 +1,80 @@
+import Link from "next/link";
+import { TeamBadge } from "./TeamBadge";
+import { formatDate, formatTime } from "@/lib/format";
+
+type Team = { name: string; slug: string; color: string };
+
+type Props = {
+  id: string;
+  scheduled_at: string;
+  status: "scheduled" | "live" | "final";
+  home_team: Team;
+  away_team: Team;
+  home_score?: number | null;
+  away_score?: number | null;
+  decided_in?: "regulation" | "ot" | "shootout" | null;
+};
+
+export function GameRow({
+  id,
+  scheduled_at,
+  status,
+  home_team,
+  away_team,
+  home_score,
+  away_score,
+  decided_in,
+}: Props) {
+  const isFinal = status === "final";
+  const isLive = status === "live";
+  const homeWon = isFinal && (home_score ?? 0) > (away_score ?? 0);
+  const awayWon = isFinal && (away_score ?? 0) > (home_score ?? 0);
+
+  return (
+    <Link
+      href={`/games/${id}`}
+      className="block panel hover:border-rule-strong transition-colors p-4 group"
+    >
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="eyebrow flex items-center gap-2">
+          <span>{formatDate(scheduled_at)}</span>
+          {!isFinal && !isLive && (
+            <>
+              <span className="text-rule-strong">·</span>
+              <span className="text-ink-dim">{formatTime(scheduled_at)}</span>
+            </>
+          )}
+        </div>
+        {isLive ? (
+          <span className="chip chip-live">
+            <span className="live-dot" /> LIVE
+          </span>
+        ) : isFinal ? (
+          <span className="chip chip-final">
+            FINAL{decided_in && decided_in !== "regulation" ? `/${decided_in.toUpperCase()}` : ""}
+          </span>
+        ) : (
+          <span className="chip">UPCOMING</span>
+        )}
+      </div>
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <TeamBadge {...away_team} asChild size="md" className={awayWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
+          {isFinal && (
+            <span className={`digit text-2xl ${awayWon ? "text-ink" : "text-ink-faint"}`}>
+              {away_score}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <TeamBadge {...home_team} asChild size="md" className={homeWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
+          {isFinal && (
+            <span className={`digit text-2xl ${homeWon ? "text-ink" : "text-ink-faint"}`}>
+              {home_score}
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}

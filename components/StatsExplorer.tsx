@@ -218,25 +218,19 @@ function FilterBar({
 }) {
   const [open, setOpen] = useState(filterCount > 0);
 
-  const reset = () => {
-    setPosition("all");
-    setKind("all");
-    setTeamId("all");
-  };
-
   return (
     <div className="panel-bare p-3 sm:p-4 flex flex-col gap-4">
-      <div className="flex items-start gap-3 sm:gap-4">
-        <div className="grid grid-cols-2 gap-3 sm:gap-5 flex-1 min-w-0">
-          <LeaderCard label="Goals Leader" leader={goalsLeader} stat={goalsLeader?.goals ?? 0} />
-          <LeaderCard label="Points Leader" leader={pointsLeader} stat={pointsLeader?.points ?? 0} />
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 min-w-0">
+        <LeaderCard label="Goals Leader" leader={goalsLeader} stat={goalsLeader?.goals ?? 0} />
+        <LeaderCard label="Points Leader" leader={pointsLeader} stat={pointsLeader?.points ?? 0} />
+      </div>
+      <div className="flex justify-start">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-controls="stats-filter-panel"
-          className={`shrink-0 px-3 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[36px] transition-colors ${
+          className={`px-3 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[36px] transition-colors ${
             filterCount > 0
               ? "border-rule-strong bg-board-3 text-ink"
               : "border-rule-strong text-ink-dim hover:text-ink"
@@ -249,7 +243,7 @@ function FilterBar({
       {open && (
         <div
           id="stats-filter-panel"
-          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end pt-3 border-t border-rule"
+          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end pt-3 border-t border-rule"
         >
           <SegmentedFilter<PositionFilter>
             label="Position"
@@ -284,15 +278,6 @@ function FilterBar({
               ))}
             </select>
           </div>
-          {filterCount > 0 && (
-            <button
-              type="button"
-              onClick={reset}
-              className="eyebrow hover:text-ink transition-colors whitespace-nowrap self-start sm:self-end pb-1.5"
-            >
-              Reset ({filterCount})
-            </button>
-          )}
         </div>
       )}
     </div>

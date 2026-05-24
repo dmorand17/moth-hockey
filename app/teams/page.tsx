@@ -30,7 +30,7 @@ export default async function TeamsPage() {
         />
       </div>
 
-      <div className="rise delay-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+      <div className="rise delay-1 grid gap-3 md:grid-cols-2">
         {(teams ?? []).map((t, i) => {
           const rec = recordByTeamId.get(t.id);
           return (

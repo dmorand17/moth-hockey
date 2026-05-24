@@ -46,7 +46,7 @@ export function AwardBadge({ type, label, seasons }: Props) {
   }, [open]);
 
   return (
-    <div ref={ref} className="relative inline-block group self-start">
+    <div ref={ref} className="relative inline-block self-start">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -60,10 +60,11 @@ export function AwardBadge({ type, label, seasons }: Props) {
         {count > 1 && <span className="digit text-[12px]">×{count}</span>}
       </button>
 
-      {/* Hover/click popover with seasons */}
+      {/* Click-toggled popover with seasons. Centered + viewport-clamped so
+          badges near the edge of a 360px screen don't clip off-screen. */}
       <div
-        className={`absolute left-0 top-full mt-2 z-20 min-w-[180px] panel p-3 transition-opacity ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+        className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 z-20 min-w-[180px] max-w-[calc(100vw-32px)] panel p-3 transition-opacity ${
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         role="dialog"
       >

@@ -24,7 +24,7 @@ const sections = [
 
 export default function AboutPage() {
   return (
-    <div className="space-y-10">
+    <div className="space-y-5 sm:space-y-8">
       <div className="rise">
         <SectionHeader
           eyebrow="The Beer League"
@@ -39,7 +39,7 @@ export default function AboutPage() {
           <Link
             key={s.href}
             href={s.href}
-            className="panel p-6 hover:border-rule-strong transition-colors group"
+            className="panel p-5 sm:p-6 hover:border-rule-strong transition-colors group"
           >
             <div className="eyebrow text-goal">{s.eyebrow}</div>
             <h3 className="font-display text-[28px] tracking-[0.04em] leading-tight mt-2">

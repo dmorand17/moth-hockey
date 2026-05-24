@@ -17,51 +17,57 @@ export default async function Home() {
   const totalGoals = standings.reduce((s, r) => s + r.gf, 0);
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6 sm:space-y-10">
       {/* HERO SCOREBOARD */}
       <section className="rise relative">
-        <div className="grid md:grid-cols-[1.4fr_1fr] gap-5">
-          <div className="panel p-6 md:p-8 relative overflow-hidden">
+        <div className="grid md:grid-cols-[1.4fr_1fr] gap-3 md:gap-5">
+          <div className="panel p-4 sm:p-6 md:p-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-goal/[0.06] rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-ice/[0.04] rounded-full blur-3xl pointer-events-none" />
             <div className="relative">
-              <div className="eyebrow flex items-center gap-3 mb-4">
+              <div className="eyebrow flex items-center gap-3 mb-2 sm:mb-4">
                 <span className="inline-block w-8 h-px bg-goal" />
                 <span>Season in progress</span>
               </div>
-              <h1 className="font-display text-[56px] md:text-[88px] leading-[0.92] tracking-[0.02em] text-ink">
+              <h1 className="font-display text-[36px] sm:text-[56px] md:text-[88px] leading-[0.92] tracking-[0.02em] text-ink">
                 SPRING<br />
                 <span className="text-goal">2026</span>
               </h1>
-              <p className="mt-4 max-w-md text-ink-dim text-[15px] leading-relaxed">
+              <p className="mt-3 sm:mt-4 max-w-md text-ink-dim text-[13.5px] sm:text-[15px] leading-relaxed">
                 Mostly Over The Hill hockey — beer-league stats, scoreboard-style.
                 Penalty shots, no power plays, plenty of trash talk.
               </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Link href="/standings" className="px-4 py-2.5 bg-goal text-board font-display tracking-[0.14em] text-[14px] hover:bg-goal-glow transition-colors">
+              <div className="mt-4 sm:mt-6 flex flex-wrap gap-2">
+                <Link
+                  href="/standings"
+                  className="inline-flex items-center min-h-[44px] px-4 bg-goal text-board font-display tracking-[0.14em] text-[14px] hover:bg-goal-glow transition-colors"
+                >
                   STANDINGS →
                 </Link>
-                <Link href="/schedule" className="px-4 py-2.5 border border-rule-strong text-ink font-display tracking-[0.14em] text-[14px] hover:bg-board-3 transition-colors">
+                <Link
+                  href="/schedule"
+                  className="inline-flex items-center min-h-[44px] px-4 border border-rule-strong text-ink font-display tracking-[0.14em] text-[14px] hover:bg-board-3 transition-colors"
+                >
                   SCHEDULE
                 </Link>
               </div>
             </div>
           </div>
 
-          {/* Mini scoreboard stats */}
-          <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
-            <StatTile label="Games played" value={String(totalGames)} accent="ice" />
-            <StatTile label="Goals scored" value={String(totalGoals)} accent="goal" />
+          {/* Mini scoreboard stats — leader first on mobile (more interesting) */}
+          <div className="grid grid-cols-2 md:grid-cols-1 gap-2 md:gap-3">
             {leader && (
-              <div className="scoreboard p-5 col-span-2 md:col-span-1">
-                <div className="eyebrow mb-2">Atop the table</div>
+              <div className="scoreboard p-3 sm:p-5 col-span-2 md:col-span-1 order-first md:order-last">
+                <div className="eyebrow mb-1.5 sm:mb-2">Atop the table</div>
                 <TeamBadge {...leader} size="lg" />
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="digit text-3xl text-ink">{leader.pts}</span>
+                <div className="mt-2 sm:mt-3 flex items-baseline gap-2">
+                  <span className="digit text-2xl sm:text-3xl text-ink">{leader.pts}</span>
                   <span className="eyebrow">PTS · {leader.w}-{leader.l}-{leader.otl}</span>
                 </div>
               </div>
             )}
+            <StatTile label="Games played" value={String(totalGames)} accent="ice" />
+            <StatTile label="Goals scored" value={String(totalGoals)} accent="goal" />
           </div>
         </div>
       </section>
@@ -76,6 +82,7 @@ export default async function Home() {
                 <th className="text-left w-10 pl-5">#</th>
                 <th className="text-left">Team</th>
                 <th className="text-right">GP</th>
+                <th className="text-right sm:hidden">REC</th>
                 <th className="text-right hidden sm:table-cell">W</th>
                 <th className="text-right hidden sm:table-cell">L</th>
                 <th className="text-right hidden sm:table-cell">OTL</th>
@@ -90,6 +97,9 @@ export default async function Home() {
                   <td className="pl-5 digit text-ink-faint">{String(i + 1).padStart(2, "0")}</td>
                   <td><TeamBadge name={row.name} slug={row.slug} color={row.color} /></td>
                   <td className="text-right tnum text-ink-dim">{row.gp}</td>
+                  <td className="text-right tnum text-ink-dim sm:hidden whitespace-nowrap">
+                    {row.w}-{row.l}-{row.otl}
+                  </td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.w}</td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.l}</td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.otl}</td>
@@ -153,9 +163,9 @@ export default async function Home() {
 
 function StatTile({ label, value, accent }: { label: string; value: string; accent: "ice" | "goal" }) {
   return (
-    <div className="scoreboard p-5 flex flex-col justify-between min-h-[120px]">
+    <div className="scoreboard p-3 sm:p-5 flex flex-col justify-between min-h-[88px] sm:min-h-[120px]">
       <div className="eyebrow">{label}</div>
-      <div className={`digit text-4xl md:text-5xl mt-3 ${accent === "goal" ? "text-goal" : "text-ice"}`}>
+      <div className={`digit text-3xl sm:text-4xl md:text-5xl mt-2 sm:mt-3 ${accent === "goal" ? "text-goal" : "text-ice"}`}>
         {value}
       </div>
     </div>

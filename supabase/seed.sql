@@ -115,41 +115,41 @@ insert into team_players (team_id, player_id, season_id, jersey_number, position
   ('10000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000409', '00000000-0000-0000-0000-000000000001', 33, 'goalie');
 
 -- ---------- games ----------
--- Two completed: regulation, OT
--- One completed: shootout
+-- Two completed regular-season games (regulation + OT)
+-- One completed playoff game (shootout)
 -- Two scheduled (future)
 insert into games (id, season_id, home_team_id, away_team_id, scheduled_at, location, status,
                    home_score, away_score, period, clock_seconds, decided_in,
-                   shootout_home_goals, shootout_away_goals) values
+                   shootout_home_goals, shootout_away_goals, kind) values
   -- Game 1: Ice Holes 3, Puck Dynasty 2 (regulation)
   ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001',
    '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002',
    '2026-03-15 19:30:00-04', 'Rink 1', 'final',
-   3, 2, 3, 0, 'regulation', null, null),
+   3, 2, 3, 0, 'regulation', null, null, 'regular'),
 
   -- Game 2: Slap Happy 4, Net Results 3 (OT)
   ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001',
    '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000004',
    '2026-03-22 20:00:00-04', 'Rink 1', 'final',
-   4, 3, 4, 0, 'ot', null, null),
+   4, 3, 4, 0, 'ot', null, null, 'regular'),
 
-  -- Game 3: Ice Holes 3, Slap Happy 2 (shootout — Ice Holes win)
+  -- Game 3: Ice Holes 3, Slap Happy 2 (shootout — playoff)
   ('30000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001',
    '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003',
    '2026-04-05 19:30:00-04', 'Rink 2', 'final',
-   3, 2, 5, 0, 'shootout', 2, 1),
+   3, 2, 5, 0, 'shootout', 2, 1, 'playoff'),
 
   -- Game 4: scheduled
   ('30000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001',
    '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000004',
    '2026-05-28 20:00:00-04', 'Rink 1', 'scheduled',
-   0, 0, 1, 1020, null, null, null),
+   0, 0, 1, 1020, null, null, null, 'regular'),
 
   -- Game 5: scheduled
   ('30000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001',
    '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001',
    '2026-06-04 19:30:00-04', 'Rink 2', 'scheduled',
-   0, 0, 1, 1020, null, null, null);
+   0, 0, 1, 1020, null, null, null, 'regular');
 
 -- ---------- game_appearances ----------
 -- Game 1 (Ice Holes vs Puck Dynasty) — full rosters played, no subs

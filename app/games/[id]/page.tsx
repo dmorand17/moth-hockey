@@ -59,17 +59,17 @@ export default async function GamePage({
   const awayWon = isFinal && game.away_score > game.home_score;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-5 sm:space-y-8">
       <Link href="/schedule" className="rise eyebrow hover:text-ink transition-colors inline-block">
         ← Schedule
       </Link>
 
       {/* SCOREBOARD */}
-      <section className="rise scoreboard p-6 md:p-10 relative overflow-hidden">
+      <section className="rise scoreboard p-4 sm:p-6 md:p-10 relative overflow-hidden">
         <div className="absolute inset-0 stripes opacity-40 pointer-events-none" />
         <div className="relative">
           {/* Status row */}
-          <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
             <div className="eyebrow flex items-center gap-2 flex-wrap">
               <span>{formatDate(game.scheduled_at)}</span>
               <span className="text-rule-strong">·</span>
@@ -94,12 +94,14 @@ export default async function GamePage({
             )}
           </div>
 
-          {/* Teams + scores grid */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 md:gap-8">
+          {/* Teams + scores — vertical stack on mobile, three-column on md+ */}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-5 md:gap-8">
             <TeamColumn team={awayTeam} score={game.away_score} won={awayWon} dimmed={isFinal && !awayWon} align="left" />
-            <div className="flex flex-col items-center">
-              <div className="font-display text-[24px] tracking-[0.18em] text-ink-faint">VS</div>
-              <div className="mt-2 h-px w-12 bg-rule-strong" />
+            <div className="flex md:flex-col items-center justify-center md:justify-start gap-3 md:gap-0">
+              <div className="h-px flex-1 md:hidden bg-rule-strong" />
+              <div className="font-display text-[18px] md:text-[24px] tracking-[0.18em] text-ink-faint">VS</div>
+              <div className="h-px flex-1 md:hidden bg-rule-strong" />
+              <div className="mt-2 hidden md:block h-px w-12 bg-rule-strong" />
             </div>
             <TeamColumn team={homeTeam} score={game.home_score} won={homeWon} dimmed={isFinal && !homeWon} align="right" />
           </div>
@@ -133,10 +135,8 @@ export default async function GamePage({
               return (
                 <li
                   key={e.id}
-                  className={`panel p-4 grid grid-cols-[auto_1fr] md:grid-cols-[auto_72px_1fr_auto] gap-x-4 gap-y-1 items-start ${
-                    isGoal ? "border-l-2" : ""
-                  }`}
-                  style={isGoal ? { borderLeftColor: team.color } : undefined}
+                  className={`panel p-4 grid grid-cols-[auto_1fr] md:grid-cols-[auto_72px_1fr_auto] gap-x-4 gap-y-1 items-start border-l-[3px] md:border-l-2`}
+                  style={{ borderLeftColor: team.color, borderLeftStyle: "solid" }}
                 >
                   {/* Index */}
                   <div className="digit text-ink-faint text-sm">
@@ -170,6 +170,9 @@ export default async function GamePage({
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                         </div>
+                        <div className="md:hidden eyebrow text-[10px] mt-0.5" style={{ color: team.color }}>
+                          {team.name}
+                        </div>
                         {(e.assist1 || e.assist2) && (
                           <div className="text-[13px] text-ink-dim mt-0.5">
                             <span className="eyebrow text-[10px] mr-2">A</span>
@@ -188,6 +191,9 @@ export default async function GamePage({
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                           <span className="text-ink-dim"> · {e.penalty_type}</span>
+                        </div>
+                        <div className="md:hidden eyebrow text-[10px] mt-0.5" style={{ color: team.color }}>
+                          {team.name}
                         </div>
                         {e.shooter && (
                           <div className="mt-2 text-[13px] flex items-center gap-2 flex-wrap">
@@ -239,26 +245,33 @@ function TeamColumn({
   dimmed: boolean;
   align: "left" | "right";
 }) {
+  // Mobile: badge | score on one row. md+: stacked column with align controlling
+  // text alignment so home is right-aligned, away is left-aligned.
+  const colAlign =
+    align === "right"
+      ? "md:flex-col md:items-end md:text-right"
+      : "md:flex-col md:items-start md:text-left";
+  const eyebrowAlign = align === "right" ? "md:text-right" : "md:text-left";
   return (
-    <div className={`flex flex-col ${align === "right" ? "items-end text-right" : "items-start text-left"}`}>
-      <Link href={`/teams/${team.slug}`} className="group">
-        <div className={`eyebrow ${align === "right" ? "text-right" : ""}`}>
+    <div className={`flex items-center justify-between gap-4 ${colAlign}`}>
+      <Link href={`/teams/${team.slug}`} className="group min-w-0 flex-1 md:flex-initial">
+        <div className={`eyebrow ${eyebrowAlign}`}>
           {align === "left" ? "Away" : "Home"}
         </div>
         <div
-          className={`mt-2 font-display text-[28px] md:text-[44px] leading-[0.95] tracking-[0.04em] ${
+          className={`mt-2 font-display text-[24px] sm:text-[28px] md:text-[44px] leading-[0.95] tracking-[0.04em] ${
             dimmed ? "text-ink-dim" : "text-ink"
           } group-hover:text-ice transition-colors`}
         >
           {team.name.toUpperCase()}
         </div>
         <div
-          className={`mt-2 h-1 w-12 ${align === "right" ? "ml-auto" : ""}`}
+          className={`mt-2 h-1 w-12 ${align === "right" ? "md:ml-auto" : ""}`}
           style={{ background: team.color, boxShadow: `0 0 12px ${team.color}77` }}
         />
       </Link>
       <div
-        className={`digit text-[88px] md:text-[140px] leading-none mt-3 ${
+        className={`digit text-[72px] md:text-[140px] leading-none md:mt-3 shrink-0 ${
           won ? "text-ink" : dimmed ? "text-ink-faint" : "text-ink"
         }`}
         style={won ? { textShadow: `0 0 24px ${team.color}66` } : undefined}

@@ -47,7 +47,6 @@ body {
     radial-gradient(1200px 600px at 50% -200px, rgba(124, 227, 240, 0.06), transparent 70%),
     radial-gradient(900px 500px at 100% 100%, rgba(255, 56, 56, 0.04), transparent 60%),
     var(--board);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -75,6 +74,12 @@ body::before {
 }
 .tnum { font-variant-numeric: tabular-nums; }
 
+/* Minimum tap target — 44×44 per WCAG 2.5.5 */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* Goal line — red under section headers */
 .goal-line {
   position: relative;
@@ -83,7 +88,7 @@ body::before {
   content: "";
   display: block;
   height: 2px;
-  margin-top: 0.65rem;
+  margin-top: 0.5rem;
   background: linear-gradient(90deg, var(--goal) 0%, var(--goal) 56px, var(--rule) 56px, var(--rule) 100%);
 }
 
@@ -198,6 +203,11 @@ body::before {
 .delay-3 { animation-delay: 180ms; }
 .delay-4 { animation-delay: 240ms; }
 
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+  .live-dot { animation: none; }
+}
+
 /* Scoreboard table styling */
 table.board-table {
   width: 100%;
@@ -210,14 +220,14 @@ table.board-table thead th {
   text-transform: uppercase;
   color: var(--ink-faint);
   font-weight: 500;
-  padding: 0.85rem 0.6rem;
+  padding: 0.6rem 0.5rem;
   border-bottom: 1px solid var(--rule);
   background: color-mix(in srgb, var(--board-2) 70%, var(--board));
 }
 table.board-table tbody td {
-  padding: 0.85rem 0.6rem;
+  padding: 0.55rem 0.5rem;
   border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 table.board-table tbody tr:last-child td { border-bottom: none; }
 table.board-table tbody tr:hover td {

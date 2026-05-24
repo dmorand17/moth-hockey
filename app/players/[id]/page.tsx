@@ -229,14 +229,14 @@ export default async function PlayerPage({
   const teamColor = currentRoster?.team?.color ?? "#6b7280";
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-5 sm:space-y-8">
       <Link href="/teams" className="rise eyebrow hover:text-ink transition-colors inline-block">
         ← Teams
       </Link>
 
       {/* Hero */}
       <section
-        className="rise panel p-6 md:p-10 relative"
+        className="rise panel p-4 sm:p-6 md:p-10 relative"
         style={{
           background: `linear-gradient(135deg, ${teamColor}1f 0%, transparent 60%), var(--board-2)`,
         }}
@@ -246,30 +246,30 @@ export default async function PlayerPage({
           className="absolute inset-y-0 left-0 w-1.5"
           style={{ background: teamColor, boxShadow: `0 0 30px ${teamColor}99` }}
         />
-        <div className="flex items-center gap-5 md:gap-8">
-          <div className="relative h-24 w-24 md:h-32 md:w-32 shrink-0 scoreboard flex flex-col items-center justify-center">
+        <div className="flex items-start gap-4 md:items-center md:gap-8">
+          <div className="relative h-16 w-16 sm:h-24 sm:w-24 md:h-32 md:w-32 shrink-0 scoreboard flex flex-col items-center justify-center">
             {currentRoster?.jersey_number ? (
               <>
                 <div className="eyebrow text-[9px]">No.</div>
-                <div className="digit text-[44px] md:text-[60px] leading-none mt-1" style={{ color: teamColor, textShadow: `0 0 16px ${teamColor}99` }}>
+                <div className="digit text-[32px] sm:text-[44px] md:text-[60px] leading-none mt-0.5 sm:mt-1" style={{ color: teamColor, textShadow: `0 0 16px ${teamColor}99` }}>
                   {currentRoster.jersey_number}
                 </div>
               </>
             ) : (
-              <div className="font-display text-[42px] md:text-[58px]" style={{ color: teamColor }}>
+              <div className="font-display text-[28px] sm:text-[42px] md:text-[58px]" style={{ color: teamColor }}>
                 {initials(player.first_name, player.last_name)}
               </div>
             )}
           </div>
           <div className="min-w-0">
             <div className="eyebrow text-goal">{isGoalie ? "Goalie" : "Skater"}</div>
-            <h1 className="font-display text-[36px] md:text-[64px] leading-[0.92] tracking-[0.04em] mt-1">
+            <h1 className="font-display text-[26px] sm:text-[36px] md:text-[64px] leading-[0.92] tracking-[0.04em] mt-1">
               <span className="text-ink-dim">{player.first_name.toUpperCase()}</span>
               <br />
               {player.last_name.toUpperCase()}
             </h1>
             {currentRoster?.team && (
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-3 flex flex-col items-start gap-1.5 md:flex-row md:items-center md:gap-3">
                 <TeamBadge {...currentRoster.team} />
                 <span className="eyebrow">{currentRoster.position}</span>
               </div>
@@ -302,8 +302,83 @@ export default async function PlayerPage({
           </div>
         ) : (
           <>
-            <div className="panel overflow-x-auto">
-              <table className="board-table min-w-[680px]">
+            {/* Mobile: stacked cards, one per season + an all-time card */}
+            <div className="space-y-3 sm:hidden">
+              {rows.map((r) => (
+                <div key={r.season_id} className="panel p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-ink font-medium">{r.season_name}</span>
+                        {r.isCurrent && (
+                          <span className="chip chip-final text-[9px] px-1.5 py-0.5">CURRENT</span>
+                        )}
+                      </div>
+                      <div className="mt-1.5">
+                        {r.team ? <TeamBadge {...r.team} size="sm" /> : <span className="text-ink-faint text-[13px]">—</span>}
+                      </div>
+                    </div>
+                    {!isGoalie && (
+                      <div className="text-right shrink-0">
+                        <div className="digit text-2xl text-ink">{r.points}</div>
+                        <div className="eyebrow">PTS</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-rule grid grid-cols-3 gap-3 text-[13px]">
+                    <CardStat label="GP" value={r.gp} />
+                    {isGoalie ? (
+                      <>
+                        <CardStat label="GA" value={r.ga ?? "—"} />
+                        <CardStat label="PSV" value={r.ps_saved ?? "—"} accent="text-ink" />
+                        <CardStat label="PSF" value={r.ps_faced ?? "—"} />
+                      </>
+                    ) : (
+                      <>
+                        <CardStat label="G" value={r.goals} accent="text-ink" />
+                        <CardStat label="A" value={r.assists} />
+                        <CardStat label="PEN" value={r.penalties} />
+                        <CardStat label="PS" value={r.ps_taken} />
+                        <CardStat label="PSG" value={r.ps_made} />
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {/* All-time card */}
+              <div className="panel p-4 border-t-2 border-rule-strong bg-board-3/30">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="font-display tracking-[0.14em] text-goal">ALL-TIME</span>
+                  {!isGoalie && (
+                    <div className="text-right shrink-0">
+                      <div className="digit text-2xl text-goal">{totals.points}</div>
+                      <div className="eyebrow">PTS</div>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 pt-3 border-t border-rule grid grid-cols-3 gap-3 text-[13px]">
+                  <CardStat label="GP" value={totals.gp} accent="text-ink" />
+                  {isGoalie ? (
+                    <>
+                      <CardStat label="GA" value={totals.ga} accent="text-ink" />
+                      <CardStat label="PSV" value={totals.ps_saved} accent="text-ink" />
+                      <CardStat label="PSF" value={totals.ps_faced} accent="text-ink" />
+                    </>
+                  ) : (
+                    <>
+                      <CardStat label="G" value={totals.goals} accent="text-ink" />
+                      <CardStat label="A" value={totals.assists} accent="text-ink" />
+                      <CardStat label="PEN" value={totals.penalties} accent="text-ink" />
+                      <CardStat label="PS" value={totals.ps_taken} accent="text-ink" />
+                      <CardStat label="PSG" value={totals.ps_made} accent="text-ink" />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="panel hidden sm:block overflow-x-auto">
+              <table className="board-table">
                 <thead>
                   <tr>
                     <th className="text-left pl-5">Season</th>
@@ -393,6 +468,23 @@ export default async function PlayerPage({
           </>
         )}
       </section>
+    </div>
+  );
+}
+
+function CardStat({
+  label,
+  value,
+  accent = "text-ink-dim",
+}: {
+  label: string;
+  value: number | string;
+  accent?: string;
+}) {
+  return (
+    <div>
+      <div className="eyebrow text-[10px]">{label}</div>
+      <div className={`digit text-[18px] tnum mt-0.5 ${accent}`}>{value}</div>
     </div>
   );
 }

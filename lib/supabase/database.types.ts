@@ -253,6 +253,7 @@ export type Database = {
           home_score: number
           home_team_id: string
           id: string
+          kind: Database["public"]["Enums"]["game_kind"]
           location: string | null
           period: number
           scheduled_at: string
@@ -271,6 +272,7 @@ export type Database = {
           home_score?: number
           home_team_id: string
           id?: string
+          kind?: Database["public"]["Enums"]["game_kind"]
           location?: string | null
           period?: number
           scheduled_at: string
@@ -289,6 +291,7 @@ export type Database = {
           home_score?: number
           home_team_id?: string
           id?: string
+          kind?: Database["public"]["Enums"]["game_kind"]
           location?: string | null
           period?: number
           scheduled_at?: string
@@ -371,6 +374,7 @@ export type Database = {
           id: string
           last_name: string
           photo_url: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -378,6 +382,7 @@ export type Database = {
           id?: string
           last_name: string
           photo_url?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -385,6 +390,7 @@ export type Database = {
           id?: string
           last_name?: string
           photo_url?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -491,6 +497,42 @@ export type Database = {
         }
         Relationships: []
       }
+      team_captains: {
+        Row: {
+          created_at: string
+          season_id: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          season_id: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          season_id?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_captains_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_captains_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_players: {
         Row: {
           jersey_number: number | null
@@ -575,6 +617,33 @@ export type Database = {
           },
         ]
       }
+      user_profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -603,18 +672,20 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       is_admin: { Args: never; Returns: boolean }
-      is_scorer_or_admin: { Args: never; Returns: boolean }
+      is_scorekeeper_or_admin: { Args: never; Returns: boolean }
+      is_team_captain_or_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       account_request_status: "pending" | "approved" | "denied"
       content_section: "rules" | "faq" | "league"
       game_decided_in: "regulation" | "ot" | "shootout"
       game_event_type: "goal" | "penalty"
+      game_kind: "regular" | "playoff"
       game_status: "scheduled" | "live" | "final"
       penalty_shot_result: "goal" | "saved"
       player_position: "forward" | "defense" | "goalie"
       season_type: "spring" | "fall" | "winter"
-      user_role: "admin" | "scorer"
+      user_role: "admin" | "scorekeeper" | "team_captain" | "player"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -749,11 +820,12 @@ export const Constants = {
       content_section: ["rules", "faq", "league"],
       game_decided_in: ["regulation", "ot", "shootout"],
       game_event_type: ["goal", "penalty"],
+      game_kind: ["regular", "playoff"],
       game_status: ["scheduled", "live", "final"],
       penalty_shot_result: ["goal", "saved"],
       player_position: ["forward", "defense", "goalie"],
       season_type: ["spring", "fall", "winter"],
-      user_role: ["admin", "scorer"],
+      user_role: ["admin", "scorekeeper", "team_captain", "player"],
     },
   },
 } as const

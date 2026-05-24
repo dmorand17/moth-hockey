@@ -230,7 +230,7 @@ function FilterBar({
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-controls="stats-filter-panel"
-          className={`px-3 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[36px] transition-colors ${
+          className={`px-3 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[44px] transition-colors ${
             filterCount > 0
               ? "border-rule-strong bg-board-3 text-ink"
               : "border-rule-strong text-ink-dim hover:text-ink"
@@ -270,7 +270,7 @@ function FilterBar({
             <select
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
-              className="bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[36px]"
+              className="bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[44px]"
             >
               <option value="all">All teams</option>
               {teams.map((t) => (
@@ -302,7 +302,7 @@ function LeaderCard({
           <div className="min-w-0 flex flex-col gap-0.5">
             <Link
               href={`/players/${leader.id}`}
-              className="truncate text-[14px] sm:text-[15px] text-ink hover:text-ice transition-colors"
+              className="inline-flex items-center min-h-11 truncate text-[14px] sm:text-[15px] text-ink hover:text-ice transition-colors"
             >
               {leader.name}
             </Link>
@@ -347,7 +347,7 @@ function SegmentedFilter<T extends string>({
               key={o.value}
               type="button"
               onClick={handleClick}
-              className={`px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[36px] ${
+              className={`px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[44px] ${
                 active ? "bg-board-3 text-ink" : "text-ink-dim hover:text-ink"
               } ${i > 0 ? "border-l border-rule" : ""}`}
               aria-pressed={active}

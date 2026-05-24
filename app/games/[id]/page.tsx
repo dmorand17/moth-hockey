@@ -60,7 +60,7 @@ export default async function GamePage({
 
   return (
     <div className="space-y-5 sm:space-y-8">
-      <Link href="/schedule" className="rise eyebrow hover:text-ink transition-colors inline-block">
+      <Link href="/schedule" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
         ← Schedule
       </Link>
 
@@ -166,7 +166,7 @@ export default async function GamePage({
                     {isGoal && e.scorer && (
                       <>
                         <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
+                          <Link href={`/players/${e.scorer.id}`} className="inline-flex items-center min-h-11 font-medium hover:text-ice transition-colors">
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                         </div>
@@ -187,7 +187,7 @@ export default async function GamePage({
                     {!isGoal && e.scorer && (
                       <>
                         <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
+                          <Link href={`/players/${e.scorer.id}`} className="inline-flex items-center min-h-11 font-medium hover:text-ice transition-colors">
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                           <span className="text-ink-dim"> · {e.penalty_type}</span>
@@ -198,7 +198,7 @@ export default async function GamePage({
                         {e.shooter && (
                           <div className="mt-2 text-[13px] flex items-center gap-2 flex-wrap">
                             <span className="eyebrow text-[10px]">PS</span>
-                            <Link href={`/players/${e.shooter.id}`} className="hover:text-ink-dim transition-colors text-ink-dim">
+                            <Link href={`/players/${e.shooter.id}`} className="inline-flex items-center min-h-11 hover:text-ink-dim transition-colors text-ink-dim">
                               {e.shooter.first_name} {e.shooter.last_name}
                             </Link>
                             <span

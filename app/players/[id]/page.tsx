@@ -236,7 +236,7 @@ export default async function PlayerPage({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <Link href="/teams" className="rise eyebrow hover:text-ink transition-colors inline-block">
+      <Link href="/teams" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
         ← Teams
       </Link>
 

@@ -325,7 +325,7 @@ function MobileSortControls<K extends string>({
           const next = options.find((o) => o.key === e.target.value);
           if (next) onChange(next.key, next.defaultDir);
         }}
-        className="bg-board-2 border border-rule-strong text-ink text-[12px] font-mono uppercase tracking-[0.12em] px-2 py-1 rounded-[2px] flex-1 min-w-0"
+        className="bg-board-2 border border-rule-strong text-ink text-[12px] font-mono uppercase tracking-[0.12em] px-2 py-1 rounded-[2px] flex-1 min-w-0 min-h-11"
       >
         {options.map((o) => (
           <option key={o.key} value={o.key}>{o.label}</option>
@@ -337,7 +337,7 @@ function MobileSortControls<K extends string>({
           const cur = options.find((o) => o.key === value);
           if (cur) onChange(value, dir === "desc" ? "asc" : "desc");
         }}
-        className="px-2 py-1 border border-rule-strong text-[12px] font-mono uppercase text-ink-dim hover:text-ink transition-colors"
+        className="min-w-11 min-h-11 px-2 py-1 border border-rule-strong text-[12px] font-mono uppercase text-ink-dim hover:text-ink transition-colors"
         aria-label={`Sort ${dir === "desc" ? "descending" : "ascending"}`}
       >
         {dir === "desc" ? "↓" : "↑"}

@@ -69,7 +69,7 @@ export default async function TeamPage({
           className="absolute inset-y-0 left-0 w-1.5"
           style={{ background: team.color, boxShadow: `0 0 30px ${team.color}99` }}
         />
-        <Link href="/teams" className="eyebrow hover:text-ink transition-colors">
+        <Link href="/teams" className="eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
           ← All teams
         </Link>
         <div className="mt-3 sm:mt-4 flex items-center gap-3 sm:gap-5">

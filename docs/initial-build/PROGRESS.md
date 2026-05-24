@@ -2,7 +2,7 @@
 
 Living checklist. Update as work ships. See `PLAN.md` for full scope/decisions.
 
-Last updated: 2026-05-22
+Last updated: 2026-05-24
 
 ---
 
@@ -27,7 +27,9 @@ Last updated: 2026-05-22
 - [x] `/players/[id]` — career table per season + ALL-TIME totals + interactive award badges
 - [x] `/stats` — league leaders (points, goals, assists, penalties, goalies)
 - [x] `/about` hub + `/about/{rules,faq,league}` content pages
-- [x] Mobile responsive (verified at 390px viewport)
+- [x] Mobile responsive — verified at 360px (no horizontal scroll on any route)
+- [x] Tap targets ≥44×44px — back links, in-row name links, stats filter controls all bumped to `min-h-11`
+- [x] Lighthouse mobile audit on `/`, `/standings`, `/games/[id]` — all 100/100/100/100
 - [x] No hydration errors
 
 ### 3. Admin CRUD ⬜ NEXT

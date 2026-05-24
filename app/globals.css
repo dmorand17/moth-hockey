@@ -218,7 +218,7 @@ table.board-table thead th {
   font-size: 10.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  color: var(--ink-dim);
   font-weight: 500;
   padding: 0.6rem 0.5rem;
   border-bottom: 1px solid var(--rule);

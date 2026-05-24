@@ -28,7 +28,7 @@ export default async function AboutSectionPage({
 
   return (
     <div className="space-y-8">
-      <Link href="/about" className="rise eyebrow hover:text-ink transition-colors inline-block">
+      <Link href="/about" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
         ← About
       </Link>
       <div className="rise delay-1">

@@ -2,9 +2,25 @@
 
 **League name:** M.O.T.H Hockey ("Mostly Over The Hill" hockey). Header should display "M.O.T.H Hockey" with the expansion as a tagline/subtitle.
 
-**Visual style:** dark theme with hockey-rink vibe — dark background, high-contrast text, accent colors per team. Designed to read well on phones at the rink. Tailwind v4 default dark palette + per-team accent from `teams.color`.
+---
 
-**Mobile-first.** The vast majority of users access this site from a phone — at the rink, on the bench, between shifts. Every page must be designed and verified at mobile viewports first; desktop is the secondary view. Practically that means:
+## Design
+
+### Visual style
+
+Dark theme with hockey-rink vibe — dark background, high-contrast text, accent colors per team. Designed to read well on phones at the rink. Tailwind v4 default dark palette + per-team accent from `teams.color`.
+
+**Typography:** Bebas Neue for display/headers (scoreboard feel), Inter for body, JetBrains Mono for numeric/stat columns.
+
+**Footer/branding:** Footer reads "Powered by the Milkman"; tagline reads "EST. PRE-COVID".
+
+### Team colors
+
+Placeholder distinct colors auto-assigned at seed time (e.g. red, blue, green, yellow, purple, orange, teal, pink). Admin can override per team in the UI later.
+
+### Mobile-first
+
+The vast majority of users access this site from a phone — at the rink, on the bench, between shifts. Every page must be designed and verified at mobile viewports first; desktop is the secondary view. Practically that means:
 
 - **Design at 360–390px width first.** Don't add a desktop layout until the mobile layout works.
 - **Tailwind utilities default to mobile.** Use `sm:` / `md:` / `lg:` breakpoints to *progressively enhance* — never to fix something that's broken on mobile.
@@ -14,12 +30,14 @@
 - **Sticky headers/footers used sparingly** — they eat phone real estate. Reserve for the scorekeeper clock and similar tools-of-the-moment.
 - **Verify in a real mobile browser** (or DevTools mobile emulation) before merging UI changes — not just by resizing the desktop window.
 
-**Team colors:** placeholder distinct colors auto-assigned at seed time (e.g. red, blue, green, yellow, purple, orange, teal, pink). Admin can override per team in the UI later.
+---
 
+## Infrastructure
 
-Stack: **Next.js 16 (App Router) + Tailwind v4 + Supabase (Postgres / Auth / Realtime)**. Cloudflare R2 added in Phase 2 for photos.
-Hosting: **Vercel Hobby (free) + Supabase Free** (+ Cloudflare R2 free tier in Phase 2)
-Cost target: **$0/mo** (custom domain ~$10/year is the only spend)
+- **Stack:** Next.js 16 (App Router) + Tailwind v4 + Supabase (Postgres / Auth / Realtime). Cloudflare R2 added in Phase 2 for photos.
+- **Hosting:** Vercel Hobby (free) + Supabase Free (+ Cloudflare R2 free tier in Phase 2).
+- **Cost target:** $0/mo (custom domain ~$10/year is the only spend).
+- **Domain:** using the free `*.vercel.app` subdomain at launch. Custom domain deferred.
 
 ---
 
@@ -74,6 +92,10 @@ team_players     (team_id, player_id, season_id, jersey_number, position)
                   -- position: forward | defense | goalie
                   -- a player can be on different teams in different seasons
 
+user_roles       (user_id, role)
+                  -- role: admin | scorer
+                  -- maps Supabase auth users to app roles for RLS policies
+
 games            (id, season_id, home_team_id, away_team_id,
                   scheduled_at, location, status,        -- scheduled|live|final
                   home_score, away_score, period, clock_seconds,
@@ -89,7 +111,7 @@ game_events      (id, game_id, period, clock_seconds, type, team_id,
                   player_id, assist1_player_id, assist2_player_id,
                   -- penalty-specific fields:
                   penalty_type,                          -- e.g. tripping, hooking
-                  penalty_shot_result,                   -- goal | saved | null
+                  penalty_shot_result,                   -- goal | saved
                   penalty_shot_taker_id,                 -- player who took the shot
                   notes, created_at)
                   -- type: goal | penalty
@@ -103,6 +125,23 @@ account_requests (id, email, full_name, reason, status, created_at,
                   reviewed_at, reviewed_by)
                   -- status: pending | approved | denied
                   -- approved requests trigger a magic-link invite with a role
+
+season_player_stats (season_id, player_id, team_id,
+                     games_played, goals, assists, penalties,
+                     penalty_shots_taken, penalty_shots_made,
+                     -- goalie-only (nullable for skaters):
+                     goals_against,
+                     penalty_shots_faced, penalty_shots_saved)
+                  -- aggregated per-season totals for historical seasons that
+                     don't have underlying events. Player profile unions these
+                     with live-derived stats. Pulled forward from Phase 2 so
+                     the schema and UI handle historical data on day one.
+
+player_awards    (id, player_id, season_id, award_type, notes)
+                  -- award_type: champion | mvp | mvd | vezina | sniper |
+                                 most_hat_tricks | playmaker | iron_man | goon
+                  -- one row per award per player per season
+                  -- rendered as interactive badges on /players/[id]
 ```
 
 ### Notes on the schema
@@ -113,16 +152,8 @@ account_requests (id, email, full_name, reason, status, created_at,
   - **Goals against** = `goal` events scored *against* this goalie's team + `penalty` events with `penalty_shot_result = 'goal'` against this goalie's team.
   - **Penalty shots faced** = `penalty` events where this goalie's team did *not* commit the penalty.
   - **Penalty shots saved** = subset of the above where `penalty_shot_result = 'saved'`.
-- **Historical data** will come in via CSV import (next season). Schema needs to accept aggregated stats too, so we'll add a `season_player_stats` table for imported totals that don't have underlying events:
-  ```
-  season_player_stats (season_id, player_id, team_id,
-                       games_played, goals, assists, penalties,
-                       penalty_shots_taken, penalty_shots_made,
-                       -- goalie-only (nullable for skaters):
-                       goals_against,
-                       penalty_shots_faced, penalty_shots_saved)
-  ```
-  The player profile page unions live-derived stats with imported stats so historical seasons "just appear" once the CSV is loaded.
+- **Historical data** comes in via CSV import. The `season_player_stats` table (defined above) holds imported totals that don't have underlying events. The player profile page unions live-derived stats with imported stats so historical seasons "just appear" once the CSV is loaded. The table itself ships in Phase 1; the CSV import UI ships in Phase 2.
+- **Awards** are stored per player per season in `player_awards`. They surface on `/players/[id]` as interactive badges (hover/click reveals which seasons earned the award). Admins grant/revoke awards via the admin UI.
 
 ---
 
@@ -136,6 +167,7 @@ account_requests (id, email, full_name, reason, status, created_at,
 /schedule                      full schedule, filter by team
 /games/[id]                    boxscore — live or final
 /standings                     table for current season
+/stats                         league leaders (points, goals, assists, penalties, goalies)
 /about                         league hub — links to rules, league details, FAQs, contact
 /about/rules                   league rules (markdown)
 /about/faq                     frequently asked questions (markdown)
@@ -145,7 +177,7 @@ account_requests (id, email, full_name, reason, status, created_at,
 /score                         scorekeeper home (auth required)
 /score/[gameId]                live scoring UI (mobile-first)
 
-/admin                         CRUD: teams, players, schedule, content pages
+/admin                         CRUD: teams, players, schedule, content pages, awards
 /admin/users                   review account requests, manage roles
 /admin/import                  CSV upload for historical season stats
 /request-access                public form to request an account
@@ -173,6 +205,7 @@ account_requests (id, email, full_name, reason, status, created_at,
 | Edit rosters (`team_players`) | ✅ | ❌ | ❌ |
 | Create / edit schedule (games) | ✅ | ❌ | ❌ |
 | Edit content pages (rules / FAQ / league details) | ✅ | ❌ | ❌ |
+| Grant / revoke player awards | ✅ | ❌ | ❌ |
 | Approve/deny account requests, assign roles | ✅ | ❌ | ❌ |
 | CSV import (Phase 2) | ✅ | ❌ | ❌ |
 
@@ -225,9 +258,9 @@ Import flow at `/admin/import`:
 
 Goal: a usable league site where games can be scored on a phone and stats roll up correctly. Everything below is required to ship.
 
-1. **Schema + seed data** — Supabase project, migrations for the must-have tables. Includes `players.photo_url` and `teams.logo_url` columns now (nullable, unused in Phase 1 UI) so Phase 2 doesn't need a migration. Mock season with 4 teams / ~60 players / a handful of games. *Verify:* roster + fake boxscore queries work in SQL editor.
-2. **Public read-only site** — teams, rosters, schedule, standings, About hub (rules / FAQ / league details), boxscore pages. **Mobile-first** — designed at 360–390px width; desktop is progressive enhancement. No photos — use initials/team color tiles as placeholders. *Verify:* every page renders well at 360px (no horizontal scroll, tap targets ≥44px); Lighthouse mobile score >90.
-3. **Admin CRUD** — auth + pages to manage teams, players, rosters, schedule, and content pages (rules / FAQ / league details). *Verify:* can set up a real season end-to-end without touching SQL.
+1. **Schema + seed data** — Supabase project, migrations for the must-have tables. Includes `players.photo_url` and `teams.logo_url` columns now (nullable, unused in Phase 1 UI) so Phase 2 doesn't need a migration. `season_player_stats` and `player_awards` are also in this phase so historical stats and awards work on day one. Mock season with 4 teams / ~60 players / a handful of games. *Verify:* roster + fake boxscore queries work in SQL editor.
+2. **Public read-only site** — teams, rosters, schedule, standings, league leaders (`/stats`), About hub (rules / FAQ / league details), boxscore pages, player profiles with award badges and historical stats. **Mobile-first** — designed at 360–390px width; desktop is progressive enhancement. No photos — use initials/team color tiles as placeholders. *Verify:* every page renders well at 360px (no horizontal scroll, tap targets ≥44px); Lighthouse mobile score >90.
+3. **Admin CRUD** — auth + pages to manage teams, players, rosters, schedule, content pages (rules / FAQ / league details), and player awards. *Verify:* can set up a real season end-to-end without touching SQL.
 4. **Scorekeeper** — pre-game roster check-in (regulars + subs, including type-in for new players), goal flow, penalty/penalty-shot flow, OT, shootout tally, undo. Mobile-first. *Verify:* score a fake game on a phone; final score and stats are correct.
 5. **Realtime boxscore** — `/games/[id]` updates live as the scorekeeper enters events. *Verify:* second device sees updates within ~1s.
 6. **Stats** — derived views for player season stats and team standings. *Verify:* numbers match a hand-tallied test game including OT and a shootout.
@@ -238,7 +271,7 @@ Goal: a usable league site where games can be scored on a phone and stats roll u
 Goal: polish, history, and admin ergonomics. Pull these in based on what the league actually asks for after using Phase 1.
 
 1. **Photos** — Cloudflare R2 bucket, presigned-upload flow in admin UI. Columns already exist from Phase 1; this phase wires up the upload UI and renders the images, replacing placeholder tiles.
-2. **CSV import for historical seasons** — `/admin/import` flow + `season_player_stats` table. Player profiles union live + imported stats. *Verify:* import last season's data; spot-check 5 players.
+2. **CSV import for historical seasons** — `/admin/import` flow that populates the `season_player_stats` table (table itself ships in Phase 1). Player profiles already union live + imported stats. *Verify:* import last season's data; spot-check 5 players.
 3. **Season archive** — `/seasons/[id]` view of any past season's standings, stats, and games.
 4. **Quality-of-life admin features** — bulk schedule import, drag-to-reorder rules, player merge tool for duplicates created by the type-in-sub flow.
 
@@ -250,5 +283,4 @@ Goal: polish, history, and admin ergonomics. Pull these in based on what the lea
 - **Roster size cap:** 8 skaters + 1 goalie per team. The admin UI will warn (not block) if exceeded — beer leagues sometimes carry a couple of extras for injury coverage.
 - **Initial data load:** current season's schedule and rosters live in another system. Plan: do a one-time copy/import during launch prep (manual or scripted scrape, depending on the source). Not blocking schema design.
 - **Rulebook content:** no existing rulebook. The admin will author rules / FAQ / league details inside the new admin UI after launch. Phase 1 ships with empty `content_pages` rows or stub placeholders.
-- **Domain:** using the free `*.vercel.app` subdomain at launch. Custom domain deferred.
 - **Photos** — deferred to Phase 2. Will be stored in **Cloudflare R2** (10GB free, zero egress fees). Postgres only stores the public URL in `players.photo_url` / `teams.logo_url`. Upload flow: admin UI → presigned R2 upload URL → store returned URL on the row. Decide whether photos are required or optional per player/team.

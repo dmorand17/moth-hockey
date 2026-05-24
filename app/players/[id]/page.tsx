@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
-import { AwardBadge } from "@/components/AwardBadge";
+import { BadgeShelf } from "@/components/BadgeShelf";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { initials } from "@/lib/format";
 
@@ -228,66 +228,65 @@ export default async function PlayerPage({
 
   const teamColor = currentRoster?.team?.color ?? "#6b7280";
 
+  const awardList = orderedAwards.map(([type, seasonsList]) => ({
+    type,
+    label: AWARD_LABELS[type],
+    seasons: seasonsList,
+  }));
+
   return (
-    <div className="space-y-5 sm:space-y-8">
+    <div className="space-y-4 sm:space-y-6">
       <Link href="/teams" className="rise eyebrow hover:text-ink transition-colors inline-block">
         ← Teams
       </Link>
 
       {/* Hero */}
       <section
-        className="rise panel p-4 sm:p-6 md:p-10 relative"
+        className="rise panel p-3 sm:p-4 md:p-5 relative"
         style={{
           background: `linear-gradient(135deg, ${teamColor}1f 0%, transparent 60%), var(--board-2)`,
         }}
       >
         <div
           aria-hidden
-          className="absolute inset-y-0 left-0 w-1.5"
-          style={{ background: teamColor, boxShadow: `0 0 30px ${teamColor}99` }}
+          className="absolute inset-y-0 left-0 w-1"
+          style={{ background: teamColor, boxShadow: `0 0 24px ${teamColor}99` }}
         />
-        <div className="flex items-start gap-4 md:items-center md:gap-8">
-          <div className="relative h-16 w-16 sm:h-24 sm:w-24 md:h-32 md:w-32 shrink-0 scoreboard flex flex-col items-center justify-center">
+        <div className="flex items-start gap-3 sm:gap-4 md:gap-6">
+          <div className="relative h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0 scoreboard flex flex-col items-center justify-center">
             {currentRoster?.jersey_number ? (
               <>
                 <div className="eyebrow text-[9px]">No.</div>
-                <div className="digit text-[32px] sm:text-[44px] md:text-[60px] leading-none mt-0.5 sm:mt-1" style={{ color: teamColor, textShadow: `0 0 16px ${teamColor}99` }}>
+                <div className="digit text-[26px] sm:text-[36px] md:text-[44px] leading-none mt-0.5" style={{ color: teamColor, textShadow: `0 0 16px ${teamColor}99` }}>
                   {currentRoster.jersey_number}
                 </div>
               </>
             ) : (
-              <div className="font-display text-[28px] sm:text-[42px] md:text-[58px]" style={{ color: teamColor }}>
+              <div className="font-display text-[22px] sm:text-[32px] md:text-[40px]" style={{ color: teamColor }}>
                 {initials(player.first_name, player.last_name)}
               </div>
             )}
           </div>
-          <div className="min-w-0">
-            <div className="eyebrow text-goal">{isGoalie ? "Goalie" : "Skater"}</div>
-            <h1 className="font-display text-[26px] sm:text-[36px] md:text-[64px] leading-[0.92] tracking-[0.04em] mt-1">
-              <span className="text-ink-dim">{player.first_name.toUpperCase()}</span>
-              <br />
+          <div className="min-w-0 flex-1">
+            <div className="eyebrow text-goal text-[10px]">{isGoalie ? "Goalie" : "Skater"}</div>
+            <h1 className="font-display text-[22px] sm:text-[32px] md:text-[48px] leading-[0.95] tracking-[0.04em] mt-0.5">
+              <span className="text-ink-dim">{player.first_name.toUpperCase()}</span>{" "}
               {player.last_name.toUpperCase()}
             </h1>
             {currentRoster?.team && (
-              <div className="mt-3 flex flex-col items-start gap-1.5 md:flex-row md:items-center md:gap-3">
-                <TeamBadge {...currentRoster.team} />
-                <span className="eyebrow">{currentRoster.position}</span>
-              </div>
-            )}
-            {orderedAwards.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-start gap-2">
-                {orderedAwards.map(([type, seasonsList]) => (
-                  <AwardBadge
-                    key={type}
-                    type={type}
-                    label={AWARD_LABELS[type]}
-                    seasons={seasonsList}
-                  />
-                ))}
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <TeamBadge {...currentRoster.team} size="sm" />
+                <span className="eyebrow text-[10px]">{currentRoster.position}</span>
               </div>
             )}
           </div>
         </div>
+
+        {awardList.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-rule">
+            <BadgeShelf awards={awardList} />
+          </div>
+        )}
       </section>
 
       {/* Career table */}

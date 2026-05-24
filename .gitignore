@@ -40,6 +40,9 @@ yarn-error.log*
 # claude code (user-local overrides; team settings.json is committed)
 .claude/settings.local.json
 
+# local-only artifacts (Supabase CA cert, etc.)
+.local/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

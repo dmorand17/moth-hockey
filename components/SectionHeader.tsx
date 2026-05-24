@@ -1,9 +1,10 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 type Props = {
   eyebrow?: string;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   linkHref?: string;
   linkLabel?: string;
   size?: "md" | "lg";

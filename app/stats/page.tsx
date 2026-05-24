@@ -1,4 +1,3 @@
-import { SectionHeader } from "@/components/SectionHeader";
 import {
   StatsExplorer,
   type StatsAppearance,
@@ -95,16 +94,8 @@ export default async function StatsPage() {
 
   return (
     <div className="space-y-5 sm:space-y-8">
-      <div className="rise">
-        <SectionHeader
-          eyebrow="The Numbers"
-          title="Stats"
-          subtitle={`${season.name} · league leaders`}
-          size="lg"
-        />
-      </div>
-
       <StatsExplorer
+        seasonName={season.name}
         teams={teams}
         games={games}
         roster={roster}

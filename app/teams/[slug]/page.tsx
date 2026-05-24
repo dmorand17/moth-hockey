@@ -117,45 +117,32 @@ export default async function TeamPage({
       {/* Roster */}
       <section className="rise delay-1">
         <SectionHeader eyebrow="Roster" title="The Lineup" />
-        <div className="grid gap-3 sm:gap-6 md:grid-cols-[1fr_auto] md:gap-8">
-          <div className="panel overflow-hidden">
-            <table className="board-table">
-              <thead>
-                <tr>
-                  <th className="text-left pl-5 w-14">#</th>
-                  <th className="text-left">Player</th>
-                  <th className="text-right pr-5">Pos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { label: "Forwards", rows: forwards },
-                  { label: "Defense", rows: defense },
-                  { label: "Goalies", rows: goalies },
-                ].map((group) =>
-                  group.rows.length === 0 ? null : (
-                    <RosterGroup
-                      key={group.label}
-                      label={group.label}
-                      rows={group.rows}
-                      captainPlayerId={captain?.id ?? null}
-                    />
-                  ),
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="panel-bare p-5 md:w-56 self-start">
-            <div className="eyebrow mb-3 text-goal">By position</div>
-            <div className="space-y-2 text-[14px]">
-              <RosterStat label="Forwards" value={forwards.length} />
-              <RosterStat label="Defense" value={defense.length} />
-              <RosterStat label="Goalies" value={goalies.length} />
-              <div className="pt-2 mt-2 border-t border-rule">
-                <RosterStat label="Total" value={forwards.length + defense.length + goalies.length} accent="text-ink" />
-              </div>
-            </div>
-          </div>
+        <div className="panel overflow-hidden">
+          <table className="board-table">
+            <thead>
+              <tr>
+                <th className="text-left pl-5 w-14">#</th>
+                <th className="text-left">Player</th>
+                <th className="text-right pr-5">Pos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: "Forwards", rows: forwards },
+                { label: "Defense", rows: defense },
+                { label: "Goalies", rows: goalies },
+              ].map((group) =>
+                group.rows.length === 0 ? null : (
+                  <RosterGroup
+                    key={group.label}
+                    label={group.label}
+                    rows={group.rows}
+                    captainPlayerId={captain?.id ?? null}
+                  />
+                ),
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -178,15 +165,6 @@ export default async function TeamPage({
           ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-function RosterStat({ label, value, accent = "text-ink-dim" }: { label: string; value: number; accent?: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="eyebrow normal-case tracking-[0.06em]">{label}</span>
-      <span className={`digit text-lg ${accent}`}>{value}</span>
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SectionHeader } from "./SectionHeader";
-import { TeamBadge } from "./TeamBadge";
 import {
   SkaterTable,
   GoalieTable,
@@ -40,6 +39,7 @@ export type StatsAppearance = {
 };
 
 type Props = {
+  seasonName: string;
   teams: Team[];
   games: GameMeta[];
   roster: RosterEntry[];
@@ -50,7 +50,7 @@ type Props = {
 type PositionFilter = "all" | "forward" | "defense";
 type KindFilter = "all" | "regular" | "playoff";
 
-export function StatsExplorer({ teams, games, roster, appearances, events }: Props) {
+export function StatsExplorer({ seasonName, teams, games, roster, appearances, events }: Props) {
   const [position, setPosition] = useState<PositionFilter>("all");
   const [kind, setKind] = useState<KindFilter>("all");
   const [teamId, setTeamId] = useState<string>("all");
@@ -138,9 +138,6 @@ export function StatsExplorer({ teams, games, roster, appearances, events }: Pro
     return { skaters: skatersOut, goalies: goaliesOut };
   }, [appearances, events, games, roster, position, kind, teamId]);
 
-  const filterCount =
-    (position !== "all" ? 1 : 0) + (kind !== "all" ? 1 : 0) + (teamId !== "all" ? 1 : 0);
-
   const goalsLeader = useMemo(() => {
     let best: Skater | null = null;
     for (const s of skaters) {
@@ -161,6 +158,20 @@ export function StatsExplorer({ teams, games, roster, appearances, events }: Pro
 
   return (
     <>
+      <div className="rise">
+        <SectionHeader
+          eyebrow="The Numbers"
+          title="Stats"
+          subtitle={`${seasonName} · league leaders`}
+          size="lg"
+        />
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5 -mt-2 sm:-mt-3 pb-3 sm:pb-4 border-b border-rule">
+          <LeaderLine label="Goals" leader={goalsLeader} stat={goalsLeader?.goals ?? 0} />
+          <span className="text-ink-dim text-base hidden sm:inline" aria-hidden>·</span>
+          <LeaderLine label="Pts" leader={pointsLeader} stat={pointsLeader?.points ?? 0} />
+        </div>
+      </div>
+
       <FilterBar
         teams={teams}
         position={position}
@@ -169,12 +180,9 @@ export function StatsExplorer({ teams, games, roster, appearances, events }: Pro
         setKind={setKind}
         teamId={teamId}
         setTeamId={setTeamId}
-        filterCount={filterCount}
-        goalsLeader={goalsLeader}
-        pointsLeader={pointsLeader}
       />
 
-      <section className="rise delay-1 mt-5">
+      <section className="rise delay-1 mt-2">
         <SectionHeader eyebrow="Skaters" title="Skater Stats" />
         <SkaterTable rows={skaters} />
         <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
@@ -193,6 +201,8 @@ export function StatsExplorer({ teams, games, roster, appearances, events }: Pro
   );
 }
 
+type FilterKey = "position" | "kind" | "team";
+
 function FilterBar({
   teams,
   position,
@@ -201,9 +211,6 @@ function FilterBar({
   setKind,
   teamId,
   setTeamId,
-  filterCount,
-  goalsLeader,
-  pointsLeader,
 }: {
   teams: Team[];
   position: PositionFilter;
@@ -212,79 +219,126 @@ function FilterBar({
   setKind: (k: KindFilter) => void;
   teamId: string;
   setTeamId: (id: string) => void;
-  filterCount: number;
-  goalsLeader: Skater | null;
-  pointsLeader: Skater | null;
 }) {
-  const [open, setOpen] = useState(filterCount > 0);
+  const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
+
+  const toggle = (key: FilterKey) =>
+    setOpenFilter((cur) => (cur === key ? null : key));
+
+  const selectedTeam = teams.find((t) => t.id === teamId);
+  const hasActiveFilter = position !== "all" || kind !== "all" || teamId !== "all";
+
+  const resetAll = () => {
+    setPosition("all");
+    setKind("all");
+    setTeamId("all");
+    setOpenFilter(null);
+  };
 
   return (
-    <div className="panel-bare p-3 sm:p-4 flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 min-w-0">
-        <LeaderCard label="Goals Leader" leader={goalsLeader} stat={goalsLeader?.goals ?? 0} />
-        <LeaderCard label="Points Leader" leader={pointsLeader} stat={pointsLeader?.points ?? 0} />
+    <div className="mt-3 sm:mt-4 flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="eyebrow text-[10px] mr-1">Filter:</span>
+        <FilterToggle
+          label="Position"
+          active={position !== "all"}
+          open={openFilter === "position"}
+          onClick={() => toggle("position")}
+          summary={position === "all" ? null : position === "forward" ? "Fwd" : "Def"}
+        />
+        <FilterToggle
+          label="Team"
+          active={teamId !== "all"}
+          open={openFilter === "team"}
+          onClick={() => toggle("team")}
+          summary={selectedTeam?.name ?? null}
+        />
+        <FilterToggle
+          label="Game Type"
+          active={kind !== "all"}
+          open={openFilter === "kind"}
+          onClick={() => toggle("kind")}
+          summary={kind === "all" ? null : kind === "regular" ? "Regular" : "Playoff"}
+        />
+        {hasActiveFilter && (
+          <button
+            type="button"
+            onClick={resetAll}
+            className="px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] min-h-[36px] text-ink-dim hover:text-goal transition-colors"
+          >
+            Reset
+          </button>
+        )}
       </div>
-      <div className="flex justify-start">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-controls="stats-filter-panel"
-          className={`px-3 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[44px] transition-colors ${
-            filterCount > 0
-              ? "border-rule-strong bg-board-3 text-ink"
-              : "border-rule-strong text-ink-dim hover:text-ink"
-          }`}
+      {openFilter === "position" && (
+        <SegmentedFilter<PositionFilter>
+          value={position}
+          onChange={setPosition}
+          clearValue="all"
+          options={[
+            { value: "forward", label: "Fwd" },
+            { value: "defense", label: "Def" },
+          ]}
+        />
+      )}
+      {openFilter === "team" && (
+        <select
+          value={teamId}
+          onChange={(e) => setTeamId(e.target.value)}
+          className="self-start bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[36px] sm:max-w-[260px]"
         >
-          {open ? "Hide" : "Filter"}
-          {filterCount > 0 && <span className="ml-1.5 text-ice">({filterCount})</span>}
-        </button>
-      </div>
-      {open && (
-        <div
-          id="stats-filter-panel"
-          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end pt-3 border-t border-rule"
-        >
-          <SegmentedFilter<PositionFilter>
-            label="Position"
-            value={position}
-            onChange={setPosition}
-            clearValue="all"
-            options={[
-              { value: "forward", label: "Fwd" },
-              { value: "defense", label: "Def" },
-            ]}
-          />
-          <SegmentedFilter<KindFilter>
-            label="Kind"
-            value={kind}
-            onChange={setKind}
-            clearValue="all"
-            options={[
-              { value: "regular", label: "Reg." },
-              { value: "playoff", label: "Playoff" },
-            ]}
-          />
-          <div className="flex flex-col gap-1 min-w-0 sm:max-w-[220px] flex-1">
-            <label className="eyebrow text-[10px]">Team</label>
-            <select
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
-              className="bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[44px]"
-            >
-              <option value="all">All teams</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+          <option value="all">All teams</option>
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      )}
+      {openFilter === "kind" && (
+        <SegmentedFilter<KindFilter>
+          value={kind}
+          onChange={setKind}
+          clearValue="all"
+          options={[
+            { value: "regular", label: "Regular" },
+            { value: "playoff", label: "Playoff" },
+          ]}
+        />
       )}
     </div>
   );
 }
 
-function LeaderCard({
+function FilterToggle({
+  label,
+  active,
+  open,
+  onClick,
+  summary,
+}: {
+  label: string;
+  active: boolean;
+  open: boolean;
+  onClick: () => void;
+  summary: string | null;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className={`px-2 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[32px] transition-colors ${
+        active || open
+          ? "border-rule-strong bg-board-3 text-ink"
+          : "border-transparent text-ink-faint hover:text-ink hover:border-rule"
+      }`}
+    >
+      {label}
+      {summary && <span className="ml-1.5 text-ice normal-case">{summary}</span>}
+    </button>
+  );
+}
+
+function LeaderLine({
   label,
   leader,
   stat,
@@ -294,69 +348,71 @@ function LeaderCard({
   stat: number;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 min-w-0">
-      <span className="eyebrow text-[10px]">{label}</span>
+    <span className="inline-flex items-baseline gap-1.5 min-w-0">
+      <span className="eyebrow text-[10px] text-goal">{label}</span>
       {leader ? (
-        <div className="flex items-baseline gap-3 min-w-0">
-          <span className="digit text-3xl sm:text-4xl text-ink tnum shrink-0">{stat}</span>
-          <div className="min-w-0 flex flex-col gap-0.5">
-            <Link
-              href={`/players/${leader.id}`}
-              className="inline-flex items-center min-h-11 truncate text-[14px] sm:text-[15px] text-ink hover:text-ice transition-colors"
-            >
-              {leader.name}
-            </Link>
-            {leader.team && <TeamBadge {...leader.team} size="sm" />}
-          </div>
-        </div>
+        <>
+          <span className="digit text-[14px] text-ink tnum leading-none">{stat}</span>
+          <Link
+            href={`/players/${leader.id}`}
+            className="text-ink hover:text-ice transition-colors normal-case tracking-normal"
+          >
+            {leader.name}
+          </Link>
+          {leader.team && (
+            <span className="inline-flex items-baseline gap-1 normal-case tracking-normal">
+              <span
+                className="inline-block w-[3px] h-[10px] rounded-[1px] shrink-0 translate-y-[1px]"
+                style={{ backgroundColor: leader.team.color }}
+                aria-hidden
+              />
+              <span className="text-[10px] text-ink-dim">{leader.team.name}</span>
+            </span>
+          )}
+        </>
       ) : (
-        <span className="text-ink-dim text-[13px]">—</span>
+        <span className="text-ink-dim">—</span>
       )}
-    </div>
+    </span>
   );
 }
 
 function SegmentedFilter<T extends string>({
-  label,
   value,
   onChange,
   options,
   clearValue,
 }: {
-  label: string;
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
   clearValue?: T;
 }) {
   return (
-    <div className="flex flex-col gap-1 min-w-0">
-      <span className="eyebrow text-[10px]">{label}</span>
-      <div className="inline-flex border border-rule-strong rounded-[2px] overflow-hidden">
-        {options.map((o, i) => {
-          const active = o.value === value;
-          const handleClick = () => {
-            if (active && clearValue !== undefined) {
-              onChange(clearValue);
-            } else {
-              onChange(o.value);
-            }
-          };
-          return (
-            <button
-              key={o.value}
-              type="button"
-              onClick={handleClick}
-              className={`px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[44px] ${
-                active ? "bg-board-3 text-ink" : "text-ink-dim hover:text-ink"
-              } ${i > 0 ? "border-l border-rule" : ""}`}
-              aria-pressed={active}
-            >
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
+    <div className="self-start inline-flex border border-rule-strong rounded-[2px] overflow-hidden">
+      {options.map((o, i) => {
+        const active = o.value === value;
+        const handleClick = () => {
+          if (active && clearValue !== undefined) {
+            onChange(clearValue);
+          } else {
+            onChange(o.value);
+          }
+        };
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={handleClick}
+            className={`px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[36px] ${
+              active ? "bg-board-3 text-ink" : "text-ink-dim hover:text-ink"
+            } ${i > 0 ? "border-l border-rule" : ""}`}
+            aria-pressed={active}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

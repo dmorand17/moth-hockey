@@ -35,7 +35,7 @@ export default async function TeamPage({
 
   if (!team) notFound();
 
-  const [{ data: roster }, { data: gamesRaw }] = await Promise.all([
+  const [{ data: roster }, { data: gamesRaw }, { data: captainRow }] = await Promise.all([
     supabase
       .from("team_players")
       .select("jersey_number, position, player:player_id(id, first_name, last_name)")
@@ -48,8 +48,26 @@ export default async function TeamPage({
       )
       .or(`home_team_id.eq.${team.id},away_team_id.eq.${team.id}`)
       .order("scheduled_at"),
+    supabase
+      .from("team_captains")
+      .select("user_id")
+      .eq("team_id", team.id)
+      .eq("season_id", season.id)
+      .maybeSingle(),
   ]);
   const games = (gamesRaw ?? []) as unknown as TeamGame[];
+
+  // Captain shown by name only — anon RLS blocks user_profiles, so we resolve
+  // through the players row that's linked to that user (publicly readable).
+  let captain: { id: string; first_name: string; last_name: string } | null = null;
+  if (captainRow?.user_id) {
+    const { data: player } = await supabase
+      .from("players")
+      .select("id, first_name, last_name")
+      .eq("user_id", captainRow.user_id)
+      .maybeSingle();
+    if (player) captain = player;
+  }
 
   const forwards = (roster ?? []).filter((r) => r.position === "forward");
   const defense = (roster ?? []).filter((r) => r.position === "defense");
@@ -116,7 +134,12 @@ export default async function TeamPage({
                   { label: "Goalies", rows: goalies },
                 ].map((group) =>
                   group.rows.length === 0 ? null : (
-                    <RosterGroup key={group.label} label={group.label} rows={group.rows} />
+                    <RosterGroup
+                      key={group.label}
+                      label={group.label}
+                      rows={group.rows}
+                      captainPlayerId={captain?.id ?? null}
+                    />
                   ),
                 )}
               </tbody>
@@ -174,7 +197,15 @@ type RosterRow = {
   player: { id: string; first_name: string; last_name: string } | null;
 };
 
-function RosterGroup({ label, rows }: { label: string; rows: RosterRow[] }) {
+function RosterGroup({
+  label,
+  rows,
+  captainPlayerId,
+}: {
+  label: string;
+  rows: RosterRow[];
+  captainPlayerId: string | null;
+}) {
   return (
     <>
       <tr>
@@ -184,6 +215,7 @@ function RosterGroup({ label, rows }: { label: string; rows: RosterRow[] }) {
       </tr>
       {rows.map((r) => {
         const p = r.player!;
+        const isCaptain = captainPlayerId === p.id;
         return (
           <tr key={p.id}>
             <td className="pl-5 digit text-ink-faint text-[15px]">
@@ -192,9 +224,20 @@ function RosterGroup({ label, rows }: { label: string; rows: RosterRow[] }) {
             <td className="!p-0">
               <Link
                 href={`/players/${p.id}`}
-                className="flex items-center min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
+                className="flex items-center gap-2 min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
               >
-                {p.first_name} <span className="font-medium">&nbsp;{p.last_name}</span>
+                <span>
+                  {p.first_name} <span className="font-medium">{p.last_name}</span>
+                </span>
+                {isCaptain && (
+                  <span
+                    title="Captain"
+                    aria-label="Captain"
+                    className="font-display text-[10px] tracking-[0.06em] leading-none border border-goal text-goal rounded-sm px-1 py-0.5"
+                  >
+                    C
+                  </span>
+                )}
               </Link>
             </td>
             <td className="text-right pr-5 eyebrow">{r.position}</td>

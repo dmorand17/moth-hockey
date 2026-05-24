@@ -5,6 +5,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { BadgeShelf } from "@/components/BadgeShelf";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { initials } from "@/lib/format";
+import { getSessionIfRole } from "@/lib/auth";
 
 type SeasonStatsRow = {
   season_id: string;
@@ -51,10 +52,60 @@ export default async function PlayerPage({
 
   const { data: player } = await supabase
     .from("players")
-    .select("id, first_name, last_name")
+    .select("id, first_name, last_name, user_id")
     .eq("id", id)
     .single();
   if (!player) notFound();
+
+  // Reveal contact info only to admins / team captains. RLS already prevents
+  // non-privileged viewers from selecting user_profiles, but we skip the query
+  // entirely when the viewer doesn't qualify so we never even ask.
+  const privileged = await getSessionIfRole(["admin", "team_captain"]);
+  let contact: { email: string | null; phone: string | null } | null = null;
+  if (privileged && player.user_id) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("email, phone")
+      .eq("user_id", player.user_id)
+      .single();
+    if (profile) contact = { email: profile.email, phone: profile.phone };
+  }
+
+  // Captain history — anyone can read team_captains (public RLS), but we only
+  // have a user link when this player has been associated with an auth user.
+  type CaptainHistoryRow = {
+    season_id: string;
+    season_name: string;
+    season_year: number;
+    team_name: string;
+    team_slug: string;
+    team_color: string;
+  };
+  let captainHistory: CaptainHistoryRow[] = [];
+  if (player.user_id) {
+    const { data: tcRows } = await supabase
+      .from("team_captains")
+      .select(
+        "team:team_id(name, slug, color), season:season_id(id, name, year)",
+      )
+      .eq("user_id", player.user_id);
+    captainHistory = (tcRows ?? [])
+      .map((row) => {
+        const team = row.team as unknown as { name: string; slug: string; color: string } | null;
+        const season = row.season as unknown as { id: string; name: string; year: number } | null;
+        if (!team || !season) return null;
+        return {
+          season_id: season.id,
+          season_name: season.name,
+          season_year: season.year,
+          team_name: team.name,
+          team_slug: team.slug,
+          team_color: team.color,
+        };
+      })
+      .filter((r): r is CaptainHistoryRow => r !== null)
+      .sort((a, b) => b.season_year - a.season_year);
+  }
 
   const [
     { data: rosterRows },
@@ -282,9 +333,50 @@ export default async function PlayerPage({
           </div>
         </div>
 
+        {contact && (contact.email || contact.phone) && (
+          <div className="mt-3 pt-3 border-t border-rule">
+            <div className="eyebrow mb-1.5">Contact <span className="text-ink-faint normal-case tracking-normal">· captain/admin only</span></div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="font-mono text-xs text-ice hover:underline min-h-11 inline-flex items-center">
+                  {contact.email}
+                </a>
+              )}
+              {contact.phone && (
+                <a href={`tel:${contact.phone}`} className="font-mono text-xs text-ice hover:underline min-h-11 inline-flex items-center">
+                  {contact.phone}
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
         {awardList.length > 0 && (
           <div className="mt-3 pt-3 border-t border-rule">
             <BadgeShelf awards={awardList} />
+          </div>
+        )}
+
+        {captainHistory.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-rule">
+            <div className="eyebrow mb-1.5">Captained</div>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {captainHistory.map((row) => (
+                <li key={row.season_id} className="flex items-center gap-2">
+                  <span
+                    className="h-2 w-2 rounded-sm shrink-0"
+                    style={{ background: row.team_color }}
+                  />
+                  <Link
+                    href={`/teams/${row.team_slug}`}
+                    className="text-ink hover:text-ice transition-colors"
+                  >
+                    {row.team_name}
+                  </Link>
+                  <span className="text-ink-faint">{row.season_name}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </section>

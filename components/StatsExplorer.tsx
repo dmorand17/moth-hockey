@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SectionHeader } from "./SectionHeader";
+import { TeamBadge } from "./TeamBadge";
 import {
   SkaterTable,
   GoalieTable,
@@ -139,6 +141,24 @@ export function StatsExplorer({ teams, games, roster, appearances, events }: Pro
   const filterCount =
     (position !== "all" ? 1 : 0) + (kind !== "all" ? 1 : 0) + (teamId !== "all" ? 1 : 0);
 
+  const goalsLeader = useMemo(() => {
+    let best: Skater | null = null;
+    for (const s of skaters) {
+      if (s.goals === 0) continue;
+      if (!best || s.goals > best.goals) best = s;
+    }
+    return best;
+  }, [skaters]);
+
+  const pointsLeader = useMemo(() => {
+    let best: Skater | null = null;
+    for (const s of skaters) {
+      if (s.points === 0) continue;
+      if (!best || s.points > best.points) best = s;
+    }
+    return best;
+  }, [skaters]);
+
   return (
     <>
       <FilterBar
@@ -150,6 +170,8 @@ export function StatsExplorer({ teams, games, roster, appearances, events }: Pro
         teamId={teamId}
         setTeamId={setTeamId}
         filterCount={filterCount}
+        goalsLeader={goalsLeader}
+        pointsLeader={pointsLeader}
       />
 
       <section className="rise delay-1 mt-5">
@@ -180,6 +202,8 @@ function FilterBar({
   teamId,
   setTeamId,
   filterCount,
+  goalsLeader,
+  pointsLeader,
 }: {
   teams: Team[];
   position: PositionFilter;
@@ -189,7 +213,11 @@ function FilterBar({
   teamId: string;
   setTeamId: (id: string) => void;
   filterCount: number;
+  goalsLeader: Skater | null;
+  pointsLeader: Skater | null;
 }) {
+  const [open, setOpen] = useState(filterCount > 0);
+
   const reset = () => {
     setPosition("all");
     setKind("all");
@@ -197,48 +225,107 @@ function FilterBar({
   };
 
   return (
-    <div className="panel-bare p-3 sm:p-4 grid gap-3 sm:flex sm:flex-wrap sm:items-end">
-      <SegmentedFilter<PositionFilter>
-        label="Position"
-        value={position}
-        onChange={setPosition}
-        options={[
-          { value: "all", label: "All" },
-          { value: "forward", label: "Fwd" },
-          { value: "defense", label: "Def" },
-        ]}
-      />
-      <SegmentedFilter<KindFilter>
-        label="Kind"
-        value={kind}
-        onChange={setKind}
-        options={[
-          { value: "all", label: "All" },
-          { value: "regular", label: "Reg." },
-          { value: "playoff", label: "Playoff" },
-        ]}
-      />
-      <div className="flex flex-col gap-1 min-w-0 flex-1 sm:max-w-[220px]">
-        <label className="eyebrow text-[10px]">Team</label>
-        <select
-          value={teamId}
-          onChange={(e) => setTeamId(e.target.value)}
-          className="bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[36px]"
-        >
-          <option value="all">All teams</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
-      </div>
-      {filterCount > 0 && (
+    <div className="panel-bare p-3 sm:p-4 flex flex-col gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 flex-1 min-w-0">
+          <LeaderCard label="Goals Leader" leader={goalsLeader} stat={goalsLeader?.goals ?? 0} />
+          <LeaderCard label="Points Leader" leader={pointsLeader} stat={pointsLeader?.points ?? 0} />
+        </div>
         <button
           type="button"
-          onClick={reset}
-          className="eyebrow hover:text-ink transition-colors self-start sm:self-end pb-1.5 whitespace-nowrap"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls="stats-filter-panel"
+          className={`shrink-0 px-3 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[36px] transition-colors ${
+            filterCount > 0
+              ? "border-rule-strong bg-board-3 text-ink"
+              : "border-rule-strong text-ink-dim hover:text-ink"
+          }`}
         >
-          Reset ({filterCount})
+          {open ? "Hide" : "Filter"}
+          {filterCount > 0 && <span className="ml-1.5 text-ice">({filterCount})</span>}
         </button>
+      </div>
+      {open && (
+        <div
+          id="stats-filter-panel"
+          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end pt-3 border-t border-rule"
+        >
+          <SegmentedFilter<PositionFilter>
+            label="Position"
+            value={position}
+            onChange={setPosition}
+            clearValue="all"
+            options={[
+              { value: "forward", label: "Fwd" },
+              { value: "defense", label: "Def" },
+            ]}
+          />
+          <SegmentedFilter<KindFilter>
+            label="Kind"
+            value={kind}
+            onChange={setKind}
+            clearValue="all"
+            options={[
+              { value: "regular", label: "Reg." },
+              { value: "playoff", label: "Playoff" },
+            ]}
+          />
+          <div className="flex flex-col gap-1 min-w-0 sm:max-w-[220px] flex-1">
+            <label className="eyebrow text-[10px]">Team</label>
+            <select
+              value={teamId}
+              onChange={(e) => setTeamId(e.target.value)}
+              className="bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[36px]"
+            >
+              <option value="all">All teams</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          {filterCount > 0 && (
+            <button
+              type="button"
+              onClick={reset}
+              className="eyebrow hover:text-ink transition-colors whitespace-nowrap self-start sm:self-end pb-1.5"
+            >
+              Reset ({filterCount})
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LeaderCard({
+  label,
+  leader,
+  stat,
+}: {
+  label: string;
+  leader: Skater | null;
+  stat: number;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 min-w-0">
+      <span className="eyebrow text-[10px]">{label}</span>
+      {leader ? (
+        <div className="flex items-baseline gap-3 min-w-0">
+          <span className="digit text-3xl sm:text-4xl text-ink tnum shrink-0">{stat}</span>
+          <div className="min-w-0 flex flex-col gap-0.5">
+            <Link
+              href={`/players/${leader.id}`}
+              className="truncate text-[14px] sm:text-[15px] text-ink hover:text-ice transition-colors"
+            >
+              {leader.name}
+            </Link>
+            {leader.team && <TeamBadge {...leader.team} size="sm" />}
+          </div>
+        </div>
+      ) : (
+        <span className="text-ink-dim text-[13px]">—</span>
       )}
     </div>
   );
@@ -249,11 +336,13 @@ function SegmentedFilter<T extends string>({
   value,
   onChange,
   options,
+  clearValue,
 }: {
   label: string;
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
+  clearValue?: T;
 }) {
   return (
     <div className="flex flex-col gap-1 min-w-0">
@@ -261,11 +350,18 @@ function SegmentedFilter<T extends string>({
       <div className="inline-flex border border-rule-strong rounded-[2px] overflow-hidden">
         {options.map((o, i) => {
           const active = o.value === value;
+          const handleClick = () => {
+            if (active && clearValue !== undefined) {
+              onChange(clearValue);
+            } else {
+              onChange(o.value);
+            }
+          };
           return (
             <button
               key={o.value}
               type="button"
-              onClick={() => onChange(o.value)}
+              onClick={handleClick}
               className={`px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[36px] ${
                 active ? "bg-board-3 text-ink" : "text-ink-dim hover:text-ink"
               } ${i > 0 ? "border-l border-rule" : ""}`}

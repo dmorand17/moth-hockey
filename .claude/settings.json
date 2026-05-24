@@ -49,7 +49,9 @@
       "Bash(curl -s *http://localhost:*)",
       "Bash(curl -s *http://127.0.0.1:*)",
       "Bash(lsof -ti:*)",
-      "Bash(lsof -i :*)"
+      "Bash(lsof -i :*)",
+
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools"
     ],
     "deny": [
       "Bash(rm -rf *)",

@@ -83,7 +83,7 @@ export default function RootLayout({
               <Link
                 key={link.href}
                 href={link.href}
-                className="flex-1 inline-flex items-center justify-center min-h-[40px] px-2 font-display text-[11.5px] tracking-[0.14em] uppercase text-ink-dim hover:text-ink transition-colors whitespace-nowrap"
+                className="flex-1 inline-flex items-center justify-center min-h-[44px] px-2 font-display text-[11.5px] tracking-[0.14em] uppercase text-ink-dim hover:text-ink transition-colors whitespace-nowrap"
               >
                 {link.label}
               </Link>

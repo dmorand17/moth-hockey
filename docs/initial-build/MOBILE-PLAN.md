@@ -15,7 +15,7 @@ Tasks are grouped by priority. Check them off as they're completed.
 
 ## P0 — Breaks the rules outright
 
-### [ ] M-P0-1 — Slim down the sticky header on mobile
+### [x] M-P0-1 — Slim down the sticky header on mobile
 **File:** `app/layout.tsx:44–88`
 
 The header has the brand row *and* a second mobile nav strip, both inside
@@ -31,7 +31,7 @@ persistently — eats too much real estate.
 - Reduce nav text from `text-[13px]` to `text-[12px]` at the smallest breakpoint
   to keep all 5 links from crowding.
 
-### [ ] M-P0-2 — Enforce 44×44px tap targets across interactive controls
+### [x] M-P0-2 — Enforce 44×44px tap targets across interactive controls
 **Files:** multiple
 
 Audit findings:
@@ -50,7 +50,7 @@ Audit findings:
   `<tr style="position:relative">` with `<Link className="absolute inset-0">`
   so the whole row is tappable.
 
-### [ ] M-P0-3 — Fix AwardBadge popover clipping at narrow viewports
+### [x] M-P0-3 — Fix AwardBadge popover clipping at narrow viewports
 **File:** `components/AwardBadge.tsx:64–69`
 
 Popover is anchored `absolute left-0 top-full min-w-[180px]`. Badges near the
@@ -62,7 +62,7 @@ right edge of a 360px screen will clip off-screen — no flip logic.
 - Drop the `group-hover:opacity-100` trigger entirely (see M-P2-1) — keep only
   the click toggle to avoid sticky hover state on touch devices.
 
-### [ ] M-P0-4 — Vertical stack the boxscore at narrow widths
+### [x] M-P0-4 — Vertical stack the boxscore at narrow widths
 **File:** `app/games/[id]/page.tsx:97–105`
 
 The 3-column `grid-cols-[1fr_auto_1fr]` with `text-[88px]` scores crushes at
@@ -75,7 +75,7 @@ The 3-column `grid-cols-[1fr_auto_1fr]` with `text-[88px]` scores crushes at
 - Restore horizontal layout at `md:` and up.
 - Reduce mobile score from `text-[88px]` to `text-[72px]`.
 
-### [ ] M-P0-5 — Reduce SectionHeader title size on mobile
+### [x] M-P0-5 — Reduce SectionHeader title size on mobile
 **File:** `components/SectionHeader.tsx:13`
 
 `size="lg"` produces `text-[44px] md:text-[60px]`. At 360px, "STANDINGS" in
@@ -86,7 +86,7 @@ Used by `/standings`, `/teams`, `/schedule`, `/stats`, `/about`.
 - Drop mobile size to `text-[36px] sm:text-[44px] md:text-[60px]`. Bebas at 36
   is still strongly heroic.
 
-### [ ] M-P0-6 — Compact hero on landing page
+### [x] M-P0-6 — Compact hero on landing page
 **File:** `app/page.tsx:32`
 
 `text-[56px] md:text-[88px]` × 2 lines + tagline + 2 buttons = ~480px tall on a
@@ -101,7 +101,7 @@ Used by `/standings`, `/teams`, `/schedule`, `/stats`, `/about`.
 
 ## P1 — Hidden info / friction on mobile
 
-### [ ] M-P1-1 — Show W-L-OTL on the landing-page standings preview
+### [x] M-P1-1 — Show W-L-OTL on the landing-page standings preview
 **File:** `app/page.tsx:79–97`
 
 W/L/OTL/GF/GA are hidden behind `hidden sm:table-cell` and `hidden md:table-cell`.
@@ -116,7 +116,7 @@ important info on a standings table**. Same total points doesn't reveal
 - Alternative: render mobile as a card list (one card per team) with full
   record visible.
 
-### [ ] M-P1-2 — Compact GameRow at narrow widths
+### [x] M-P1-2 — Compact GameRow at narrow widths
 **File:** `components/GameRow.tsx`, used by `app/schedule/page.tsx:58`
 
 Schedule uses `grid gap-3 sm:grid-cols-2 lg:grid-cols-3`. From 390–640px there's
@@ -129,7 +129,7 @@ a stretch where one game card is full-width and ~360px tall — six games × 360
   fits in ~720px.
 - Keep `sm:grid-cols-2` since 640px+ has horizontal room.
 
-### [ ] M-P1-3 — Boxscore events log: surface team identity on mobile
+### [x] M-P1-3 — Boxscore events log: surface team identity on mobile
 **File:** `app/games/[id]/page.tsx:146–151, 162–164, 211`
 
 Period/clock column (`hidden md:flex`) and team marker (`hidden md:flex`,
@@ -141,7 +141,7 @@ team identity is only inferable from the 2px left border color.
 - Show the team name in small text under the player name on mobile (vertical
   space is available).
 
-### [ ] M-P1-4 — Player profile hero — avoid awkward stacking at 360px
+### [x] M-P1-4 — Player profile hero — avoid awkward stacking at 360px
 **File:** `app/players/[id]/page.tsx:249–290`
 
 Single `flex items-center gap-5` with jersey tile + name area + awards causes
@@ -153,7 +153,7 @@ position eyebrow.
   `items-center gap-8` on `md:`.
 - Wrap the team badge + position into `flex-col items-start gap-1` on mobile.
 
-### [ ] M-P1-5 — Teams card grid: bump 2-up to `md:` instead of `sm:`
+### [x] M-P1-5 — Teams card grid: bump 2-up to `md:` instead of `sm:`
 **File:** `app/teams/page.tsx:33`
 
 `grid gap-3 sm:grid-cols-2 lg:grid-cols-2`. At ~300–320px (small tablet
@@ -167,7 +167,7 @@ half-width), the team name `text-[26px]` collides with the points column.
 
 ## P2 — Polish and progressive enhancement
 
-### [ ] M-P2-1 — Drop hover trigger on AwardBadge popover
+### [x] M-P2-1 — Drop hover trigger on AwardBadge popover
 **File:** `components/AwardBadge.tsx:64–67`
 
 Has BOTH hover (`group-hover:opacity-100`) AND click (state-managed). On touch
@@ -176,7 +176,8 @@ devices the hover-stuck state can persist after a tap.
 **Fix:** Remove the `group-hover` line; the click state alone works on every
 device. (Folds into M-P0-3.)
 
-### [ ] M-P2-2 — Set `theme-color` meta to match the board
+### [x] M-P2-2 — Set `theme-color` meta to match the board
+> Implemented via Next 16's `viewport` export (`app/layout.tsx:27-29`) rather than `metadata.themeColor`, which is the correct location in Next 16.
 **File:** `app/layout.tsx:22–25`
 
 Mobile Safari/Chrome address bar defaults to white — jarring against the dark
@@ -191,7 +192,7 @@ export const metadata: Metadata = {
 };
 ```
 
-### [ ] M-P2-3 — Remove `background-attachment: fixed`
+### [x] M-P2-3 — Remove `background-attachment: fixed`
 **File:** `app/globals.css:46–50`
 
 Known mobile perf/scroll-jank issue, especially on iOS Safari. iOS doesn't
@@ -200,7 +201,7 @@ actually honor `fixed` — it scrolls with content anyway.
 **Fix:** Delete the `background-attachment: fixed` line. Visual effect is
 unchanged in practice; perf hazard removed.
 
-### [ ] M-P2-4 — Tighten About cards on mobile
+### [x] M-P2-4 — Tighten About cards on mobile
 **File:** `app/about/page.tsx:37–52`
 
 `grid gap-3 md:grid-cols-3`. On mobile each card is ~160px tall — three cards
@@ -209,7 +210,7 @@ unchanged in practice; perf hazard removed.
 **Fix:** Tighten card padding from `p-6` to `p-5` on mobile, or convert to a
 list-style row layout (eyebrow + title + → on a single row each).
 
-### [ ] M-P2-5 — Convert career stats table to card view at narrow widths
+### [x] M-P2-5 — Convert career stats table to card view at narrow widths
 **File:** `app/players/[id]/page.tsx:306` (`min-w-[680px]`)
 
 Currently uses `overflow-x-auto` which contradicts the PLAN rule "no horizontal
@@ -222,14 +223,14 @@ scroll." Users miss columns that scroll off-screen with no scroll indicator.
   only with a "More stats" disclosure.
 - Add a visible right-edge fade gradient as a scroll affordance.
 
-### [ ] M-P2-6 — Same card-view fix for stats leaderboards
+### [x] M-P2-6 — Same card-view fix for stats leaderboards
 **File:** `app/stats/page.tsx:161 (min-w-[680px])`, `app/stats/page.tsx:235 (min-w-[560px])`
 
 Same horizontal-scroll issue as M-P2-5.
 
 **Fix:** Same approach — card view ≤ `sm:`, tables ≥ `sm:`.
 
-### [ ] M-P2-7 — Respect `prefers-reduced-motion`
+### [x] M-P2-7 — Respect `prefers-reduced-motion`
 **File:** `app/globals.css:191–199`
 
 `.delay-3` + 420ms duration = up to 600ms before everything is on-screen. Can

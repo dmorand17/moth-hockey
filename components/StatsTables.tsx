@@ -110,14 +110,16 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
             <div className="panel px-5 py-4 eyebrow">No stats yet</div>
           ) : (
             sorted.map((s, i) => (
-              <div key={s.id} className="panel p-3 flex items-center gap-3">
+              <Link
+                key={s.id}
+                href={`/players/${s.id}`}
+                className="panel p-3 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
+              >
                 <span className="digit text-ink-faint w-7 shrink-0">{String(i + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1">
-                  <Link href={`/players/${s.id}`} className="hover:text-ink transition-colors block truncate">
-                    {s.name}
-                  </Link>
+                  <span className="block truncate">{s.name}</span>
                   <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
-                    {s.team && <TeamBadge {...s.team} size="sm" />}
+                    {s.team && <TeamBadge {...s.team} size="sm" asChild />}
                     <span>
                       {s.gp}GP · {s.goals}G · {s.assists}A · {s.penalties}P
                     </span>
@@ -128,7 +130,7 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
                     ? s.points
                     : (s[sortKey as keyof Skater] as number)}
                 </span>
-              </div>
+              </Link>
             ))
           )}
         </div>
@@ -163,8 +165,11 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
               sorted.map((s, i) => (
                 <tr key={s.id}>
                   <td className="pl-5 digit text-ink-faint">{String(i + 1).padStart(2, "0")}</td>
-                  <td>
-                    <Link href={`/players/${s.id}`} className="hover:text-ink transition-colors">
+                  <td className="!p-0">
+                    <Link
+                      href={`/players/${s.id}`}
+                      className="flex items-center min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
+                    >
                       {s.name}
                     </Link>
                   </td>
@@ -227,21 +232,23 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
             <div className="panel px-5 py-4 eyebrow">No goalies on file</div>
           ) : (
             sorted.map((g, i) => (
-              <div key={g.id} className="panel p-3 flex items-center gap-3">
+              <Link
+                key={g.id}
+                href={`/players/${g.id}`}
+                className="panel p-3 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
+              >
                 <span className="digit text-ink-faint w-7 shrink-0">{String(i + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1">
-                  <Link href={`/players/${g.id}`} className="hover:text-ink transition-colors block truncate">
-                    {g.name}
-                  </Link>
+                  <span className="block truncate">{g.name}</span>
                   <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
-                    {g.team && <TeamBadge {...g.team} size="sm" />}
+                    {g.team && <TeamBadge {...g.team} size="sm" asChild />}
                     <span>{g.gp}GP · {g.ga}GA · {g.ps_faced}PSF</span>
                   </div>
                 </div>
                 <span className="digit text-2xl text-ink shrink-0 tnum">
                   {(g[sortKey as keyof Goalie] as number) ?? 0}
                 </span>
-              </div>
+              </Link>
             ))
           )}
         </div>
@@ -275,8 +282,11 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
               sorted.map((g, i) => (
                 <tr key={g.id}>
                   <td className="pl-5 digit text-ink-faint">{String(i + 1).padStart(2, "0")}</td>
-                  <td>
-                    <Link href={`/players/${g.id}`} className="hover:text-ink transition-colors">
+                  <td className="!p-0">
+                    <Link
+                      href={`/players/${g.id}`}
+                      className="flex items-center min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
+                    >
                       {g.name}
                     </Link>
                   </td>

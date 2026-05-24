@@ -7,7 +7,7 @@ export default async function StandingsPage() {
   const standings = await getStandings(season.id);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       <div className="rise">
         <SectionHeader
           eyebrow="The Table"
@@ -17,8 +17,38 @@ export default async function StandingsPage() {
         />
       </div>
 
-      <div className="rise delay-1 panel overflow-x-auto">
-        <table className="board-table min-w-[640px]">
+      {/* Mobile: stacked cards with full record + diff */}
+      <div className="rise delay-1 space-y-2 sm:hidden">
+        {standings.map((row, i) => (
+          <div key={row.team_id} className="panel p-3 flex items-center gap-3">
+            <span className="digit text-ink-faint w-7 shrink-0">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div className="min-w-0 flex-1">
+              <TeamBadge name={row.name} slug={row.slug} color={row.color} />
+              <div className="mt-1 flex items-center gap-3 text-[12px] text-ink-dim tnum whitespace-nowrap">
+                <span>{row.gp} GP</span>
+                <span>{row.w}-{row.l}-{row.otl}</span>
+                <span
+                  className={
+                    row.diff > 0 ? "text-ice" : row.diff < 0 ? "text-goal" : ""
+                  }
+                >
+                  {row.diff > 0 ? "+" : ""}
+                  {row.diff}
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="digit text-2xl text-ink">{row.pts}</div>
+              <div className="eyebrow text-[10px]">PTS</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="rise delay-1 panel hidden sm:block overflow-x-auto">
+        <table className="board-table">
           <thead>
             <tr>
               <th className="text-left w-12 pl-5">#</th>

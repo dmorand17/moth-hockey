@@ -33,10 +33,10 @@ export function GameRow({
   return (
     <Link
       href={`/games/${id}`}
-      className="block panel hover:border-rule-strong transition-colors p-4 group"
+      className="block panel hover:border-rule-strong transition-colors p-3 sm:p-4 group"
     >
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <div className="eyebrow flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
+        <div className="eyebrow flex items-center gap-2 truncate">
           <span>{formatDate(scheduled_at)}</span>
           {!isFinal && !isLive && (
             <>
@@ -57,11 +57,11 @@ export function GameRow({
           <span className="chip">UPCOMING</span>
         )}
       </div>
-      <div className="space-y-2.5">
+      <div className="space-y-1.5 sm:space-y-2.5">
         <div className="flex items-center justify-between gap-3">
           <TeamBadge {...away_team} asChild size="md" className={awayWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
           {isFinal && (
-            <span className={`digit text-2xl ${awayWon ? "text-ink" : "text-ink-faint"}`}>
+            <span className={`digit text-xl sm:text-2xl ${awayWon ? "text-ink" : "text-ink-faint"}`}>
               {away_score}
             </span>
           )}
@@ -69,7 +69,7 @@ export function GameRow({
         <div className="flex items-center justify-between gap-3">
           <TeamBadge {...home_team} asChild size="md" className={homeWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
           {isFinal && (
-            <span className={`digit text-2xl ${homeWon ? "text-ink" : "text-ink-faint"}`}>
+            <span className={`digit text-xl sm:text-2xl ${homeWon ? "text-ink" : "text-ink-faint"}`}>
               {home_score}
             </span>
           )}

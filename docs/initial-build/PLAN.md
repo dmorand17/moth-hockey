@@ -4,6 +4,16 @@
 
 **Visual style:** dark theme with hockey-rink vibe — dark background, high-contrast text, accent colors per team. Designed to read well on phones at the rink. Tailwind v4 default dark palette + per-team accent from `teams.color`.
 
+**Mobile-first.** The vast majority of users access this site from a phone — at the rink, on the bench, between shifts. Every page must be designed and verified at mobile viewports first; desktop is the secondary view. Practically that means:
+
+- **Design at 360–390px width first.** Don't add a desktop layout until the mobile layout works.
+- **Tailwind utilities default to mobile.** Use `sm:` / `md:` / `lg:` breakpoints to *progressively enhance* — never to fix something that's broken on mobile.
+- **Tap targets ≥ 44×44px.** Buttons, nav links, table rows that link somewhere — all must be thumbable.
+- **No horizontal scroll.** Wide tables must collapse, scroll-snap, or hide non-essential columns on small screens. Test at 360px.
+- **Avoid hover-only affordances.** Anything important on hover must also work on tap (or be re-thought for mobile). Tooltips/popovers should toggle on tap.
+- **Sticky headers/footers used sparingly** — they eat phone real estate. Reserve for the scorekeeper clock and similar tools-of-the-moment.
+- **Verify in a real mobile browser** (or DevTools mobile emulation) before merging UI changes — not just by resizing the desktop window.
+
 **Team colors:** placeholder distinct colors auto-assigned at seed time (e.g. red, blue, green, yellow, purple, orange, teal, pink). Admin can override per team in the UI later.
 
 
@@ -216,7 +226,7 @@ Import flow at `/admin/import`:
 Goal: a usable league site where games can be scored on a phone and stats roll up correctly. Everything below is required to ship.
 
 1. **Schema + seed data** — Supabase project, migrations for the must-have tables. Includes `players.photo_url` and `teams.logo_url` columns now (nullable, unused in Phase 1 UI) so Phase 2 doesn't need a migration. Mock season with 4 teams / ~60 players / a handful of games. *Verify:* roster + fake boxscore queries work in SQL editor.
-2. **Public read-only site** — teams, rosters, schedule, standings, About hub (rules / FAQ / league details), boxscore pages. Mobile responsive. No photos — use initials/team color tiles as placeholders. *Verify:* renders well on mobile; Lighthouse >90.
+2. **Public read-only site** — teams, rosters, schedule, standings, About hub (rules / FAQ / league details), boxscore pages. **Mobile-first** — designed at 360–390px width; desktop is progressive enhancement. No photos — use initials/team color tiles as placeholders. *Verify:* every page renders well at 360px (no horizontal scroll, tap targets ≥44px); Lighthouse mobile score >90.
 3. **Admin CRUD** — auth + pages to manage teams, players, rosters, schedule, and content pages (rules / FAQ / league details). *Verify:* can set up a real season end-to-end without touching SQL.
 4. **Scorekeeper** — pre-game roster check-in (regulars + subs, including type-in for new players), goal flow, penalty/penalty-shot flow, OT, shootout tally, undo. Mobile-first. *Verify:* score a fake game on a phone; final score and stats are correct.
 5. **Realtime boxscore** — `/games/[id]` updates live as the scorekeeper enters events. *Verify:* second device sees updates within ~1s.

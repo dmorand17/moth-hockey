@@ -56,10 +56,10 @@ export default async function TeamPage({
   const goalies = (roster ?? []).filter((r) => r.position === "goalie");
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-5 sm:space-y-8">
       {/* Hero */}
       <section
-        className="rise panel p-6 md:p-8 relative overflow-hidden"
+        className="rise panel p-4 sm:p-6 md:p-8 relative overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${team.color}18 0%, transparent 60%), var(--board-2)`,
         }}
@@ -72,13 +72,13 @@ export default async function TeamPage({
         <Link href="/teams" className="eyebrow hover:text-ink transition-colors">
           ← All teams
         </Link>
-        <div className="mt-4 flex items-center gap-5">
-          <div className="relative h-20 w-20 shrink-0">
+        <div className="mt-3 sm:mt-4 flex items-center gap-3 sm:gap-5">
+          <div className="relative h-14 w-14 sm:h-20 sm:w-20 shrink-0">
             <div
               className="absolute inset-0 rounded-sm"
               style={{ background: team.color }}
             />
-            <div className="absolute inset-0 flex items-center justify-center font-display text-board text-[34px] tracking-tight">
+            <div className="absolute inset-0 flex items-center justify-center font-display text-board text-[24px] sm:text-[34px] tracking-tight">
               {team.name
                 .split(" ")
                 .map((w) => w[0])
@@ -89,7 +89,7 @@ export default async function TeamPage({
           </div>
           <div>
             <div className="eyebrow">{season.name}</div>
-            <h1 className="font-display text-[44px] md:text-[68px] leading-[0.92] tracking-[0.04em] mt-1">
+            <h1 className="font-display text-[32px] sm:text-[44px] md:text-[68px] leading-[0.92] tracking-[0.04em] mt-1">
               {team.name.toUpperCase()}
             </h1>
           </div>
@@ -99,7 +99,7 @@ export default async function TeamPage({
       {/* Roster */}
       <section className="rise delay-1">
         <SectionHeader eyebrow="Roster" title="The Lineup" />
-        <div className="grid gap-6 md:grid-cols-[1fr_auto] md:gap-8">
+        <div className="grid gap-3 sm:gap-6 md:grid-cols-[1fr_auto] md:gap-8">
           <div className="panel overflow-hidden">
             <table className="board-table">
               <thead>
@@ -189,12 +189,12 @@ function RosterGroup({ label, rows }: { label: string; rows: RosterRow[] }) {
             <td className="pl-5 digit text-ink-faint text-[15px]">
               {r.jersey_number ?? "—"}
             </td>
-            <td>
+            <td className="!p-0">
               <Link
                 href={`/players/${p.id}`}
-                className="hover:text-ink transition-colors"
+                className="flex items-center min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
               >
-                {p.first_name} <span className="font-medium">{p.last_name}</span>
+                {p.first_name} <span className="font-medium">&nbsp;{p.last_name}</span>
               </Link>
             </td>
             <td className="text-right pr-5 eyebrow">{r.position}</td>

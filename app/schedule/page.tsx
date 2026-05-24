@@ -38,7 +38,7 @@ export default async function SchedulePage() {
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-5 sm:space-y-8">
       <div className="rise">
         <SectionHeader
           eyebrow="The Calendar"

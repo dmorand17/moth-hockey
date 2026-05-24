@@ -36,16 +36,36 @@ supabase link --project-ref <project-ref>
 
 # Apply migrations
 supabase db push
-
-# Seed (uses supabase/seed.sql)
-supabase db seed
 ```
 
-If `db seed` doesn't exist on your CLI version, run the seed manually:
+Now seed the data. The Supabase CLI doesn't have a `db seed` command for
+remote projects, so run the seed file directly with `psql`.
+
+**Get the connection string from the dashboard:**
+Project Settings → Database → Connection string → **Session pooler** tab
+(port 5432, not the transaction pooler on 6543 — seed files need multi-
+statement transactions which the transaction pooler doesn't support).
+
+It looks like:
+```
+postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+> ⚠️ Don't use the **direct** connection string (`db.<ref>.supabase.co`).
+> That hostname is deprecated and won't resolve on newer projects, giving
+> a `could not translate host name` error.
+
+Replace `[YOUR-PASSWORD]` with your db password, then:
 
 ```bash
-psql "postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres" -f supabase/seed.sql
+psql "<paste-session-pooler-string>" -f supabase/seed.sql
 ```
+
+If you don't have `psql`: `brew install libpq && brew link --force libpq`.
+
+**Alternative if `psql` is a hassle:** open the Supabase dashboard SQL
+Editor, paste the contents of `supabase/seed.sql`, click Run. Slower but
+no CLI needed.
 
 ## 3. Deploy to Vercel
 

@@ -8,6 +8,19 @@ type Position = "forward" | "defense" | "goalie";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+export const PENALTY_TYPES = [
+  "tripping",
+  "hooking",
+  "slashing",
+  "high_sticking",
+  "interference",
+  "holding",
+  "roughing",
+  "cross_checking",
+  "other",
+] as const;
+export type PenaltyType = (typeof PENALTY_TYPES)[number];
+
 // Creates a one-off player to use as a sub. Returns the new player so the
 // client can stage them into the check-in list. We do NOT create a
 // `team_players` row — subs are league-wide players who happened to play in
@@ -228,5 +241,241 @@ export async function updateRoster(input: {
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath(`/score/${input.gameId}/roster`);
   revalidatePath("/score");
+  return { ok: true };
+}
+
+// =============================================================================
+// LIVE SCORING (Wave 3)
+// =============================================================================
+
+async function ensureLiveAccess(gameId: string) {
+  await requireRole(["admin", "scorekeeper"]);
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("games")
+    .select("status, period, clock_seconds, home_team_id, away_team_id, home_score, away_score")
+    .eq("id", gameId)
+    .single();
+  if (error) return { ok: false as const, error: error.message };
+  if (data.status !== "live") {
+    return { ok: false as const, error: `Game is ${data.status}; not editable.` };
+  }
+  return { ok: true as const, supabase, game: data };
+}
+
+// Set the clock to a specific seconds value. Used by manual +/- buttons in the UI.
+export async function setClock(input: { gameId: string; clockSeconds: number }): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const clock = Math.max(0, Math.min(60 * 99, Math.floor(input.clockSeconds)));
+  const { error } = await guard.supabase
+    .from("games")
+    .update({ clock_seconds: clock })
+    .eq("id", input.gameId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}
+
+// Advance to the next period. 1→2→3→4(OT)→5(SO).
+// At each transition we reset the clock: regulation periods → season period
+// length, OT → 5:00, shootout → 0 (no clock).
+export async function advancePeriod(input: { gameId: string }): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const cur = guard.game.period;
+  if (cur >= 5) return { ok: false, error: "Already at shootout." };
+  const next = cur + 1;
+
+  // Period clock seed.
+  let clock = 0;
+  if (next <= 3) {
+    const { data: gameMeta, error: metaErr } = await guard.supabase
+      .from("games")
+      .select("season_id")
+      .eq("id", input.gameId)
+      .single();
+    if (metaErr || !gameMeta) return { ok: false, error: metaErr?.message ?? "Game not found." };
+    const { data: seasonRow } = await guard.supabase
+      .from("seasons")
+      .select("period_length_minutes")
+      .eq("id", gameMeta.season_id)
+      .single();
+    clock = (seasonRow?.period_length_minutes ?? 17) * 60;
+  } else if (next === 4) {
+    clock = 5 * 60;
+  } else {
+    clock = 0;
+  }
+
+  const { error } = await guard.supabase
+    .from("games")
+    .update({ period: next, clock_seconds: clock })
+    .eq("id", input.gameId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}
+
+// Record a goal. Increments the team's score atomically (read current, write back).
+export async function recordGoal(input: {
+  gameId: string;
+  teamId: string;
+  scorerId: string;
+  assist1Id?: string | null;
+  assist2Id?: string | null;
+  period: number;
+  clockSeconds: number;
+}): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const { supabase, game } = guard;
+
+  if (input.teamId !== game.home_team_id && input.teamId !== game.away_team_id) {
+    return { ok: false, error: "Team is not in this game." };
+  }
+  if (!input.scorerId) return { ok: false, error: "Scorer required." };
+
+  const { error: insertErr } = await supabase.from("game_events").insert({
+    game_id: input.gameId,
+    type: "goal",
+    team_id: input.teamId,
+    period: input.period,
+    clock_seconds: input.clockSeconds,
+    player_id: input.scorerId,
+    assist1_player_id: input.assist1Id ?? null,
+    assist2_player_id: input.assist2Id ?? null,
+  });
+  if (insertErr) return { ok: false, error: insertErr.message };
+
+  const isHome = input.teamId === game.home_team_id;
+  const update = isHome
+    ? { home_score: game.home_score + 1 }
+    : { away_score: game.away_score + 1 };
+  const { error: updErr } = await supabase
+    .from("games")
+    .update(update)
+    .eq("id", input.gameId);
+  if (updErr) return { ok: false, error: updErr.message };
+
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}
+
+// Record a penalty + its resulting penalty shot. If the shot results in a
+// goal, increment the SHOOTING team's score (which is the team OPPOSITE the
+// committing team).
+export async function recordPenalty(input: {
+  gameId: string;
+  committingTeamId: string;
+  offenderId: string;
+  penaltyType: PenaltyType;
+  penaltyTypeOther?: string | null;
+  shotTakerId: string;
+  shotResult: "goal" | "saved";
+  period: number;
+  clockSeconds: number;
+}): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const { supabase, game } = guard;
+
+  if (
+    input.committingTeamId !== game.home_team_id &&
+    input.committingTeamId !== game.away_team_id
+  ) {
+    return { ok: false, error: "Team is not in this game." };
+  }
+  if (!PENALTY_TYPES.includes(input.penaltyType)) {
+    return { ok: false, error: "Invalid penalty type." };
+  }
+  if (input.penaltyType === "other" && !input.penaltyTypeOther?.trim()) {
+    return { ok: false, error: "Describe the penalty in the notes." };
+  }
+
+  const { error: insertErr } = await supabase.from("game_events").insert({
+    game_id: input.gameId,
+    type: "penalty",
+    team_id: input.committingTeamId,
+    period: input.period,
+    clock_seconds: input.clockSeconds,
+    player_id: input.offenderId,
+    penalty_type: input.penaltyType,
+    penalty_type_other:
+      input.penaltyType === "other" ? (input.penaltyTypeOther ?? "").trim() : null,
+    penalty_shot_result: input.shotResult,
+    penalty_shot_taker_id: input.shotTakerId,
+  });
+  if (insertErr) return { ok: false, error: insertErr.message };
+
+  // Penalty-shot goals count on the scoreboard.
+  if (input.shotResult === "goal") {
+    const shootingTeamIsHome = input.committingTeamId !== game.home_team_id;
+    const update = shootingTeamIsHome
+      ? { home_score: game.home_score + 1 }
+      : { away_score: game.away_score + 1 };
+    const { error: updErr } = await supabase
+      .from("games")
+      .update(update)
+      .eq("id", input.gameId);
+    if (updErr) return { ok: false, error: updErr.message };
+  }
+
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}
+
+// Undo a specific event by id. Reverses any score increment it caused.
+export async function undoEvent(input: {
+  gameId: string;
+  eventId: string;
+}): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const { supabase, game } = guard;
+
+  const { data: ev, error: fetchErr } = await supabase
+    .from("game_events")
+    .select("id, type, team_id, penalty_shot_result")
+    .eq("id", input.eventId)
+    .eq("game_id", input.gameId)
+    .single();
+  if (fetchErr || !ev) return { ok: false, error: fetchErr?.message ?? "Event not found." };
+
+  // Determine the score-bearing team for this event:
+  //   goal           → ev.team_id (the scoring team)
+  //   penalty + goal → opposite of ev.team_id (the team that took the shot)
+  //   penalty + saved → no score change
+  let scoringTeamId: string | null = null;
+  if (ev.type === "goal") {
+    scoringTeamId = ev.team_id;
+  } else if (ev.type === "penalty" && ev.penalty_shot_result === "goal") {
+    scoringTeamId = ev.team_id === game.home_team_id ? game.away_team_id : game.home_team_id;
+  }
+
+  const { error: delErr } = await supabase
+    .from("game_events")
+    .delete()
+    .eq("id", input.eventId);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  if (scoringTeamId) {
+    const isHome = scoringTeamId === game.home_team_id;
+    const update = isHome
+      ? { home_score: Math.max(0, game.home_score - 1) }
+      : { away_score: Math.max(0, game.away_score - 1) };
+    const { error: updErr } = await supabase
+      .from("games")
+      .update(update)
+      .eq("id", input.gameId);
+    if (updErr) return { ok: false, error: updErr.message };
+  }
+
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
   return { ok: true };
 }

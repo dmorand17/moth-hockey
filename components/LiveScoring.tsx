@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   advancePeriod,
-  PENALTY_TYPES,
-  PenaltyType,
   recordGoal,
   recordPenalty,
   setClock,
   undoEvent,
 } from "@/app/score/[gameId]/actions";
+import { PENALTY_TYPES, type PenaltyType } from "@/app/score/[gameId]/penalty-types";
 import { formatClock, formatPeriod } from "@/lib/format";
 
 type Position = "forward" | "defense" | "goalie";
@@ -56,7 +55,53 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const [sheet, setSheet] = useState<null | "goal" | "penalty" | "advance">(null);
+  const [sheet, setSheet] = useState<
+    | null
+    | { kind: "goal"; teamId: string }
+    | { kind: "penalty"; teamId: string }
+    | { kind: "advance" }
+  >(null);
+
+  // Local clock that ticks while running. Source of truth for display only;
+  // we persist back to the DB every 10s and on pause/event.
+  const [running, setRunning] = useState(false);
+  const [displayClock, setDisplayClock] = useState(game.clockSeconds);
+  const lastPersistedRef = useRef(game.clockSeconds);
+
+  // When the server clock changes (refresh after an action), resync.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDisplayClock(game.clockSeconds);
+    lastPersistedRef.current = game.clockSeconds;
+  }, [game.clockSeconds]);
+
+  // Tick once per second when running. Persist every 10 ticks (or when
+  // we hit 0). This avoids hammering the DB while still keeping the
+  // server roughly in sync for a refresh / spectator view.
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => {
+      setDisplayClock((cur) => {
+        const next = Math.max(0, cur - 1);
+        if (next === 0) setRunning(false);
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  // Persist to DB on pause and every 10s while running.
+  useEffect(() => {
+    const drift = lastPersistedRef.current - displayClock;
+    const shouldPersist =
+      (!running && drift !== 0) || // user paused; flush
+      drift >= 10 ||                // running, 10s elapsed since last persist
+      (displayClock === 0 && drift !== 0);
+    if (!shouldPersist) return;
+    lastPersistedRef.current = displayClock;
+    // Fire-and-forget; we don't router.refresh() to avoid disrupting the tick.
+    setClock({ gameId: game.id, clockSeconds: displayClock }).catch(() => {});
+  }, [displayClock, running, game.id]);
 
   const run = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => {
     setError(null);
@@ -67,16 +112,25 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     });
   };
 
-  const onSetClock = (delta: number) => {
-    const next = Math.max(0, game.clockSeconds + delta);
-    run(() => setClock({ gameId: game.id, clockSeconds: next }));
-  };
+  const onToggleRun = () => setRunning((r) => !r);
 
-  const onUndoMostRecent = () => {
-    if (events.length === 0) return;
-    const ev = events[0]; // newest first
-    if (!confirm("Undo the most recent event?")) return;
-    run(() => undoEvent({ gameId: game.id, eventId: ev.id }));
+  const onEditClock = () => {
+    setRunning(false);
+    const cur = formatClock(displayClock);
+    const input = window.prompt("Set clock (MM:SS)", cur);
+    if (input == null) return;
+    const m = input.match(/^(\d{1,2}):([0-5]?\d)$/);
+    if (!m) {
+      setError("Use MM:SS format, e.g. 14:30");
+      return;
+    }
+    const next = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    if (next < 0 || next > 99 * 60) {
+      setError("Clock must be between 0:00 and 99:00");
+      return;
+    }
+    setDisplayClock(next);
+    run(() => setClock({ gameId: game.id, clockSeconds: next }));
   };
 
   const onUndoSpecific = (eventId: string) => {
@@ -87,69 +141,64 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   const isP3End = game.period === 3;
 
   return (
-    <div className="space-y-4 pb-32">
+    <div className="space-y-3 pb-3">
       {/* Sticky scoreboard */}
-      <ScoreBar game={game} onSetClock={onSetClock} pending={pending} />
+      <ScoreBar
+        game={game}
+        displayClock={displayClock}
+        running={running}
+        onToggleRun={onToggleRun}
+        onEditClock={onEditClock}
+      />
 
       {error && (
         <div className="panel-bare p-3 text-goal text-[13px]">{error}</div>
       )}
 
-      {/* Primary actions */}
-      <div className="grid grid-cols-3 gap-2">
-        <ActionButton
-          label="Goal"
-          tone="goal"
-          onClick={() => setSheet("goal")}
+      {/* Per-team primary actions, visually bonded to the team scores above */}
+      <div className="grid grid-cols-2 gap-2 -mt-1">
+        <TeamActionColumn
+          team={game.awayTeam}
+          onGoal={() => setSheet({ kind: "goal", teamId: game.awayTeam.id })}
+          onPenalty={() => setSheet({ kind: "penalty", teamId: game.awayTeam.id })}
           disabled={pending}
         />
-        <ActionButton
-          label="Penalty"
-          tone="ice"
-          onClick={() => setSheet("penalty")}
+        <TeamActionColumn
+          team={game.homeTeam}
+          onGoal={() => setSheet({ kind: "goal", teamId: game.homeTeam.id })}
+          onPenalty={() => setSheet({ kind: "penalty", teamId: game.homeTeam.id })}
           disabled={pending}
-        />
-        <ActionButton
-          label="Undo"
-          tone="muted"
-          onClick={onUndoMostRecent}
-          disabled={pending || events.length === 0}
         />
       </div>
 
-      {/* End-of-period button */}
-      <div className="flex flex-wrap gap-2">
-        {isP3End && (
-          <button
-            type="button"
-            onClick={() => setSheet("advance")}
-            disabled={pending}
-            className="flex-1 min-h-[44px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
-          >
-            End regulation →
-          </button>
-        )}
-        {game.period < 3 && (
-          <button
-            type="button"
-            onClick={() => setSheet("advance")}
-            disabled={pending}
-            className="flex-1 min-h-[44px] eyebrow text-[11px] border border-rule rounded-[2px] hover:text-ink hover:border-rule-strong text-ink-dim"
-          >
-            End {formatPeriod(game.period)} →
-          </button>
-        )}
-        {game.period === 4 && (
-          <span className="flex-1 min-h-[44px] eyebrow text-[11px] text-ink-faint flex items-center justify-center">
-            OT — Wave 4 finalize coming soon
-          </span>
-        )}
-        {game.period >= 5 && (
-          <span className="flex-1 min-h-[44px] eyebrow text-[11px] text-ink-faint flex items-center justify-center">
-            Shootout — Wave 4 finalize coming soon
-          </span>
-        )}
-      </div>
+      {/* End-period button. Spans full width since undo is now handled by tapping events. */}
+      {isP3End ? (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "advance" })}
+          disabled={pending}
+          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
+        >
+          End regulation →
+        </button>
+      ) : game.period < 3 ? (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "advance" })}
+          disabled={pending}
+          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule rounded-[2px] hover:text-ink hover:border-rule-strong text-ink-dim"
+        >
+          End {formatPeriod(game.period)} →
+        </button>
+      ) : game.period === 4 ? (
+        <div className="w-full min-h-[40px] eyebrow text-[11px] text-ink-faint flex items-center justify-center text-center">
+          OT — Wave 4 soon
+        </div>
+      ) : (
+        <div className="w-full min-h-[40px] eyebrow text-[11px] text-ink-faint flex items-center justify-center text-center">
+          Shootout — Wave 4 soon
+        </div>
+      )}
 
       {/* Events log */}
       <EventsList
@@ -160,9 +209,10 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         disabled={pending}
       />
 
-      {sheet === "goal" && (
+      {sheet?.kind === "goal" && (
         <GoalSheet
-          game={game}
+          game={{ ...game, clockSeconds: displayClock }}
+          initialTeamId={sheet.teamId}
           homeRoster={homeRoster}
           awayRoster={awayRoster}
           onCancel={() => setSheet(null)}
@@ -173,9 +223,10 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         />
       )}
 
-      {sheet === "penalty" && (
+      {sheet?.kind === "penalty" && (
         <PenaltySheet
-          game={game}
+          game={{ ...game, clockSeconds: displayClock }}
+          initialTeamId={sheet.teamId}
           homeRoster={homeRoster}
           awayRoster={awayRoster}
           onCancel={() => setSheet(null)}
@@ -186,7 +237,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         />
       )}
 
-      {sheet === "advance" && (
+      {sheet?.kind === "advance" && (
         <AdvanceSheet
           game={game}
           onCancel={() => setSheet(null)}
@@ -202,57 +253,94 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
 
 function ScoreBar({
   game,
-  onSetClock,
-  pending,
+  displayClock,
+  running,
+  onToggleRun,
+  onEditClock,
 }: {
   game: Game;
-  onSetClock: (delta: number) => void;
-  pending: boolean;
+  displayClock: number;
+  running: boolean;
+  onToggleRun: () => void;
+  onEditClock: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-20 -mx-4 sm:mx-0 bg-board/95 backdrop-blur border-b border-rule">
-      <div className="px-3 py-3 sm:px-0 space-y-2">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+    <div className="sticky top-0 z-20 -mx-4 sm:mx-0">
+      <div
+        className="scoreboard relative overflow-hidden p-3 space-y-2"
+        style={{
+          // Outer ring + drop shadow lifts the panel off the page
+          boxShadow:
+            "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,227,240,0.08)",
+        }}
+      >
+        {/* Per-team color washes from each side, fading to the centre */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `
+              radial-gradient(120% 80% at 0% 50%, ${game.awayTeam.color}26 0%, transparent 55%),
+              radial-gradient(120% 80% at 100% 50%, ${game.homeTeam.color}26 0%, transparent 55%),
+              radial-gradient(140% 60% at 50% -20%, rgba(255,255,255,0.06) 0%, transparent 70%)
+            `,
+          }}
+        />
+        {/* Top + bottom edge highlights */}
+        <div
+          aria-hidden
+          className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(124,227,240,0.45), transparent)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(255,56,56,0.35), transparent)",
+          }}
+        />
+        <div className="absolute inset-0 stripes opacity-30 pointer-events-none" />
+        <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <TeamScore team={game.awayTeam} score={game.awayScore} align="left" />
-          <div className="flex flex-col items-center min-w-[88px]">
+          <div className="flex flex-col items-center min-w-[96px] gap-1">
             <span className="chip chip-live whitespace-nowrap">
               <span className="live-dot" /> {formatPeriod(game.period)}
             </span>
-            <span className="digit text-[26px] sm:text-[28px] mt-1 leading-none">
-              {formatClock(game.clockSeconds)}
-            </span>
+            <button
+              type="button"
+              onClick={onEditClock}
+              title="Tap to edit clock"
+              aria-label="Edit clock"
+              className={`digit text-[34px] leading-none tabular-nums hover:opacity-80 transition-opacity ${
+                running ? "text-ink" : "text-ink-dim"
+              }`}
+              style={{
+                textShadow: running ? "0 0 12px rgba(255, 56, 56, 0.35)" : undefined,
+              }}
+            >
+              {formatClock(displayClock)}
+            </button>
+            <button
+              type="button"
+              onClick={onToggleRun}
+              className={`h-7 px-2.5 eyebrow text-[10px] tracking-[0.18em] border rounded-[2px] transition-colors ${
+                running
+                  ? "bg-goal/15 text-goal border-goal/50 hover:bg-goal/25"
+                  : "bg-board-3 text-ink-dim border-rule hover:border-ice hover:text-ice"
+              }`}
+              aria-label={running ? "Pause clock" : "Start clock"}
+            >
+              {running ? "❚❚ PAUSE" : "▶ START"}
+            </button>
           </div>
           <TeamScore team={game.homeTeam} score={game.homeScore} align="right" />
         </div>
-        <div className="flex justify-center gap-1">
-          <ClockBtn label="−1m" disabled={pending} onClick={() => onSetClock(-60)} />
-          <ClockBtn label="−10s" disabled={pending} onClick={() => onSetClock(-10)} />
-          <ClockBtn label="+10s" disabled={pending} onClick={() => onSetClock(+10)} />
-          <ClockBtn label="+1m" disabled={pending} onClick={() => onSetClock(+60)} />
-        </div>
       </div>
     </div>
-  );
-}
-
-function ClockBtn({
-  label,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="min-h-[36px] px-2 eyebrow text-[10px] border border-rule rounded-[2px] hover:border-rule-strong hover:text-ink text-ink-dim disabled:opacity-50"
-    >
-      {label}
-    </button>
   );
 }
 
@@ -267,51 +355,70 @@ function TeamScore({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 min-w-0 ${
-        align === "right" ? "justify-end flex-row-reverse" : ""
-      }`}
+      className={`flex flex-col min-w-0 ${align === "right" ? "items-end" : "items-start"}`}
     >
-      <span
-        aria-hidden
-        className="inline-block w-1 h-7 rounded-[1px] shrink-0"
-        style={{ backgroundColor: team.color, boxShadow: `0 0 8px ${team.color}55` }}
-      />
-      <div className={`flex items-baseline gap-2 ${align === "right" ? "flex-row-reverse" : ""}`}>
-        <span className="font-display text-[16px] sm:text-[18px] tracking-[0.06em] truncate max-w-[110px] sm:max-w-[160px]">
+      <div className={`flex items-center gap-2 ${align === "right" ? "flex-row-reverse" : ""}`}>
+        <span
+          aria-hidden
+          className="inline-block w-1.5 h-5 rounded-[1px] shrink-0"
+          style={{ backgroundColor: team.color, boxShadow: `0 0 10px ${team.color}88` }}
+        />
+        <span
+          className="font-display text-[13px] tracking-[0.1em] truncate max-w-[100px] sm:max-w-[160px] uppercase"
+          style={{ color: team.color }}
+        >
           {team.name}
         </span>
-        <span className="digit text-[26px] leading-none">{score}</span>
       </div>
+      <span
+        className="digit text-[44px] leading-none tabular-nums mt-1"
+        style={{
+          color: "var(--ink)",
+          textShadow: `0 0 12px ${team.color}55`,
+        }}
+      >
+        {score}
+      </span>
     </div>
   );
 }
 
-function ActionButton({
-  label,
-  tone,
-  onClick,
+function TeamActionColumn({
+  team,
+  onGoal,
+  onPenalty,
   disabled,
 }: {
-  label: string;
-  tone: "goal" | "ice" | "muted";
-  onClick: () => void;
+  team: Team;
+  onGoal: () => void;
+  onPenalty: () => void;
   disabled?: boolean;
 }) {
-  const cls =
-    tone === "goal"
-      ? "bg-goal text-board border-goal hover:bg-goal-glow"
-      : tone === "ice"
-        ? "bg-ice text-board border-ice hover:opacity-90"
-        : "bg-board-3 text-ink border-rule-strong hover:border-ice";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`min-h-[64px] font-display text-[20px] tracking-[0.14em] rounded-[2px] border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${cls}`}
-    >
-      {label.toUpperCase()}
-    </button>
+    <div className="space-y-1.5">
+      {/* Team rail header: ties this column to the score panel above */}
+      <div
+        aria-hidden
+        className="h-1 rounded-[1px]"
+        style={{ background: team.color, boxShadow: `0 0 12px ${team.color}55` }}
+      />
+      <button
+        type="button"
+        onClick={onGoal}
+        disabled={disabled}
+        className="w-full min-h-[68px] font-display text-[22px] tracking-[0.14em] rounded-[2px] border bg-goal text-board border-goal hover:bg-goal-glow active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        GOAL
+      </button>
+      <button
+        type="button"
+        onClick={onPenalty}
+        disabled={disabled}
+        className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        PENALTY
+      </button>
+    </div>
   );
 }
 
@@ -330,15 +437,26 @@ function EventsList({
 }) {
   if (events.length === 0) {
     return (
-      <p className="eyebrow text-ink-faint text-center py-4">
-        No events yet — record a goal or penalty.
-      </p>
+      <div className="border-t border-rule pt-3">
+        <div className="flex items-center justify-between">
+          <span className="eyebrow text-[10px] text-ink-faint">Events</span>
+          <span className="eyebrow text-[10px] text-ink-faint">tap to undo</span>
+        </div>
+        <p className="eyebrow text-[10px] text-ink-faint text-center py-4">
+          No events yet
+        </p>
+      </div>
     );
   }
   return (
-    <div className="space-y-2">
-      <div className="eyebrow text-[10px] text-ink-dim px-1">Events · newest first · tap to undo</div>
-      <ol className="space-y-1.5">
+    <div className="space-y-1.5 border-t border-rule pt-3">
+      <div className="flex items-center justify-between">
+        <span className="eyebrow text-[10px] text-ink-faint">
+          Events · {events.length}
+        </span>
+        <span className="eyebrow text-[10px] text-ink-faint">tap to undo</span>
+      </div>
+      <ol className="divide-y divide-rule">
         {events.map((e) => {
           const team = e.team_id === homeTeam.id ? homeTeam : awayTeam;
           const isGoal = e.type === "goal";
@@ -348,19 +466,19 @@ function EventsList({
                 type="button"
                 onClick={() => onUndo(e.id)}
                 disabled={disabled}
-                className="w-full panel-bare p-3 flex items-start gap-3 text-left border-l-[3px] disabled:opacity-50"
+                className="w-full py-2 px-2 flex items-start gap-3 text-left border-l-[3px] hover:bg-board-2 transition-colors disabled:opacity-50"
                 style={{ borderLeftColor: team.color }}
               >
-                <div className="flex flex-col items-center min-w-[40px] shrink-0">
+                <div className="flex flex-col items-start min-w-[52px] shrink-0">
                   <span
-                    className={`font-display text-[13px] tracking-[0.14em] ${
+                    className={`font-display text-[13px] tracking-[0.16em] leading-none ${
                       isGoal ? "text-goal" : "text-ice"
                     }`}
                   >
                     {isGoal ? "GOAL" : "PEN"}
                   </span>
-                  <span className="digit text-[12px] text-ink-dim mt-0.5">
-                    {formatPeriod(e.period)} {formatClock(e.clock_seconds)}
+                  <span className="digit text-[11px] text-ink-faint mt-1 tabular-nums">
+                    {formatPeriod(e.period)} · {formatClock(e.clock_seconds)}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -452,12 +570,14 @@ function Sheet({
 
 function GoalSheet({
   game,
+  initialTeamId,
   homeRoster,
   awayRoster,
   onCancel,
   onSubmit,
 }: {
   game: Game;
+  initialTeamId: string;
   homeRoster: RosterPlayer[];
   awayRoster: RosterPlayer[];
   onCancel: () => void;
@@ -470,48 +590,35 @@ function GoalSheet({
     clockSeconds: number;
   }) => void;
 }) {
-  const [teamId, setTeamId] = useState<string | null>(null);
+  const teamId = initialTeamId;
   const [scorerId, setScorerId] = useState<string | null>(null);
   const [a1, setA1] = useState<string | null>(null);
   const [a2, setA2] = useState<string | null>(null);
 
-  const teamRoster =
-    teamId === game.homeTeam.id
-      ? homeRoster
-      : teamId === game.awayTeam.id
-        ? awayRoster
-        : [];
-  // Skaters only for assists (not the goalie, generally — but allow it).
-  const teamLabel =
-    teamId === game.homeTeam.id
-      ? game.homeTeam.name
-      : teamId === game.awayTeam.id
-        ? game.awayTeam.name
-        : null;
+  const teamRoster = teamId === game.homeTeam.id ? homeRoster : awayRoster;
+  const teamLabel = teamId === game.homeTeam.id ? game.homeTeam.name : game.awayTeam.name;
 
-  // Step state: pick team → pick scorer → pick assists → confirm.
-  const step: "team" | "scorer" | "assists" = !teamId ? "team" : !scorerId ? "scorer" : "assists";
+  const step: "scorer" | "assists" = !scorerId ? "scorer" : "assists";
 
   return (
-    <Sheet title="Record Goal" onCancel={onCancel}>
-      {step === "team" && (
-        <TeamPicker game={game} onPick={setTeamId} />
-      )}
-
-      {step === "scorer" && teamId && (
+    <Sheet title={`Goal · ${teamLabel}`} onCancel={onCancel}>
+      {step === "scorer" && (
         <div className="space-y-2">
-          <StepBack onBack={() => setTeamId(null)} label={teamLabel ?? ""} />
           <p className="eyebrow text-[10px]">Scorer</p>
-          <PlayerGrid
-            roster={teamRoster}
-            onPick={(id) => setScorerId(id)}
-          />
+          <PlayerGrid roster={teamRoster} onPick={(id) => setScorerId(id)} />
         </div>
       )}
 
-      {step === "assists" && teamId && scorerId && (
+      {step === "assists" && scorerId && (
         <div className="space-y-3">
-          <StepBack onBack={() => { setScorerId(null); setA1(null); setA2(null); }} label={teamLabel ?? ""} />
+          <StepBack
+            onBack={() => {
+              setScorerId(null);
+              setA1(null);
+              setA2(null);
+            }}
+            label="Scorer"
+          />
           <Summary
             label="Scorer"
             name={teamRoster.find((p) => p.id === scorerId)?.name ?? "?"}
@@ -555,12 +662,14 @@ function GoalSheet({
 
 function PenaltySheet({
   game,
+  initialTeamId,
   homeRoster,
   awayRoster,
   onCancel,
   onSubmit,
 }: {
   game: Game;
+  initialTeamId: string;
   homeRoster: RosterPlayer[];
   awayRoster: RosterPlayer[];
   onCancel: () => void;
@@ -575,43 +684,22 @@ function PenaltySheet({
     clockSeconds: number;
   }) => void;
 }) {
-  const [teamId, setTeamId] = useState<string | null>(null);
+  const teamId = initialTeamId;
   const [offenderId, setOffenderId] = useState<string | null>(null);
   const [penaltyType, setPenaltyType] = useState<PenaltyType | null>(null);
   const [otherText, setOtherText] = useState("");
   const [shotTakerId, setShotTakerId] = useState<string | null>(null);
   const [shotResult, setShotResult] = useState<"goal" | "saved" | null>(null);
 
-  const committingRoster =
-    teamId === game.homeTeam.id
-      ? homeRoster
-      : teamId === game.awayTeam.id
-        ? awayRoster
-        : [];
-  const opposingRoster =
-    teamId === game.homeTeam.id
-      ? awayRoster
-      : teamId === game.awayTeam.id
-        ? homeRoster
-        : [];
-  const teamLabel =
-    teamId === game.homeTeam.id
-      ? game.homeTeam.name
-      : teamId === game.awayTeam.id
-        ? game.awayTeam.name
-        : null;
-  const opposingLabel =
-    teamId === game.homeTeam.id
-      ? game.awayTeam.name
-      : teamId === game.awayTeam.id
-        ? game.homeTeam.name
-        : null;
+  const committingRoster = teamId === game.homeTeam.id ? homeRoster : awayRoster;
+  const opposingRoster = teamId === game.homeTeam.id ? awayRoster : homeRoster;
+  const teamLabel = teamId === game.homeTeam.id ? game.homeTeam.name : game.awayTeam.name;
+  const opposingLabel = teamId === game.homeTeam.id ? game.awayTeam.name : game.homeTeam.name;
 
-  const step: "team" | "offender" | "type" | "shot" =
-    !teamId ? "team" : !offenderId ? "offender" : !penaltyType ? "type" : "shot";
+  const step: "offender" | "type" | "shot" =
+    !offenderId ? "offender" : !penaltyType ? "type" : "shot";
 
   const canSubmit =
-    !!teamId &&
     !!offenderId &&
     !!penaltyType &&
     (penaltyType !== "other" || otherText.trim().length > 0) &&
@@ -619,25 +707,17 @@ function PenaltySheet({
     !!shotResult;
 
   return (
-    <Sheet title="Record Penalty" onCancel={onCancel}>
-      {step === "team" && (
-        <>
-          <p className="eyebrow text-[10px]">Committing team</p>
-          <TeamPicker game={game} onPick={setTeamId} />
-        </>
-      )}
-
-      {step === "offender" && teamId && (
+    <Sheet title={`Penalty · ${teamLabel}`} onCancel={onCancel}>
+      {step === "offender" && (
         <div className="space-y-2">
-          <StepBack onBack={() => setTeamId(null)} label={`${teamLabel} committed`} />
           <p className="eyebrow text-[10px]">Offender</p>
           <PlayerGrid roster={committingRoster} onPick={setOffenderId} />
         </div>
       )}
 
-      {step === "type" && teamId && offenderId && (
+      {step === "type" && offenderId && (
         <div className="space-y-2">
-          <StepBack onBack={() => setOffenderId(null)} label={teamLabel ?? ""} />
+          <StepBack onBack={() => setOffenderId(null)} label="Offender" />
           <Summary
             label="Offender"
             name={committingRoster.find((p) => p.id === offenderId)?.name ?? "?"}
@@ -658,7 +738,7 @@ function PenaltySheet({
         </div>
       )}
 
-      {step === "shot" && teamId && offenderId && penaltyType && (
+      {step === "shot" && offenderId && penaltyType && (
         <div className="space-y-3">
           <StepBack
             onBack={() => {
@@ -667,7 +747,7 @@ function PenaltySheet({
               setShotTakerId(null);
               setShotResult(null);
             }}
-            label={teamLabel ?? ""}
+            label="Penalty"
           />
           <Summary
             label={`${prettyPenalty(penaltyType)} on`}
@@ -778,26 +858,6 @@ function AdvanceSheet({
         Confirm
       </button>
     </Sheet>
-  );
-}
-
-function TeamPicker({ game, onPick }: { game: Game; onPick: (id: string) => void }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {[game.awayTeam, game.homeTeam].map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => onPick(t.id)}
-          className="min-h-[72px] panel-bare p-3 flex items-center gap-2 text-left border-l-[3px] hover:border-l-[5px] transition-all"
-          style={{ borderLeftColor: t.color }}
-        >
-          <span className="font-display text-[16px] tracking-[0.06em] truncate">
-            {t.name}
-          </span>
-        </button>
-      ))}
-    </div>
   );
 }
 

@@ -4,6 +4,8 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
 import { RosterCheckIn } from "@/components/RosterCheckIn";
 import { LiveScoring } from "@/components/LiveScoring";
+import { HideChrome } from "@/components/HideChrome";
+import { InstallHint } from "@/components/InstallHint";
 import { getSessionIfRole, requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDate, formatTime } from "@/lib/format";
@@ -204,16 +206,20 @@ async function LiveView({ game }: { game: GameRow }) {
   }));
 
   return (
-    <div className="space-y-4">
-      <ScoreHeader game={game} subtitle="Live scoring" />
-      <div className="flex items-center gap-3">
-        <Link href={`/score/${game.id}/roster`} className="eyebrow text-ice hover:text-ink">
-          Edit lineup →
-        </Link>
-        <Link href="/score" className="eyebrow text-ink-dim hover:text-ink">
+    <div className="space-y-2">
+      <HideChrome />
+      <div className="flex items-center justify-between gap-3 -mt-1">
+        <Link href="/score" className="eyebrow text-[10px] text-ink-faint hover:text-ink min-h-[36px] flex items-center">
           ← Games
         </Link>
+        <Link
+          href={`/score/${game.id}/roster`}
+          className="eyebrow text-[10px] text-ink-faint hover:text-ice min-h-[36px] flex items-center"
+        >
+          Edit lineup →
+        </Link>
       </div>
+      <InstallHint />
       <LiveScoring
         game={{
           id: game.id,

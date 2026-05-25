@@ -1,0 +1,18 @@
+{
+  "name": "M.O.T.H Hockey",
+  "short_name": "M.O.T.H",
+  "description": "Mostly Over The Hill hockey league.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0b0d10",
+  "background_color": "#0b0d10",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

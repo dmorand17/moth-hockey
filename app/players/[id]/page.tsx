@@ -117,7 +117,7 @@ export default async function PlayerPage({
   ] = await Promise.all([
     supabase
       .from("team_players")
-      .select("position, jersey_number, team:team_id(name, slug, color), season:season_id(id, name, season_type, year, is_current)")
+      .select("position, jersey_number, team:team_id(id, name, slug, color), season:season_id(id, name, season_type, year, is_current)")
       .eq("player_id", id),
     supabase
       .from("game_appearances")
@@ -146,8 +146,22 @@ export default async function PlayerPage({
   const currentRoster = (rosterRows ?? []).find((r) => r.season?.is_current);
   const isGoalie = currentRoster?.position === "goalie";
 
+  // Per-season "this player's own team" map. Used to drop sub-for-other-team
+  // appearances from season stats — those events still appear in the boxscore
+  // but don't count toward this player's totals (see Phase 2 backlog).
+  const myTeamBySeason = new Map<string, string>();
+  for (const r of rosterRows ?? []) {
+    if (r.season?.id && r.team?.id) myTeamBySeason.set(r.season.id, r.team.id);
+  }
+
   // ----- Build current-season stats from live events -----
-  const finalAppearances = (appearances ?? []).filter((a) => a.game?.status === "final");
+  const finalAppearances = (appearances ?? []).filter((a) => {
+    if (a.game?.status !== "final") return false;
+    const seasonId = a.game?.season_id;
+    if (!seasonId) return false;
+    const myTeam = myTeamBySeason.get(seasonId);
+    return !!myTeam && myTeam === a.team_id;
+  });
   const myCurrentGameIds = new Set(finalAppearances.map((a) => a.game_id));
   const myCurrentTeamByGame = new Map(finalAppearances.map((a) => [a.game_id, a.team_id]));
 

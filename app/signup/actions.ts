@@ -3,11 +3,12 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { formatPhone } from "@/lib/format";
 
 export async function requestSignupLink(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
+  const phone = formatPhone(String(formData.get("phone") ?? ""));
 
   if (!email || !fullName) {
     redirect("/signup?error=missing_fields");

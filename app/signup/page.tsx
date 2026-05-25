@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import PhoneInput from "@/components/PhoneInput";
 import { requestSignupLink } from "./actions";
 
 type SearchParams = Promise<{ sent?: string; error?: string }>;
@@ -61,11 +62,8 @@ export default async function SignupPage({ searchParams }: { searchParams: Searc
 
           <label className="block">
             <span className="eyebrow">Phone <span className="normal-case tracking-normal text-ink-faint">(optional)</span></span>
-            <input
-              type="tel"
+            <PhoneInput
               name="phone"
-              autoComplete="tel"
-              inputMode="tel"
               className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
             />
           </label>

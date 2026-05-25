@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { formatPhone } from "@/lib/format";
 
 export async function updateProfile(formData: FormData) {
   const supabase = await createSupabaseServerClient();
@@ -10,7 +11,7 @@ export async function updateProfile(formData: FormData) {
   if (!userData.user) redirect("/login");
 
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
+  const phone = formatPhone(String(formData.get("phone") ?? ""));
 
   const { error } = await supabase
     .from("user_profiles")

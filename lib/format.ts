@@ -28,3 +28,12 @@ export function formatTime(iso: string): string {
 export function initials(firstName: string, lastName: string): string {
   return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
 }
+
+// Formats a US phone number as ###-###-#### as the user types. Strips all
+// non-digits, caps at 10, and inserts dashes after positions 3 and 6.
+export function formatPhone(input: string): string {
+  const digits = input.replace(/\D/g, "").slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+}

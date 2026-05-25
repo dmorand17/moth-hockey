@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import PhoneInput from "@/components/PhoneInput";
 import { signOut, updateProfile } from "./actions";
 
 type SearchParams = Promise<{ saved?: string; error?: string }>;
@@ -93,12 +94,9 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
 
         <label className="block">
           <span className="eyebrow">Phone</span>
-          <input
-            type="tel"
+          <PhoneInput
             name="phone"
             defaultValue={profile?.phone ?? ""}
-            autoComplete="tel"
-            inputMode="tel"
             className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
           />
         </label>

@@ -395,8 +395,8 @@ Decisions:
 - [x] Verify trigger: assigning a captain promotes the user; unassigning demotes them back to `player` (only when not admin/scorekeeper)
 
 ### 4. Admin CRUD ⬜
-- [ ] Admin layout + route-level role gating (RLS already in place; needs route guards too)
-- [ ] CRUD: teams (create/edit, color picker, slug)
+- [x] Admin layout + route-level role gating (RLS already in place; needs route guards too)
+- [x] CRUD: teams (create/edit, color picker, slug)
 - [ ] CRUD: players (create/edit names, jersey numbers; admin-only `user_id` link UI lives in `/admin/users`)
 - [ ] CRUD: rosters (assign players to teams per season, set position)
 - [ ] CRUD: schedule (create games, set status, manually enter scores)
@@ -417,7 +417,7 @@ Cross-cutting constraints (apply to every wave below):
 - [x] `/score` page lists current-season games where `status != 'final'`, grouped Live → Scheduled
 - [x] Stub `/score/[gameId]` so links resolve while later waves land
 - [x] Auth slot in header gains a "Score" link for `admin` and `scorekeeper`
-- [ ] (Deferred) Verify at 360px width with a real signed-in scorekeeper — needs an admin account; will check when first signing in for real
+- [x] Verify at 360px: signed-in admin sees `/score` with Live Now / Scheduled groupings, color-rail cards, and tap targets ≥44px (verified 2026-05-24)
 
 **Wave 2 — Pre-game roster check-in ⬜**
 
@@ -429,7 +429,7 @@ Shown when `games.status = 'scheduled'`. Flips the game to `live` when started.
 - [x] Validation: each team must have ≥1 goalie checked in before "Start game" can fire (client-side gate + server-side guard)
 - [x] "Start game" action — server mutation: insert all checked appearances, set `games.status = 'live'`, `games.period = 1`, `games.clock_seconds = season.period_length_minutes * 60`
 - [x] Edit-lineup flow at `/score/[gameId]/roster` for live games (scorekeeper/admin) and final games (admin only). Locks players who already have `game_events` so removing them can't orphan stats. Links surfaced on the `/score` listing card and on the live/final views of `/score/[gameId]`.
-- [ ] Verify in browser: starting a game moves the page to the Wave 3 stub without a manual refresh
+- [x] Verify in browser: starting a game transitioned `/score/[gameId]` from the check-in view to the Wave 3 live view (P1 / 0-0 / GOAL+PENALTY columns / END P1) on the same URL, no manual refresh (verified 2026-05-25)
 
 **Wave 3 — Live scoring (goals, penalties, clock, undo) ✅**
 
@@ -458,7 +458,7 @@ Sub-flow when regulation ends tied.
 - [x] Confirmation sheet: shows final score, decided_in, shootout tallies if applicable
 - [x] Server mutation: set `games.status = 'final'`, freeze `home_score` / `away_score` / `decided_in`; rejects tied regulation/OT/shootout finalize
 - [x] Post-finalize view (status=`final`): read-only summary panel with the final score + decided-in + SO tally; links to public boxscore, /score, and admin "Edit lineup"
-- [ ] Verify in browser: finalized game disappears from `/score` home, appears in `/standings` + `/stats` + `/games/[id]` boxscore correctly
+- [x] Verify in browser: finalized regulation game (Net Results 1 @ Ice Holes 3) disappeared from `/score`, lands as `FINAL` on `/games/[id]` with full play-by-play, bumps Ice Holes to 3 GP / 3-0-0 / +4 / 6 PTS on `/standings`, and rolls all event-level stats into `/stats` (Mark Messier 4 PTS, Wayne Gretzky 3 G, Chris Drury 2 G + 1 PEN). Verified 2026-05-25.
 
 ### 6. Realtime boxscore ⬜
 - [ ] `/games/[id]` subscribes to Supabase Realtime channel

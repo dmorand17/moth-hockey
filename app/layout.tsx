@@ -48,6 +48,9 @@ export default async function RootLayout({
           : session.role === "team_captain"
             ? [{ href: "/captains/contacts", label: "Captains" }]
             : []),
+        ...(session.role === "admin" || session.role === "scorekeeper"
+          ? [{ href: "/score", label: "Score" }]
+          : []),
         { href: "/account", label: "Account" },
       ]
     : [{ href: "/login", label: "Log in" }];

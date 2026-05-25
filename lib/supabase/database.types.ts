@@ -471,6 +471,7 @@ export type Database = {
           id: string
           is_current: boolean
           name: string
+          period_length_minutes: number
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
           year: number
@@ -481,6 +482,7 @@ export type Database = {
           id?: string
           is_current?: boolean
           name: string
+          period_length_minutes?: number
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
           year: number
@@ -491,6 +493,7 @@ export type Database = {
           id?: string
           is_current?: boolean
           name?: string
+          period_length_minutes?: number
           season_type?: Database["public"]["Enums"]["season_type"]
           start_date?: string
           year?: number

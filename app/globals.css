@@ -192,6 +192,18 @@ body::before {
 .prose-rink p { line-height: 1.65; color: var(--ink-dim); }
 .prose-rink h2, .prose-rink h3 { color: var(--ink); }
 
+/* Hide global header + footer on routes that opt in (e.g. live scorekeeper).
+   We also collapse the <main> padding so the screen is edge-to-edge.
+   !important wins over Tailwind v4 utility specificity. */
+body.chrome-off > header,
+body.chrome-off > footer {
+  display: none !important;
+}
+body.chrome-off > main {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
 /* Page transition */
 @keyframes rise {
   from { opacity: 0; transform: translateY(8px); }

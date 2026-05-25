@@ -23,6 +23,13 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "M.O.T.H Hockey — Spring 2026",
   description: "Mostly Over The Hill hockey league.",
+  manifest: "/manifest.webmanifest",
+  // Tells iOS Safari to launch chromeless from the home screen.
+  appleWebApp: {
+    capable: true,
+    title: "M.O.T.H",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {

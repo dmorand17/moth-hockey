@@ -241,7 +241,7 @@ async function ensureLiveAccess(gameId: string) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("games")
-    .select("status, period, clock_seconds, home_team_id, away_team_id, home_score, away_score")
+    .select("status, period, clock_seconds, home_team_id, away_team_id, home_score, away_score, shootout_home_goals, shootout_away_goals")
     .eq("id", gameId)
     .single();
   if (error) return { ok: false as const, error: error.message };
@@ -414,6 +414,87 @@ export async function recordPenalty(input: {
 
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}
+
+// Adjust the shootout tally for one team. Used by the per-team +/− buttons
+// during period 5. Does NOT touch home_score / away_score; the +1 for the
+// winning team is applied at finalize time.
+export async function adjustShootoutTally(input: {
+  gameId: string;
+  teamId: string;
+  delta: 1 | -1;
+}): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const { supabase, game } = guard;
+  if (game.period !== 5) return { ok: false, error: "Not in shootout." };
+  if (input.teamId !== game.home_team_id && input.teamId !== game.away_team_id) {
+    return { ok: false, error: "Team is not in this game." };
+  }
+  const isHome = input.teamId === game.home_team_id;
+  const cur = (isHome ? game.shootout_home_goals : game.shootout_away_goals) ?? 0;
+  const next = Math.max(0, cur + input.delta);
+  const update = isHome ? { shootout_home_goals: next } : { shootout_away_goals: next };
+  const { error } = await supabase.from("games").update(update).eq("id", input.gameId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}
+
+// Finalize a game. Determines decided_in from current period + score, applies
+// any shootout +1 to the winning team, and flips status to 'final'. Refuses
+// to finalize a tied regulation/OT game (must advance first) or a tied
+// shootout. After finalize the game disappears from /score and lands on
+// /standings + /stats + /games.
+export async function finalizeGame(input: { gameId: string }): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const { supabase, game } = guard;
+
+  let decidedIn: "regulation" | "ot" | "shootout";
+  let homeScore = game.home_score;
+  let awayScore = game.away_score;
+
+  if (game.period <= 3) {
+    if (game.home_score === game.away_score) {
+      return { ok: false, error: "Game is tied. Advance to OT before finalizing." };
+    }
+    decidedIn = "regulation";
+  } else if (game.period === 4) {
+    if (game.home_score === game.away_score) {
+      return { ok: false, error: "OT still tied. Go to shootout before finalizing." };
+    }
+    decidedIn = "ot";
+  } else {
+    const soHome = game.shootout_home_goals ?? 0;
+    const soAway = game.shootout_away_goals ?? 0;
+    if (soHome === soAway) {
+      return { ok: false, error: "Shootout is tied. Adjust tallies before finalizing." };
+    }
+    decidedIn = "shootout";
+    if (soHome > soAway) homeScore += 1;
+    else awayScore += 1;
+  }
+
+  const { error } = await supabase
+    .from("games")
+    .update({
+      status: "final",
+      decided_in: decidedIn,
+      home_score: homeScore,
+      away_score: awayScore,
+    })
+    .eq("id", input.gameId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  revalidatePath("/score");
+  revalidatePath("/standings");
+  revalidatePath("/stats");
+  revalidatePath("/schedule");
   return { ok: true };
 }
 

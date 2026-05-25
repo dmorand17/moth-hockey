@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  adjustShootoutTally,
   advancePeriod,
+  finalizeGame,
   recordGoal,
   recordPenalty,
   setClock,
@@ -41,6 +43,8 @@ type Game = {
   awayScore: number;
   period: number;
   clockSeconds: number;
+  shootoutHomeGoals: number;
+  shootoutAwayGoals: number;
 };
 
 type Props = {
@@ -60,6 +64,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     | { kind: "goal"; teamId: string }
     | { kind: "penalty"; teamId: string }
     | { kind: "advance" }
+    | { kind: "finalize" }
   >(null);
 
   // Local clock that ticks while running. Source of truth for display only;
@@ -139,6 +144,10 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   };
 
   const isP3End = game.period === 3;
+  const inOT = game.period === 4;
+  const inSO = game.period === 5;
+  const tied = game.homeScore === game.awayScore;
+  const soTied = game.shootoutHomeGoals === game.shootoutAwayGoals;
 
   return (
     <div className="space-y-3 pb-3">
@@ -155,33 +164,59 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         <div className="panel-bare p-3 text-goal text-[13px]">{error}</div>
       )}
 
-      {/* Per-team primary actions, visually bonded to the team scores above */}
+      {/* Per-team primary actions, visually bonded to the team scores above.
+          In shootout we swap the goal/penalty buttons for tally adjusters. */}
       <div className="grid grid-cols-2 gap-2 -mt-1">
-        <TeamActionColumn
-          team={game.awayTeam}
-          onGoal={() => setSheet({ kind: "goal", teamId: game.awayTeam.id })}
-          onPenalty={() => setSheet({ kind: "penalty", teamId: game.awayTeam.id })}
-          disabled={pending}
-        />
-        <TeamActionColumn
-          team={game.homeTeam}
-          onGoal={() => setSheet({ kind: "goal", teamId: game.homeTeam.id })}
-          onPenalty={() => setSheet({ kind: "penalty", teamId: game.homeTeam.id })}
-          disabled={pending}
-        />
+        {inSO ? (
+          <>
+            <ShootoutTallyColumn
+              team={game.awayTeam}
+              tally={game.shootoutAwayGoals}
+              onAdjust={(delta) =>
+                run(() =>
+                  adjustShootoutTally({ gameId: game.id, teamId: game.awayTeam.id, delta }),
+                )
+              }
+              disabled={pending}
+            />
+            <ShootoutTallyColumn
+              team={game.homeTeam}
+              tally={game.shootoutHomeGoals}
+              onAdjust={(delta) =>
+                run(() =>
+                  adjustShootoutTally({ gameId: game.id, teamId: game.homeTeam.id, delta }),
+                )
+              }
+              disabled={pending}
+            />
+          </>
+        ) : (
+          <>
+            <TeamActionColumn
+              team={game.awayTeam}
+              onGoal={() => setSheet({ kind: "goal", teamId: game.awayTeam.id })}
+              onPenalty={() => setSheet({ kind: "penalty", teamId: game.awayTeam.id })}
+              disabled={pending}
+            />
+            <TeamActionColumn
+              team={game.homeTeam}
+              onGoal={() => setSheet({ kind: "goal", teamId: game.homeTeam.id })}
+              onPenalty={() => setSheet({ kind: "penalty", teamId: game.homeTeam.id })}
+              disabled={pending}
+            />
+          </>
+        )}
       </div>
 
-      {/* End-period button. Spans full width since undo is now handled by tapping events. */}
-      {isP3End ? (
-        <button
-          type="button"
-          onClick={() => setSheet({ kind: "advance" })}
-          disabled={pending}
-          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
-        >
-          End regulation →
-        </button>
-      ) : game.period < 3 ? (
+      {/* End-of-period / finalize button. Behavior depends on phase:
+          - P1, P2: advance to next period
+          - P3 + tied: advance to OT
+          - P3 + decided: finalize (regulation)
+          - OT + decided: finalize (OT)
+          - OT + tied: advance to shootout
+          - Shootout + tally decided: finalize (shootout)
+          - Shootout + tied: disabled, prompts to adjust tallies */}
+      {game.period < 3 ? (
         <button
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
@@ -190,13 +225,54 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         >
           End {formatPeriod(game.period)} →
         </button>
-      ) : game.period === 4 ? (
-        <div className="w-full min-h-[40px] eyebrow text-[11px] text-ink-faint flex items-center justify-center text-center">
-          OT — Wave 4 soon
-        </div>
+      ) : isP3End && tied ? (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "advance" })}
+          disabled={pending}
+          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
+        >
+          End regulation → Overtime
+        </button>
+      ) : isP3End ? (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "finalize" })}
+          disabled={pending}
+          className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
+        >
+          FINALIZE GAME
+        </button>
+      ) : inOT && tied ? (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "advance" })}
+          disabled={pending}
+          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
+        >
+          OT tied → Shootout
+        </button>
+      ) : inOT ? (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "finalize" })}
+          disabled={pending}
+          className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
+        >
+          FINALIZE · OT WIN
+        </button>
+      ) : inSO && !soTied ? (
+        <button
+          type="button"
+          onClick={() => setSheet({ kind: "finalize" })}
+          disabled={pending}
+          className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
+        >
+          FINALIZE · SHOOTOUT WIN
+        </button>
       ) : (
         <div className="w-full min-h-[40px] eyebrow text-[11px] text-ink-faint flex items-center justify-center text-center">
-          Shootout — Wave 4 soon
+          Shootout tied — adjust tallies to finalize
         </div>
       )}
 
@@ -244,6 +320,17 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           onConfirm={() => {
             setSheet(null);
             run(() => advancePeriod({ gameId: game.id }));
+          }}
+        />
+      )}
+
+      {sheet?.kind === "finalize" && (
+        <FinalizeSheet
+          game={game}
+          onCancel={() => setSheet(null)}
+          onConfirm={() => {
+            setSheet(null);
+            run(() => finalizeGame({ gameId: game.id }));
           }}
         />
       )}
@@ -418,6 +505,57 @@ function TeamActionColumn({
       >
         PENALTY
       </button>
+    </div>
+  );
+}
+
+function ShootoutTallyColumn({
+  team,
+  tally,
+  onAdjust,
+  disabled,
+}: {
+  team: Team;
+  tally: number;
+  onAdjust: (delta: 1 | -1) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div
+        aria-hidden
+        className="h-1 rounded-[1px]"
+        style={{ background: team.color, boxShadow: `0 0 12px ${team.color}55` }}
+      />
+      <div className="bg-board-3 border border-rule rounded-[2px] p-2 flex flex-col items-center gap-2">
+        <span className="eyebrow text-[10px] text-ink-faint">SO TALLY</span>
+        <span
+          className="digit text-[44px] leading-none tabular-nums"
+          style={{ color: team.color, textShadow: `0 0 12px ${team.color}55` }}
+        >
+          {tally}
+        </span>
+        <div className="grid grid-cols-2 gap-1.5 w-full">
+          <button
+            type="button"
+            onClick={() => onAdjust(-1)}
+            disabled={disabled || tally === 0}
+            className="min-h-[44px] font-display text-[18px] rounded-[2px] border border-rule text-ink-dim hover:border-rule-strong hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label={`${team.name} shootout minus one`}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            onClick={() => onAdjust(1)}
+            disabled={disabled}
+            className="min-h-[44px] font-display text-[18px] rounded-[2px] border bg-board-2 text-ink border-ice/40 hover:border-ice disabled:opacity-50"
+            aria-label={`${team.name} shootout plus one`}
+          >
+            +
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -856,16 +994,21 @@ function AdvanceSheet({
   const tied = game.homeScore === game.awayScore;
   const next = game.period + 1;
   const isP3 = game.period === 3;
-  const heading = isP3
-    ? tied
-      ? "End regulation → Overtime"
-      : "End regulation"
-    : `End ${formatPeriod(game.period)} → ${formatPeriod(next)}`;
-  const body = isP3
-    ? tied
-      ? "Score is tied. Advance to a 5-minute sudden-death OT period."
-      : "A team has the lead. Wave 5 (finalize) ships next; for now this just advances the period."
-    : `The clock will reset for ${formatPeriod(next)}.`;
+  const isOT = game.period === 4;
+  let heading: string;
+  let body: string;
+  if (isOT) {
+    heading = "OT tied → Shootout";
+    body = "OT ended tied. Move to a shootout — track tallies with the per-team +/− buttons.";
+  } else if (isP3) {
+    heading = "End regulation → Overtime";
+    body = "Score is tied. Advance to a 5-minute sudden-death OT period.";
+  } else {
+    heading = `End ${formatPeriod(game.period)} → ${formatPeriod(next)}`;
+    body = `The clock will reset for ${formatPeriod(next)}.`;
+  }
+  // tied is unused in the non-P3 branches but kept to clarify the contract.
+  void tied;
   return (
     <Sheet title={heading} onCancel={onCancel}>
       <p className="text-[14px] text-ink-dim">{body}</p>
@@ -875,6 +1018,93 @@ function AdvanceSheet({
         className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] bg-board-3 text-ink border border-rule-strong hover:border-ice"
       >
         Confirm
+      </button>
+    </Sheet>
+  );
+}
+
+function FinalizeSheet({
+  game,
+  onCancel,
+  onConfirm,
+}: {
+  game: Game;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  // Mirror server logic for the preview — we don't re-finalize here, just
+  // describe what's about to happen so the scorekeeper can sanity-check.
+  let decided: "regulation" | "ot" | "shootout";
+  let homeScore = game.homeScore;
+  let awayScore = game.awayScore;
+  if (game.period === 5) {
+    decided = "shootout";
+    if (game.shootoutHomeGoals > game.shootoutAwayGoals) homeScore += 1;
+    else if (game.shootoutAwayGoals > game.shootoutHomeGoals) awayScore += 1;
+  } else if (game.period === 4) {
+    decided = "ot";
+  } else {
+    decided = "regulation";
+  }
+  const winner =
+    homeScore > awayScore
+      ? game.homeTeam
+      : awayScore > homeScore
+        ? game.awayTeam
+        : null;
+  const decidedLabel =
+    decided === "regulation" ? "FINAL" : decided === "ot" ? "FINAL/OT" : "FINAL/SO";
+  return (
+    <Sheet title="Finalize game" onCancel={onCancel}>
+      <p className="text-[13px] text-ink-dim">
+        Locks the score, hides the game from /score, and posts it to standings + stats.
+      </p>
+      <div className="panel-bare p-3">
+        <div className="grid grid-cols-3 items-center gap-2">
+          <div className="flex flex-col items-start min-w-0">
+            <span
+              className="font-display text-[12px] tracking-[0.1em] uppercase truncate"
+              style={{ color: game.awayTeam.color }}
+            >
+              {game.awayTeam.name}
+            </span>
+            <span className="digit text-[32px] leading-none mt-1">{awayScore}</span>
+            {decided === "shootout" && (
+              <span className="eyebrow text-[10px] text-ink-faint mt-1">
+                SO {game.shootoutAwayGoals}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="eyebrow text-[10px] text-ink-faint">{decidedLabel}</span>
+          </div>
+          <div className="flex flex-col items-end min-w-0">
+            <span
+              className="font-display text-[12px] tracking-[0.1em] uppercase truncate"
+              style={{ color: game.homeTeam.color }}
+            >
+              {game.homeTeam.name}
+            </span>
+            <span className="digit text-[32px] leading-none mt-1">{homeScore}</span>
+            {decided === "shootout" && (
+              <span className="eyebrow text-[10px] text-ink-faint mt-1">
+                SO {game.shootoutHomeGoals}
+              </span>
+            )}
+          </div>
+        </div>
+        {winner && (
+          <p className="text-center text-[12px] mt-2" style={{ color: winner.color }}>
+            {winner.name} win
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] bg-ice text-board border border-ice hover:opacity-90"
+      >
+        CONFIRM FINALIZE
       </button>
     </Sheet>
   );

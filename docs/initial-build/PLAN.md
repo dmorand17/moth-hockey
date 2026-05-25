@@ -431,33 +431,34 @@ Shown when `games.status = 'scheduled'`. Flips the game to `live` when started.
 - [x] Edit-lineup flow at `/score/[gameId]/roster` for live games (scorekeeper/admin) and final games (admin only). Locks players who already have `game_events` so removing them can't orphan stats. Links surfaced on the `/score` listing card and on the live/final views of `/score/[gameId]`.
 - [ ] Verify in browser: starting a game moves the page to the Wave 3 stub without a manual refresh
 
-**Wave 3 — Live scoring (goals, penalties, clock, undo) ⬜**
+**Wave 3 — Live scoring (goals, penalties, clock, undo) ✅**
 
 Shown when `games.status = 'live'`.
-- [ ] Sticky top bar: clock (counts down 17:00 → 0:00 per period; manual `+`/`−` buttons; no auto-tick — scorekeeper drives it), period (P1 / P2 / P3 / OT / SO), period-advance button
-- [ ] Primary actions: GOAL · PENALTY · UNDO (large, thumb-sized)
-- [ ] Goal flow: pick scoring team → tap scorer → optional A1 → optional A2 → confirm. Player picker shows checked-in players for that team only (regulars + subs)
-- [ ] Penalty flow: pick committing team → tap offender → pick penalty type (Tripping, Hooking, Slashing, High-sticking, Interference, Holding, Roughing, Cross-checking, Other) → record shot taker → record shot result (GOAL / SAVED) → confirm. Note: `home_score`/`away_score` increment on penalty-shot goals too
-- [ ] Recent events log below the action buttons, newest first; each row shows team / player / time. Tap a row to undo that event (admins can undo any; scorekeepers can only undo most recent? — confirm during build)
-- [ ] UNDO removes the most recent event AND reverses any score increments it caused
-- [ ] "End regulation" button — visible only at the end of P3:
-  - tied → moves to OT (Wave 4)
-  - decided → moves to Wave 5 finalize
+- [x] Sticky top bar: clock (counts down 17:00 → 0:00 per period; manual edit; ticks while running, persists every 10s), period (P1 / P2 / P3 / OT / SO), period-advance button
+- [x] Primary actions: GOAL · PENALTY (large, thumb-sized); undo by tapping an event row
+- [x] Goal flow: pick scoring team → tap scorer → optional A1 → optional A2 → confirm. Player picker shows checked-in players for that team only (regulars + subs)
+- [x] Penalty flow: pick committing team → tap offender → pick penalty type (Tripping, Hooking, Slashing, High-sticking, Interference, Holding, Roughing, Cross-checking, Other) → record shot taker → record shot result (GOAL / SAVED) → confirm. `home_score`/`away_score` increment on penalty-shot goals
+- [x] Recent events log below the action buttons; tap any row to undo that event (admins + scorekeepers can undo any event for now)
+- [x] UNDO removes the event AND reverses any score increment it caused
+- [x] End-of-period button — context-aware:
+  - P1/P2 → advance period
+  - P3 tied → OT (Wave 4)
+  - P3 decided → finalize (Wave 5)
 
-**Wave 4 — Overtime + shootout ⬜**
+**Wave 4 — Overtime + shootout ✅**
 
 Sub-flow when regulation ends tied.
-- [ ] OT period: 5-minute sudden-death; same goal/penalty flows as Wave 3 with `period = 4`. First goal ends the game and sets `decided_in = 'ot'`
-- [ ] OT timer expires without a goal → moves to shootout
-- [ ] Shootout UI: tally (`shootout_home_goals`, `shootout_away_goals`) with `+`/`−` buttons per team, no individual events. Winner gets `home_score`/`away_score` + 1; `decided_in = 'shootout'`
-- [ ] Shootout goals do not count toward player or goalie season stats (handled by stats queries excluding `period >= 5`)
+- [x] OT period: 5-minute sudden-death seeded on transition; same goal/penalty flows as Wave 3 with `period = 4`. A goal in OT enables "Finalize · OT win"; finalize sets `decided_in = 'ot'`
+- [x] OT tied → "OT tied → Shootout" advance button; clock seeds to 0
+- [x] Shootout UI: tally (`shootout_home_goals`, `shootout_away_goals`) with `+`/`−` buttons per team, no individual events. Finalize applies +1 to `home_score`/`away_score` for the higher tally and sets `decided_in = 'shootout'`
+- [x] Shootout goals never enter `game_events` (stats queries already exclude these by construction; nothing to filter on `period >= 5`)
 
-**Wave 5 — Finalize ⬜**
-- [ ] "Finalize" button visible at end of regulation (if decided), end of OT (if decided), or after shootout
-- [ ] Confirmation sheet: shows final score, decided_in, shootout tallies if applicable
-- [ ] Server mutation: set `games.status = 'final'`, freeze `home_score` / `away_score` / `decided_in`
-- [ ] Post-finalize view (status=`final`): read-only summary with link back to `/score`. Admins (only) see an "Edit events" affordance per the existing RLS rules
-- [ ] Verify: finalized game disappears from `/score` home, appears in `/standings` + `/stats` + `/games/[id]` boxscore correctly
+**Wave 5 — Finalize ✅**
+- [x] "Finalize" button visible at end of regulation (if decided), end of OT (if decided), or after shootout
+- [x] Confirmation sheet: shows final score, decided_in, shootout tallies if applicable
+- [x] Server mutation: set `games.status = 'final'`, freeze `home_score` / `away_score` / `decided_in`; rejects tied regulation/OT/shootout finalize
+- [x] Post-finalize view (status=`final`): read-only summary panel with the final score + decided-in + SO tally; links to public boxscore, /score, and admin "Edit lineup"
+- [ ] Verify in browser: finalized game disappears from `/score` home, appears in `/standings` + `/stats` + `/games/[id]` boxscore correctly
 
 ### 6. Realtime boxscore ⬜
 - [ ] `/games/[id]` subscribes to Supabase Realtime channel

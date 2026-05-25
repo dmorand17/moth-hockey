@@ -26,6 +26,9 @@ type GameRow = {
   away_score: number;
   period: number;
   clock_seconds: number;
+  decided_in: "regulation" | "ot" | "shootout" | null;
+  shootout_home_goals: number | null;
+  shootout_away_goals: number | null;
   home_team: { id: string; name: string; slug: string; color: string };
   away_team: { id: string; name: string; slug: string; color: string };
 };
@@ -42,6 +45,7 @@ export default async function ScoreGamePage({ params }: { params: Params }) {
     .select(
       "id, scheduled_at, location, status, season_id, home_team_id, away_team_id, " +
         "home_score, away_score, period, clock_seconds, " +
+        "decided_in, shootout_home_goals, shootout_away_goals, " +
         "home_team:home_team_id(id, name, slug, color), " +
         "away_team:away_team_id(id, name, slug, color)",
     )
@@ -229,6 +233,8 @@ async function LiveView({ game }: { game: GameRow }) {
           awayScore: game.away_score,
           period: game.period,
           clockSeconds: game.clock_seconds,
+          shootoutHomeGoals: game.shootout_home_goals ?? 0,
+          shootoutAwayGoals: game.shootout_away_goals ?? 0,
         }}
         homeRoster={homeRoster}
         awayRoster={awayRoster}
@@ -241,10 +247,48 @@ async function LiveView({ game }: { game: GameRow }) {
 async function FinalStub({ game }: { game: GameRow }) {
   // Only admins can edit a final game's lineup. Surface the link conditionally.
   const adminSession = await getSessionIfRole(["admin"]);
+  const decidedSuffix =
+    game.decided_in && game.decided_in !== "regulation"
+      ? `/${game.decided_in.toUpperCase()}`
+      : "";
   return (
     <div className="space-y-5">
-      <ScoreHeader game={game} subtitle="Final" />
-      <p className="text-ink-dim">This game is final. View it on the public boxscore.</p>
+      <ScoreHeader game={game} subtitle={`Final${decidedSuffix}`} />
+      <div className="panel-bare p-4">
+        <div className="grid grid-cols-3 items-center gap-3">
+          <div className="flex flex-col items-start min-w-0">
+            <span
+              className="font-display text-[13px] tracking-[0.1em] uppercase truncate"
+              style={{ color: game.away_team.color }}
+            >
+              {game.away_team.name}
+            </span>
+            <span className="digit text-[40px] leading-none mt-1">{game.away_score}</span>
+            {game.decided_in === "shootout" && (
+              <span className="eyebrow text-[10px] text-ink-faint mt-1">
+                SO {game.shootout_away_goals ?? 0}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="eyebrow text-[10px] text-ink-faint">FINAL{decidedSuffix}</span>
+          </div>
+          <div className="flex flex-col items-end min-w-0">
+            <span
+              className="font-display text-[13px] tracking-[0.1em] uppercase truncate"
+              style={{ color: game.home_team.color }}
+            >
+              {game.home_team.name}
+            </span>
+            <span className="digit text-[40px] leading-none mt-1">{game.home_score}</span>
+            {game.decided_in === "shootout" && (
+              <span className="eyebrow text-[10px] text-ink-faint mt-1">
+                SO {game.shootout_home_goals ?? 0}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
       <div className="flex flex-wrap gap-x-4 gap-y-2">
         <Link href={`/games/${game.id}`} className="eyebrow text-ice hover:text-ink">
           Boxscore →

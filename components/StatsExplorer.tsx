@@ -62,11 +62,22 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
       return gameKindById.get(gid) === kind;
     };
 
-    // Per-player included games + the team they played for in each
+    // Player → their season roster team id. Used to drop appearances where the
+    // player subbed for a team other than their own — those events still
+    // appear in the boxscore but don't roll into season totals.
+    const rosterTeamByPlayer = new Map<string, string | undefined>(
+      roster.map((r) => [r.id, r.team?.id]),
+    );
+
+    // Per-player included games + the team they played for in each.
     const teamByGameByPlayer = new Map<string, Map<string, string>>();
     for (const a of appearances) {
       if (!includeGame(a.game_id)) continue;
       if (teamId !== "all" && a.team_id !== teamId) continue;
+      // Skip sub-for-other-team appearances: the player's roster team for
+      // this season must match the team they played for in this game.
+      const rosterTeam = rosterTeamByPlayer.get(a.player_id);
+      if (!rosterTeam || rosterTeam !== a.team_id) continue;
       if (!teamByGameByPlayer.has(a.player_id)) {
         teamByGameByPlayer.set(a.player_id, new Map());
       }

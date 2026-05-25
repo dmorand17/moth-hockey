@@ -623,21 +623,40 @@ function GoalSheet({
             label="Scorer"
             name={teamRoster.find((p) => p.id === scorerId)?.name ?? "?"}
           />
-          <p className="eyebrow text-[10px]">Assist 1 (optional)</p>
-          <PlayerGrid
-            roster={teamRoster.filter((p) => p.id !== scorerId)}
-            selectedId={a1}
-            onPick={(id) => setA1(a1 === id ? null : id)}
-            allowDeselect
-          />
-          <p className="eyebrow text-[10px]">Assist 2 (optional)</p>
-          <PlayerGrid
-            roster={teamRoster.filter((p) => p.id !== scorerId && p.id !== a1)}
-            selectedId={a2}
-            onPick={(id) => setA2(a2 === id ? null : id)}
-            allowDeselect
-            disabled={!a1}
-          />
+          {a1 && (
+            <Summary
+              label="Assist 1"
+              name={teamRoster.find((p) => p.id === a1)?.name ?? "?"}
+              onClear={() => {
+                setA1(null);
+                setA2(null);
+              }}
+            />
+          )}
+          {a2 && (
+            <Summary
+              label="Assist 2"
+              name={teamRoster.find((p) => p.id === a2)?.name ?? "?"}
+              onClear={() => setA2(null)}
+            />
+          )}
+
+          {/* Show one assist picker at a time so the confirm button stays
+              in view. After A1 is chosen the same area swaps to A2. */}
+          {!a2 && (
+            <>
+              <p className="eyebrow text-[10px]">
+                {a1 ? "Assist 2 (optional)" : "Assist 1 (optional)"}
+              </p>
+              <PlayerGrid
+                roster={teamRoster.filter(
+                  (p) => p.id !== scorerId && p.id !== a1,
+                )}
+                onPick={(id) => (a1 ? setA2(id) : setA1(id))}
+              />
+            </>
+          )}
+
           <button
             type="button"
             onClick={() =>
@@ -652,7 +671,7 @@ function GoalSheet({
             }
             className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] bg-goal text-board border border-goal hover:bg-goal-glow"
           >
-            CONFIRM GOAL
+            CONFIRM GOAL{a1 ? "" : " · NO ASSISTS"}
           </button>
         </div>
       )}
@@ -945,11 +964,29 @@ function StepBack({ onBack, label }: { onBack: () => void; label: string }) {
   );
 }
 
-function Summary({ label, name }: { label: string; name: string }) {
+function Summary({
+  label,
+  name,
+  onClear,
+}: {
+  label: string;
+  name: string;
+  onClear?: () => void;
+}) {
   return (
-    <div className="panel-bare p-2 px-3 text-[13px]">
-      <span className="eyebrow text-[10px] mr-2">{label}</span>
-      <span className="text-ink">{name}</span>
+    <div className="panel-bare p-2 px-3 text-[13px] flex items-center gap-2">
+      <span className="eyebrow text-[10px] shrink-0">{label}</span>
+      <span className="text-ink flex-1 truncate">{name}</span>
+      {onClear && (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={`Clear ${label}`}
+          className="eyebrow text-[10px] text-ink-faint hover:text-ink min-h-[28px] px-1 shrink-0"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

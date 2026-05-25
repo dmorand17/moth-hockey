@@ -176,7 +176,7 @@ player_awards    (id, player_id, season_id, award_type, notes)
 ### Notes on the schema
 
 - **Stats are derived, not stored.** Career and per-season stats come from `SUM`/`COUNT` over `game_events` joined to `team_players` and `game_appearances`. We can materialize a view if it gets slow.
-- **Games played** is derived from `game_appearances` — a player gets a GP whether they're a regular or a sub. Subs accumulate stats and GP under whichever team they played for that night.
+- **Games played** is derived from `game_appearances` filtered to appearances where the player played for their *own* season-roster team. If a player subs for another team, the boxscore shows their events but neither GP nor goal/assist/penalty totals roll into their season stats. (This applies to goalie GA / PSF / PSV the same way.) See Phase 2 backlog "Sub stats accounting" for surfacing these elsewhere.
 - **Goalie stats are derived** by joining `game_events` to `team_players` for each game's roster. We assume the goalie listed for the team is in net the entire game unless we explicitly add a goalie-change event later.
   - **Goals against** = `goal` events scored *against* this goalie's team + `penalty` events with `penalty_shot_result = 'goal'` against this goalie's team.
   - **Penalty shots faced** = `penalty` events where this goalie's team did *not* commit the penalty.
@@ -406,10 +406,58 @@ Decisions:
 - [ ] Verify: an admin can set up a real season end-to-end without SQL
 
 ### 5. Scorekeeper ⬜
-- [ ] `/score` home (list assigned games)
-- [ ] `/score/[gameId]` live UI: pre-game roster check-in, goal flow, penalty + penalty-shot flow, OT, shootout tally, undo, period advance
-- [ ] Mobile-first one-handed UX
-- [ ] Connectivity: requires internet (no offline queue per scope decision)
+
+Cross-cutting constraints (apply to every wave below):
+- Mobile-first, one-handed UX. Verify at 360px before merge.
+- Requires internet — no offline queue (per scope decision).
+- Auth: `requireRole(['admin', 'scorekeeper'])` on every route in `/score/*`.
+- Single URL per game (`/score/[gameId]`). The view switches based on `games.status` so refresh/bookmark/share works at any stage.
+
+**Wave 1 — `/score` home + route stub ✅**
+- [x] `/score` page lists current-season games where `status != 'final'`, grouped Live → Scheduled
+- [x] Stub `/score/[gameId]` so links resolve while later waves land
+- [x] Auth slot in header gains a "Score" link for `admin` and `scorekeeper`
+- [ ] (Deferred) Verify at 360px width with a real signed-in scorekeeper — needs an admin account; will check when first signing in for real
+
+**Wave 2 — Pre-game roster check-in ⬜**
+
+Shown when `games.status = 'scheduled'`. Flips the game to `live` when started.
+- [x] Migration `0006_seasons_period_length.sql` — `seasons.period_length_minutes` (default 17), seeded into `clock_seconds` on game start
+- [x] Two-column roster (away / home), each player with a checkbox; defaults to checked for the season roster
+- [x] "Add sub" — search existing league players, exclude already-rostered for this game, prompt for position, then add as `is_sub = true`
+- [x] "New sub" — inline form (first name, last name, position; jersey # intentionally omitted in scorekeeper UX); creates a new `players` row and adds with `is_sub = true`
+- [x] Validation: each team must have ≥1 goalie checked in before "Start game" can fire (client-side gate + server-side guard)
+- [x] "Start game" action — server mutation: insert all checked appearances, set `games.status = 'live'`, `games.period = 1`, `games.clock_seconds = season.period_length_minutes * 60`
+- [x] Edit-lineup flow at `/score/[gameId]/roster` for live games (scorekeeper/admin) and final games (admin only). Locks players who already have `game_events` so removing them can't orphan stats. Links surfaced on the `/score` listing card and on the live/final views of `/score/[gameId]`.
+- [ ] Verify in browser: starting a game moves the page to the Wave 3 stub without a manual refresh
+
+**Wave 3 — Live scoring (goals, penalties, clock, undo) ⬜**
+
+Shown when `games.status = 'live'`.
+- [ ] Sticky top bar: clock (counts down 17:00 → 0:00 per period; manual `+`/`−` buttons; no auto-tick — scorekeeper drives it), period (P1 / P2 / P3 / OT / SO), period-advance button
+- [ ] Primary actions: GOAL · PENALTY · UNDO (large, thumb-sized)
+- [ ] Goal flow: pick scoring team → tap scorer → optional A1 → optional A2 → confirm. Player picker shows checked-in players for that team only (regulars + subs)
+- [ ] Penalty flow: pick committing team → tap offender → pick penalty type (Tripping, Hooking, Slashing, High-sticking, Interference, Holding, Roughing, Cross-checking, Other) → record shot taker → record shot result (GOAL / SAVED) → confirm. Note: `home_score`/`away_score` increment on penalty-shot goals too
+- [ ] Recent events log below the action buttons, newest first; each row shows team / player / time. Tap a row to undo that event (admins can undo any; scorekeepers can only undo most recent? — confirm during build)
+- [ ] UNDO removes the most recent event AND reverses any score increments it caused
+- [ ] "End regulation" button — visible only at the end of P3:
+  - tied → moves to OT (Wave 4)
+  - decided → moves to Wave 5 finalize
+
+**Wave 4 — Overtime + shootout ⬜**
+
+Sub-flow when regulation ends tied.
+- [ ] OT period: 5-minute sudden-death; same goal/penalty flows as Wave 3 with `period = 4`. First goal ends the game and sets `decided_in = 'ot'`
+- [ ] OT timer expires without a goal → moves to shootout
+- [ ] Shootout UI: tally (`shootout_home_goals`, `shootout_away_goals`) with `+`/`−` buttons per team, no individual events. Winner gets `home_score`/`away_score` + 1; `decided_in = 'shootout'`
+- [ ] Shootout goals do not count toward player or goalie season stats (handled by stats queries excluding `period >= 5`)
+
+**Wave 5 — Finalize ⬜**
+- [ ] "Finalize" button visible at end of regulation (if decided), end of OT (if decided), or after shootout
+- [ ] Confirmation sheet: shows final score, decided_in, shootout tallies if applicable
+- [ ] Server mutation: set `games.status = 'final'`, freeze `home_score` / `away_score` / `decided_in`
+- [ ] Post-finalize view (status=`final`): read-only summary with link back to `/score`. Admins (only) see an "Edit events" affordance per the existing RLS rules
+- [ ] Verify: finalized game disappears from `/score` home, appears in `/standings` + `/stats` + `/games/[id]` boxscore correctly
 
 ### 6. Realtime boxscore ⬜
 - [ ] `/games/[id]` subscribes to Supabase Realtime channel
@@ -441,6 +489,7 @@ Goal: polish, history, and admin ergonomics. Pull these in based on what the lea
 - [ ] **Stricter contact privacy mode** — currently captains read every linked player's email/phone (intentional, for sub-finding). If the league later wants to lock this down: add an opt-in sub list on `/account`, or per-team RLS scoping with a "broadcast a sub request" workflow. The `team_captains` join exists already, so the model supports it.
 - [ ] **WhatsApp group per team** — one-click "create WhatsApp group" from the team page. Generates a `wa.me/?text=...` invite URL or a `chat.whatsapp.com` group link, pre-populated with the captain-visible phone numbers from `user_profiles`. Captain-only action. Open question: WhatsApp's Business API requires a verified business number for programmatic group creation — the lighter-weight version is generating a `https://wa.me/<number>` per-roster directory and letting the captain add members manually.
 - [ ] **Awards page** — `/awards` league-wide award browser. Group `player_awards` rows by award type (Champion / MVP / MVD / Vezina / Sniper / Most Hat Tricks / Playmaker / Iron Man / Goon) and season, with per-award all-time leaderboards (most wins, current holder, full history). Sources from the existing `player_awards` table — no schema work, just the UI.
+- [ ] **Sub stats accounting.** Today, when a rostered player subs for another team, their goals/assists/penalties from that night appear in the boxscore but are NOT counted in their own season totals (and are also NOT counted on the team they subbed for). Decide whether to surface these somewhere — options include: (a) a separate "as a sub" row in the player profile, (b) a league-wide "sub stats" leaderboard, (c) opt-in toggle to fold them into the player's season totals. Boxscore behavior stays as-is regardless.
 - [ ] **Custom domain.**
 
 ---
@@ -466,6 +515,7 @@ Goal: polish, history, and admin ergonomics. Pull these in based on what the lea
 
 ## Open items / decisions to revisit
 
+- **Multi-role users.** `user_roles.role` is currently a single enum, so a user can't be both an admin and a scorekeeper. Plan to make this many-to-many is captured in `MULTI-ROLE.md` — defer until after the scorekeeper UI ships.
 - **Penalty types:** Tripping, Hooking, Slashing, High-sticking, Interference, Holding, Roughing, Cross-checking, Other. "Other" enables a free-text field for the scorer to describe.
 - **Roster size cap:** 8 skaters + 1 goalie per team. The admin UI will warn (not block) if exceeded — beer leagues sometimes carry a couple of extras for injury coverage.
 - **Initial data load:** current season's schedule and rosters live in another system. Plan: do a one-time copy/import during launch prep (manual or scripted scrape, depending on the source). Not blocking schema design.

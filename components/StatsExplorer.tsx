@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { SectionHeader } from "./SectionHeader";
 import {
   SkaterTable,
@@ -149,22 +149,20 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
     return { skaters: skatersOut, goalies: goaliesOut };
   }, [appearances, events, games, roster, position, kind, teamId]);
 
-  const goalsLeader = useMemo(() => {
-    let best: Skater | null = null;
-    for (const s of skaters) {
-      if (s.goals === 0) continue;
-      if (!best || s.goals > best.goals) best = s;
-    }
-    return best;
-  }, [skaters]);
-
-  const pointsLeader = useMemo(() => {
-    let best: Skater | null = null;
-    for (const s of skaters) {
-      if (s.points === 0) continue;
-      if (!best || s.points > best.points) best = s;
-    }
-    return best;
+  const leaders = useMemo(() => {
+    const top = (key: "goals" | "assists" | "points"): Skater | null => {
+      let best: Skater | null = null;
+      for (const s of skaters) {
+        if (s[key] === 0) continue;
+        if (!best || s[key] > best[key]) best = s;
+      }
+      return best;
+    };
+    return {
+      goals: top("goals"),
+      assists: top("assists"),
+      points: top("points"),
+    };
   }, [skaters]);
 
   return (
@@ -176,10 +174,10 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
           subtitle={`${seasonName} · league leaders`}
           size="lg"
         />
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5 -mt-2 sm:-mt-3 pb-3 sm:pb-4 border-b border-rule">
-          <LeaderLine label="Goals" leader={goalsLeader} stat={goalsLeader?.goals ?? 0} />
-          <span className="text-ink-dim text-base hidden sm:inline" aria-hidden>·</span>
-          <LeaderLine label="Pts" leader={pointsLeader} stat={pointsLeader?.points ?? 0} />
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} accent="goal" />
+          <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} accent="ice" />
+          <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} accent="ink" />
         </div>
       </div>
 
@@ -212,8 +210,6 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
   );
 }
 
-type FilterKey = "position" | "kind" | "team";
-
 function FilterBar({
   teams,
   position,
@@ -231,160 +227,121 @@ function FilterBar({
   teamId: string;
   setTeamId: (id: string) => void;
 }) {
-  const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
-
-  const toggle = (key: FilterKey) =>
-    setOpenFilter((cur) => (cur === key ? null : key));
-
-  const selectedTeam = teams.find((t) => t.id === teamId);
   const hasActiveFilter = position !== "all" || kind !== "all" || teamId !== "all";
 
   const resetAll = () => {
     setPosition("all");
     setKind("all");
     setTeamId("all");
-    setOpenFilter(null);
   };
 
   return (
-    <div className="mt-3 sm:mt-4 flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="eyebrow text-[10px] mr-1">Filter:</span>
-        <FilterToggle
-          label="Position"
-          active={position !== "all"}
-          open={openFilter === "position"}
-          onClick={() => toggle("position")}
-          summary={position === "all" ? null : position === "forward" ? "Fwd" : "Def"}
-        />
-        <FilterToggle
-          label="Team"
-          active={teamId !== "all"}
-          open={openFilter === "team"}
-          onClick={() => toggle("team")}
-          summary={selectedTeam?.name ?? null}
-        />
-        <FilterToggle
-          label="Game Type"
-          active={kind !== "all"}
-          open={openFilter === "kind"}
-          onClick={() => toggle("kind")}
-          summary={kind === "all" ? null : kind === "regular" ? "Regular" : "Playoff"}
-        />
-        {hasActiveFilter && (
-          <button
-            type="button"
-            onClick={resetAll}
-            className="px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] min-h-[36px] text-ink-dim hover:text-goal transition-colors"
+    <div className="rise delay-1 mt-4 sm:mt-5 panel-bare px-3 py-2.5 sm:px-4 sm:py-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <FilterField label="Pos">
+          <SegmentedFilter<PositionFilter>
+            value={position}
+            onChange={setPosition}
+            options={[
+              { value: "all", label: "All" },
+              { value: "forward", label: "Fwd" },
+              { value: "defense", label: "Def" },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="Type">
+          <SegmentedFilter<KindFilter>
+            value={kind}
+            onChange={setKind}
+            options={[
+              { value: "all", label: "All" },
+              { value: "regular", label: "Reg" },
+              { value: "playoff", label: "Pyo" },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="Team">
+          <select
+            value={teamId}
+            onChange={(e) => setTeamId(e.target.value)}
+            className="bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[36px] max-w-[180px] sm:max-w-[220px]"
           >
-            Reset
-          </button>
-        )}
-      </div>
-      {openFilter === "position" && (
-        <SegmentedFilter<PositionFilter>
-          value={position}
-          onChange={setPosition}
-          clearValue="all"
-          options={[
-            { value: "forward", label: "Fwd" },
-            { value: "defense", label: "Def" },
-          ]}
-        />
-      )}
-      {openFilter === "team" && (
-        <select
-          value={teamId}
-          onChange={(e) => setTeamId(e.target.value)}
-          className="self-start bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[36px] sm:max-w-[260px]"
+            <option value="all">All teams</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </FilterField>
+        <button
+          type="button"
+          onClick={resetAll}
+          disabled={!hasActiveFilter}
+          className="ml-auto px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-[0.14em] min-h-[36px] text-ink-faint hover:text-goal disabled:opacity-30 disabled:hover:text-ink-faint transition-colors"
         >
-          <option value="all">All teams</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
-      )}
-      {openFilter === "kind" && (
-        <SegmentedFilter<KindFilter>
-          value={kind}
-          onChange={setKind}
-          clearValue="all"
-          options={[
-            { value: "regular", label: "Regular" },
-            { value: "playoff", label: "Playoff" },
-          ]}
-        />
-      )}
+          Reset
+        </button>
+      </div>
     </div>
   );
 }
 
-function FilterToggle({
-  label,
-  active,
-  open,
-  onClick,
-  summary,
-}: {
-  label: string;
-  active: boolean;
-  open: boolean;
-  onClick: () => void;
-  summary: string | null;
-}) {
+function FilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={open}
-      className={`px-2 py-1.5 border rounded-[2px] text-[12px] font-mono uppercase tracking-[0.12em] min-h-[32px] transition-colors ${
-        active || open
-          ? "border-rule-strong bg-board-3 text-ink"
-          : "border-transparent text-ink-faint hover:text-ink hover:border-rule"
-      }`}
-    >
-      {label}
-      {summary && <span className="ml-1.5 text-ice normal-case">{summary}</span>}
-    </button>
+    <div className="inline-flex items-center gap-2">
+      <span className="eyebrow text-[10px]">{label}</span>
+      {children}
+    </div>
   );
 }
 
-function LeaderLine({
+function LeaderTile({
   label,
   leader,
   stat,
+  accent,
 }: {
   label: string;
   leader: Skater | null;
   stat: number;
+  accent: "goal" | "ice" | "ink";
 }) {
+  const statColor = accent === "goal" ? "text-goal" : accent === "ice" ? "text-ice" : "text-ink";
+  const labelColor = accent === "goal" ? "text-goal" : accent === "ice" ? "text-ice" : "text-ink-dim";
+
   return (
-    <span className="inline-flex items-baseline gap-1.5 min-w-0">
-      <span className="eyebrow text-[10px] text-goal">{label}</span>
+    <div className="scoreboard p-3 sm:p-4 flex flex-col justify-between min-h-[110px] sm:min-h-[140px] relative overflow-hidden">
+      <div className={`eyebrow ${labelColor}`}>{label}</div>
       {leader ? (
         <>
-          <span className="digit text-[14px] text-ink tnum leading-none">{stat}</span>
-          <Link
-            href={`/players/${leader.id}`}
-            className="text-ink hover:text-ice transition-colors normal-case tracking-normal"
-          >
-            {leader.name}
-          </Link>
-          {leader.team && (
-            <span className="inline-flex items-baseline gap-1 normal-case tracking-normal">
-              <span
-                className="inline-block w-[3px] h-[10px] rounded-[1px] shrink-0 translate-y-[1px]"
-                style={{ backgroundColor: leader.team.color }}
-                aria-hidden
-              />
-              <span className="text-[10px] text-ink-dim">{leader.team.name}</span>
-            </span>
-          )}
+          <div className={`digit text-[36px] sm:text-[52px] leading-none mt-1 ${statColor} tnum`}>
+            {stat}
+          </div>
+          <div className="mt-2 min-w-0">
+            <Link
+              href={`/players/${leader.id}`}
+              className="block truncate text-[13px] sm:text-[14px] text-ink hover:text-ice transition-colors font-medium"
+            >
+              {leader.name}
+            </Link>
+            {leader.team && (
+              <div className="mt-1 inline-flex items-center gap-1.5 min-w-0">
+                <span
+                  className="inline-block w-[3px] h-[10px] rounded-[1px] shrink-0"
+                  style={{ backgroundColor: leader.team.color, boxShadow: `0 0 6px ${leader.team.color}55` }}
+                  aria-hidden
+                />
+                <span className="text-[11px] text-ink-dim truncate">{leader.team.name}</span>
+              </div>
+            )}
+          </div>
         </>
       ) : (
-        <span className="text-ink-dim">—</span>
+        <>
+          <div className={`digit text-[36px] sm:text-[52px] leading-none mt-1 text-ink-faint tnum`}>—</div>
+          <div className="mt-2 text-[11px] text-ink-faint eyebrow normal-case tracking-[0.06em]">No leader yet</div>
+        </>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -392,31 +349,22 @@ function SegmentedFilter<T extends string>({
   value,
   onChange,
   options,
-  clearValue,
 }: {
   value: T;
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
-  clearValue?: T;
 }) {
   return (
-    <div className="self-start inline-flex border border-rule-strong rounded-[2px] overflow-hidden">
+    <div className="inline-flex border border-rule-strong rounded-[2px] overflow-hidden">
       {options.map((o, i) => {
         const active = o.value === value;
-        const handleClick = () => {
-          if (active && clearValue !== undefined) {
-            onChange(clearValue);
-          } else {
-            onChange(o.value);
-          }
-        };
         return (
           <button
             key={o.value}
             type="button"
-            onClick={handleClick}
-            className={`px-3 py-1.5 text-[12px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[36px] ${
-              active ? "bg-board-3 text-ink" : "text-ink-dim hover:text-ink"
+            onClick={() => onChange(o.value)}
+            className={`px-2.5 py-1.5 text-[11.5px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[36px] ${
+              active ? "bg-board-3 text-ice" : "text-ink-dim hover:text-ink"
             } ${i > 0 ? "border-l border-rule" : ""}`}
             aria-pressed={active}
           >

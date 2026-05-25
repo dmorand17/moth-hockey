@@ -11,32 +11,6 @@ type Params = Promise<{ gameId: string }>;
 
 type Position = "forward" | "defense" | "goalie";
 
-export default async function ScoreGamePage({ params }: { params: Params }) {
-  await requireRole(["admin", "scorekeeper"]);
-  const { gameId } = await params;
-  const supabase = await createSupabaseServerClient();
-
-  const { data: game, error: gameErr } = await supabase
-    .from("games")
-    .select(
-      "id, scheduled_at, location, status, season_id, home_team_id, away_team_id, " +
-        "home_team:home_team_id(id, name, slug, color), " +
-        "away_team:away_team_id(id, name, slug, color)",
-    )
-    .eq("id", gameId)
-    .single();
-  if (gameErr || !game) notFound();
-
-  // status branch
-  if (game.status === "scheduled") {
-    return <CheckInView game={game} />;
-  }
-  if (game.status === "live") {
-    return <LiveStub game={game} />;
-  }
-  return <FinalStub game={game} />;
-}
-
 type GameRow = {
   id: string;
   scheduled_at: string;
@@ -48,6 +22,35 @@ type GameRow = {
   home_team: { id: string; name: string; slug: string; color: string };
   away_team: { id: string; name: string; slug: string; color: string };
 };
+
+export default async function ScoreGamePage({ params }: { params: Params }) {
+  await requireRole(["admin", "scorekeeper"]);
+  const { gameId } = await params;
+  const supabase = await createSupabaseServerClient();
+
+  // Two embedded relations to the same teams table confuse the typed client,
+  // so cast through unknown — the runtime resolves the aliases just fine.
+  const { data, error: gameErr } = await supabase
+    .from("games")
+    .select(
+      "id, scheduled_at, location, status, season_id, home_team_id, away_team_id, " +
+        "home_team:home_team_id(id, name, slug, color), " +
+        "away_team:away_team_id(id, name, slug, color)",
+    )
+    .eq("id", gameId)
+    .single();
+  const game = data as unknown as GameRow | null;
+  if (gameErr || !game) notFound();
+
+  // status branch
+  if (game.status === "scheduled") {
+    return <CheckInView game={game} />;
+  }
+  if (game.status === "live") {
+    return <LiveStub game={game} />;
+  }
+  return <FinalStub game={game} />;
+}
 
 async function CheckInView({ game }: { game: GameRow }) {
   const supabase = await createSupabaseServerClient();

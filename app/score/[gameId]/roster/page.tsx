@@ -10,12 +10,25 @@ import { formatDate, formatTime } from "@/lib/format";
 type Params = Promise<{ gameId: string }>;
 type Position = "forward" | "defense" | "goalie";
 
+type GameRow = {
+  id: string;
+  scheduled_at: string;
+  location: string | null;
+  status: "scheduled" | "live" | "final";
+  season_id: string;
+  home_team_id: string;
+  away_team_id: string;
+  home_team: { id: string; name: string; slug: string; color: string };
+  away_team: { id: string; name: string; slug: string; color: string };
+};
+
 export default async function ScoreGameRosterPage({ params }: { params: Params }) {
   const { gameId } = await params;
   const supabase = await createSupabaseServerClient();
 
   // Load the game first so we know which auth gate to apply.
-  const { data: game, error: gameErr } = await supabase
+  // Cast through unknown: dual embedded relations to teams confuse the typed client.
+  const { data, error: gameErr } = await supabase
     .from("games")
     .select(
       "id, scheduled_at, location, status, season_id, home_team_id, away_team_id, " +
@@ -24,6 +37,7 @@ export default async function ScoreGameRosterPage({ params }: { params: Params }
     )
     .eq("id", gameId)
     .single();
+  const game = data as unknown as GameRow | null;
   if (gameErr || !game) notFound();
 
   // Scheduled games have a dedicated start-game flow at the parent route.

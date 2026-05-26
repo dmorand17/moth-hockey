@@ -116,7 +116,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                     <div className="pb-0.5">
                       <button
                         type="submit"
-                        className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
                       >
                         SAVE
                       </button>
@@ -143,7 +143,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                     <div className="pb-0.5">
                       <button
                         type="submit"
-                        className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
                       >
                         SAVE
                       </button>

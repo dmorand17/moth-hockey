@@ -126,7 +126,7 @@ export function PlayerFilters({
                   key={player.id + "-first"}
                   defaultValue={player.first_name}
                   placeholder="First"
-                  className="bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice w-36"
+                  className="bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice w-24 sm:w-32 shrink-0"
                 />
                 <input
                   type="text"
@@ -135,7 +135,7 @@ export function PlayerFilters({
                   key={player.id + "-last"}
                   defaultValue={player.last_name}
                   placeholder="Last"
-                  className="bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice w-36"
+                  className="bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice w-24 sm:w-32 shrink-0"
                 />
                 <span className="flex items-center gap-2 ml-auto shrink-0">
                   {player.current_team ? (
@@ -158,17 +158,21 @@ export function PlayerFilters({
                       Unrostered
                     </span>
                   )}
-                  {player.user_id && (
+                  {player.user_id ? (
                     <a
                       href={`/admin/users#${player.user_id}`}
-                      className="chip chip-final text-[9px] px-1.5 py-0.5 hover:opacity-80 transition-opacity"
+                      className="chip chip-linked text-[9px] px-1.5 py-0.5 hover:opacity-80 transition-opacity shrink-0"
                     >
                       LINKED
                     </a>
+                  ) : (
+                    <span className="chip chip-live text-[9px] px-1.5 py-0.5 shrink-0">
+                      NOT LINKED
+                    </span>
                   )}
                   <button
                     type="submit"
-                    className="px-2.5 py-1 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                    className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
                   >
                     SAVE
                   </button>

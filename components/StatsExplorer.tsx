@@ -199,7 +199,7 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
         </p>
       </section>
 
-      <section className="rise delay-2 mt-6 sm:mt-10">
+      <section className="rise delay-2 mt-5 sm:mt-10">
         <SectionHeader eyebrow="Between The Pipes" title="Goalies" />
         <GoalieTable rows={goalies} />
         <p className="eyebrow mt-3 normal-case tracking-[0.06em]">

@@ -7,7 +7,7 @@ export default async function StandingsPage() {
   const standings = await getStandings(season.id);
 
   return (
-    <div className="space-y-5 sm:space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       <div className="rise">
         <SectionHeader
           eyebrow="The Table"
@@ -93,7 +93,7 @@ export default async function StandingsPage() {
         </table>
       </div>
 
-      <div className="rise delay-2 panel-bare p-5">
+      <div className="rise delay-2 panel-bare p-4 sm:p-5">
         <div className="eyebrow mb-3 text-goal">House rules</div>
         <ul className="space-y-1.5 text-[13.5px] text-ink-dim">
           <li>

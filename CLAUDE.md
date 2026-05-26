@@ -18,7 +18,7 @@ This project uses **Next.js 16.2.6** and **React 19.2.4**. Both have breaking ch
 
 ## Package Manager
 
-Uses **bun** (see `bun.lock`). Use `bun install` / `bun add` rather than npm or yarn. The `package.json` declares `sharp` and `unrs-resolver` as `trustedDependencies` and lists them in `ignoreScripts` — preserve that arrangement when modifying dependencies.
+Uses **bun** (see `bun.lock`). Use `bun install` / `bun add` rather than npm or yarn. Use `bunx` instead of `npx` for running local binaries (e.g. `bunx supabase`). The `package.json` declares `sharp` and `unrs-resolver` as `trustedDependencies` and lists them in `ignoreScripts` — preserve that arrangement when modifying dependencies.
 
 ## Commands
 

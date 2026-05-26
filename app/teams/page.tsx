@@ -20,7 +20,7 @@ export default async function TeamsPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       <div className="rise">
         <SectionHeader
           eyebrow="The Roster"
@@ -37,7 +37,7 @@ export default async function TeamsPage() {
             <Link
               key={t.id}
               href={`/teams/${t.slug}`}
-              className="panel p-5 group relative overflow-hidden hover:border-rule-strong transition-colors"
+              className="panel p-4 sm:p-5 group relative overflow-hidden hover:border-rule-strong transition-colors"
             >
               <div
                 className="absolute -right-12 -top-12 w-40 h-40 rounded-full opacity-20 blur-2xl pointer-events-none"
@@ -75,7 +75,7 @@ export default async function TeamsPage() {
                   )}
                 </div>
                 {rec && (
-                  <div className="mt-4 pt-4 border-t border-rule flex items-center justify-between text-[13px]">
+                  <div className="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-rule flex items-center justify-between text-[13px]">
                     <div className="flex gap-4">
                       <Stat label="W" value={rec.w} accent="text-ink" />
                       <Stat label="L" value={rec.l} />

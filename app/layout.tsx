@@ -130,7 +130,7 @@ export default async function RootLayout({
           </nav>
         </header>
 
-        <main className="relative z-[1] flex-1 mx-auto w-full max-w-6xl px-4 sm:px-5 py-5 md:py-12">
+        <main className="relative z-[1] flex-1 mx-auto w-full max-w-6xl px-4 sm:px-5 py-4 md:py-12">
           {children}
         </main>
 

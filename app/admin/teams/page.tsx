@@ -144,7 +144,7 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
                     </label>
                     <button
                       type="submit"
-                      className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+                      className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
                     >
                       SAVE
                     </button>
@@ -174,7 +174,7 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
                     </select>
                     <button
                       type="submit"
-                      className="px-2.5 py-1 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
+                      className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
                     >
                       SAVE
                     </button>

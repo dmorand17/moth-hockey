@@ -110,74 +110,69 @@ export function PlayerFilters({
           No players match the current filters.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="border border-rule rounded divide-y divide-rule/50">
           {visible.map((player) => (
-            <li key={player.id} className="panel p-3">
+            <li key={player.id} className="flex items-center gap-2 px-3 py-1.5">
               <form
                 action={updatePlayer}
                 onSubmit={() => startTransition(() => {})}
-                className="space-y-3"
+                className="flex items-center gap-2 flex-1 min-w-0"
               >
                 <input type="hidden" name="id" value={player.id} />
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="flex flex-col sm:flex-row gap-3 flex-1 min-w-0">
-                    <label className="block flex-1">
-                      <span className="eyebrow">First name</span>
-                      <input
-                        type="text"
-                        name="first_name"
-                        required
-                        key={player.id + "-first"}
-                        defaultValue={player.first_name}
-                        className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
+                <input
+                  type="text"
+                  name="first_name"
+                  required
+                  key={player.id + "-first"}
+                  defaultValue={player.first_name}
+                  placeholder="First"
+                  className="bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice w-36"
+                />
+                <input
+                  type="text"
+                  name="last_name"
+                  required
+                  key={player.id + "-last"}
+                  defaultValue={player.last_name}
+                  placeholder="Last"
+                  className="bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice w-36"
+                />
+                <span className="flex items-center gap-2 ml-auto shrink-0">
+                  {player.current_team ? (
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-sm shrink-0"
+                        style={{ background: player.current_team.color }}
                       />
-                    </label>
-                    <label className="block flex-1">
-                      <span className="eyebrow">Last name</span>
-                      <input
-                        type="text"
-                        name="last_name"
-                        required
-                        key={player.id + "-last"}
-                        defaultValue={player.last_name}
-                        className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
-                      />
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 pb-1">
-                    {player.current_team ? (
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="h-2 w-2 rounded-sm shrink-0"
-                          style={{ background: player.current_team.color }}
-                        />
-                        <span className="text-ink-dim text-[13px]">
-                          {player.current_team.name}
+                      <span className="text-ink-faint text-[11px] hidden sm:inline">
+                        {player.current_team.name}
+                      </span>
+                      {player.jersey_number != null && (
+                        <span className="font-mono text-[11px] text-ink-faint">
+                          #{player.jersey_number}
                         </span>
-                        {player.jersey_number != null && (
-                          <span className="font-mono text-[11px] text-ink-faint">
-                            #{player.jersey_number}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="eyebrow text-ink-faint">
-                        Unrostered
-                      </span>
-                    )}
-                    {player.user_id && (
-                      <span className="chip chip-final text-[9px] px-1.5 py-0.5">
-                        LINKED
-                      </span>
-                    )}
-                    <button
-                      type="submit"
-                      className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+                      )}
+                    </span>
+                  ) : (
+                    <span className="eyebrow text-ink-faint text-[10px] hidden sm:inline">
+                      Unrostered
+                    </span>
+                  )}
+                  {player.user_id && (
+                    <a
+                      href={`/admin/users#${player.user_id}`}
+                      className="chip chip-final text-[9px] px-1.5 py-0.5 hover:opacity-80 transition-opacity"
                     >
-                      SAVE
-                    </button>
-                  </div>
-                </div>
+                      LINKED
+                    </a>
+                  )}
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                  >
+                    SAVE
+                  </button>
+                </span>
               </form>
             </li>
           ))}

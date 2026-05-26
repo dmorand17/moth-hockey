@@ -16,7 +16,7 @@ Dark theme with hockey-rink vibe — dark background, high-contrast text, accent
 
 **Typography:** Bebas Neue for display/headers (scoreboard feel), Inter for body, JetBrains Mono for numeric/stat columns.
 
-**Footer/branding:** Footer reads "Powered by the Milkman"; tagline reads "EST. PRE-COVID".
+**Footer/branding:** Footer reads "Powered by the Milkman".
 
 ### Team colors
 
@@ -502,7 +502,7 @@ Goal: polish, history, and admin ergonomics. Pull these in based on what the lea
 - Positions: `forward | defense | goalie` (was originally just skater + goalie)
 - Penalty shot result: `goal | saved` only (no missed)
 - 5 forwards + 3 defense + 1 goalie per team is the seed convention
-- Footer reads "Powered by the Milkman"; tagline reads "EST. PRE-COVID"
+- Footer reads "Powered by the Milkman"
 - Award types: champion, mvp, mvd, vezina, sniper, most_hat_tricks, playmaker, iron_man, goon
 - Award badges are interactive: hover/click to see which seasons earned
 - No SV% column for goalies — only PSF/PSV (since we only track penalty shots)

@@ -3,6 +3,54 @@
 -- a mix of scheduled and completed games with realistic events
 -- (regulation, OT, and shootout coverage).
 
+-- ---------- dev auth users ----------
+-- Deterministic local accounts recreated on every `supabase db reset`, so the
+-- same logins always work. Magic-link only: email is pre-confirmed and password
+-- is null — sign in at /login, then click the link in Mailpit (:54324).
+--   admin@moth.test       → admin
+--   scorekeeper@moth.test → scorekeeper
+--   player@moth.test      → player (normal user)
+-- The on_auth_user_created trigger (migration 0004) auto-creates each user's
+-- user_profiles row + a default 'player' user_roles row; the explicit upsert
+-- below overrides the role. Token columns are '' (not null) to avoid gotrue
+-- scan errors on login. seed.sql never runs against prod — local only.
+insert into auth.users (
+  instance_id, id, aud, role, email, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  email_change_token_current, reauthentication_token, is_sso_user, is_anonymous
+) values
+  ('00000000-0000-0000-0000-000000000000', '7d01ac6b-7077-45c2-8b1c-41e7b15e7f41',
+   'authenticated', 'authenticated', 'admin@moth.test', now(),
+   '{"provider":"email","providers":["email"]}', '{"full_name":"Test Admin"}', now(), now(),
+   '', '', '', '', '', '', false, false),
+  ('00000000-0000-0000-0000-000000000000', 'f0000000-0000-0000-0000-000000000002',
+   'authenticated', 'authenticated', 'scorekeeper@moth.test', now(),
+   '{"provider":"email","providers":["email"]}', '{"full_name":"Test Scorekeeper"}', now(), now(),
+   '', '', '', '', '', '', false, false),
+  ('00000000-0000-0000-0000-000000000000', 'f0000000-0000-0000-0000-000000000003',
+   'authenticated', 'authenticated', 'player@moth.test', now(),
+   '{"provider":"email","providers":["email"]}', '{"full_name":"Test Player"}', now(), now(),
+   '', '', '', '', '', '', false, false)
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+) values
+  (gen_random_uuid(), '7d01ac6b-7077-45c2-8b1c-41e7b15e7f41', '7d01ac6b-7077-45c2-8b1c-41e7b15e7f41',
+   '{"sub":"7d01ac6b-7077-45c2-8b1c-41e7b15e7f41","email":"admin@moth.test"}', 'email', now(), now(), now()),
+  (gen_random_uuid(), 'f0000000-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000002',
+   '{"sub":"f0000000-0000-0000-0000-000000000002","email":"scorekeeper@moth.test"}', 'email', now(), now(), now()),
+  (gen_random_uuid(), 'f0000000-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000003',
+   '{"sub":"f0000000-0000-0000-0000-000000000003","email":"player@moth.test"}', 'email', now(), now(), now())
+on conflict do nothing;
+
+insert into public.user_roles (user_id, role) values
+  ('7d01ac6b-7077-45c2-8b1c-41e7b15e7f41', 'admin'),
+  ('f0000000-0000-0000-0000-000000000002', 'scorekeeper'),
+  ('f0000000-0000-0000-0000-000000000003', 'player')
+on conflict (user_id) do update set role = excluded.role;
+
 -- ---------- seasons ----------
 -- Past seasons exist only as aggregated season_player_stats rows (no games / events).
 -- Current season has live games + events; stats derive from those.

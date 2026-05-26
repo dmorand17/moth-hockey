@@ -9,6 +9,7 @@ const ADMIN_NAV = [
   { href: "/admin/teams", label: "Teams" },
   { href: "/admin/rosters", label: "Rosters" },
   { href: "/admin/schedule", label: "Schedule" },
+  { href: "/admin/content", label: "Content" },
 ];
 
 const isActive = (pathname: string, href: string) =>

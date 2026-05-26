@@ -194,8 +194,52 @@ body::before {
 }
 
 /* Generic content prose */
-.prose-rink p { line-height: 1.65; color: var(--ink-dim); }
-.prose-rink h2, .prose-rink h3 { color: var(--ink); }
+.prose-rink { line-height: 1.65; color: var(--ink-dim); }
+.prose-rink p { line-height: 1.65; color: var(--ink-dim); margin: 0 0 1em; }
+.prose-rink p:last-child { margin-bottom: 0; }
+.prose-rink h2,
+.prose-rink h3,
+.prose-rink h4 {
+  color: var(--ink);
+  font-family: var(--font-display, inherit);
+  letter-spacing: 0.03em;
+  margin: 1.4em 0 0.5em;
+}
+.prose-rink h2 { font-size: 20px; }
+.prose-rink h3 { font-size: 17px; }
+.prose-rink h4 { font-size: 15px; }
+.prose-rink ul,
+.prose-rink ol { margin: 0 0 1em; padding-left: 1.4em; }
+.prose-rink ul { list-style: disc; }
+.prose-rink ol { list-style: decimal; }
+.prose-rink li { margin: 0.25em 0; }
+.prose-rink a { color: var(--ice); text-decoration: underline; text-underline-offset: 2px; }
+.prose-rink a:hover { color: var(--ink); }
+.prose-rink code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  background: var(--board-3);
+  border: 1px solid var(--rule);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.prose-rink pre {
+  background: var(--board-3);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+.prose-rink pre code { background: transparent; border: 0; padding: 0; }
+.prose-rink blockquote {
+  border-left: 2px solid var(--rule-strong);
+  margin: 0 0 1em;
+  padding: 0.25em 0 0.25em 1em;
+  color: var(--ink-faint);
+}
+.prose-rink hr { border: 0; border-top: 1px solid var(--rule); margin: 1.5em 0; }
+.prose-rink strong { color: var(--ink); font-weight: 600; }
 
 /* Hide global header + footer on routes that opt in (e.g. live scorekeeper).
    We also collapse the <main> padding so the screen is edge-to-edge.

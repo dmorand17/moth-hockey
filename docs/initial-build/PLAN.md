@@ -400,8 +400,8 @@ Decisions:
 - [ ] CRUD: players (create/edit names, jersey numbers; admin-only `user_id` link UI lives on `/admin/players` — see merge below)
 - [ ] CRUD: rosters (assign players to teams per season, set position)
 - [ ] CRUD: schedule (create games, set status, manually enter scores)
-- [ ] CRUD: content pages (markdown editor for rules / FAQ / league)
-- [ ] CRUD: player awards (grant / revoke per season)
+- [x] CRUD: content pages (markdown editor for rules / FAQ / league) — `/admin/content`, react-markdown + remark-gfm rendering on `/about/[section]`
+- [~] CRUD: player awards (grant / revoke per season) — **skipped.** Awards are baked into historical stats and rendered as interactive badges on `/players/[id]`; admin grant/revoke UI not needed for v1.
 - [ ] Season management (start a new season)
 - [ ] Verify: an admin can set up a real season end-to-end without SQL
 

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { SectionHeader } from "@/components/SectionHeader";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -49,8 +51,10 @@ export default async function AboutSectionPage({
               <h2 className="font-display text-[24px] tracking-[0.03em] mb-3">
                 {p.title.toUpperCase()}
               </h2>
-              <div className="prose-rink whitespace-pre-wrap text-[14.5px] leading-relaxed text-ink-dim">
-                {p.body_md}
+              <div className="prose-rink text-[14.5px] leading-relaxed text-ink-dim">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {p.body_md}
+                </ReactMarkdown>
               </div>
             </article>
           ))}

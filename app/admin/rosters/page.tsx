@@ -212,20 +212,23 @@ export default async function AdminRostersPage({
                         <option value="goalie">Goalie</option>
                       </select>
 
-                      <input
-                        type="number"
-                        name="jersey_number"
-                        key={player.player_id + "-jersey"}
-                        defaultValue={player.jersey_number ?? ""}
-                        min={0}
-                        max={99}
-                        placeholder="—"
-                        className={`${rowInputCls} w-14`}
-                      />
+                      <label className="flex items-center gap-0.5">
+                        <span className="eyebrow text-[10px] text-ink-faint">#</span>
+                        <input
+                          type="number"
+                          name="jersey_number"
+                          key={player.player_id + "-jersey"}
+                          defaultValue={player.jersey_number ?? ""}
+                          min={0}
+                          max={99}
+                          placeholder="—"
+                          className={`${rowInputCls} w-12`}
+                        />
+                      </label>
 
                       <button
                         type="submit"
-                        className="px-2.5 py-1 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
+                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
                       >
                         SAVE
                       </button>

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
 import { createGame, updateGame, deleteGame } from "./actions";
+import { TimeSelect } from "./TimeSelect";
 
 type SearchParams = Promise<{ saved?: string; error?: string }>;
 
@@ -158,7 +159,7 @@ export default async function AdminSchedulePage({
               </select>
             </label>
 
-            <label className="block flex-1 min-w-[160px]">
+            <label className="block flex-1 min-w-[140px]">
               <span className="eyebrow">Date</span>
               <input
                 type="date"
@@ -170,13 +171,9 @@ export default async function AdminSchedulePage({
 
             <label className="block min-w-[140px]">
               <span className="eyebrow">Time</span>
-              <select name="scheduled_time" required className={`mt-1 ${inputCls}`}>
-                {COMMON_GAME_TIMES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-1">
+                <TimeSelect />
+              </div>
             </label>
 
             <label className="block flex-1 min-w-[180px]">
@@ -269,7 +266,7 @@ export default async function AdminSchedulePage({
                   <input type="hidden" name="id" value={game.id} />
 
                   <div className="flex flex-wrap gap-3">
-                    <label className="block flex-1 min-w-[160px]">
+                    <label className="block flex-1 min-w-[140px]">
                       <span className="eyebrow">Date</span>
                       <input
                         type="date"
@@ -283,30 +280,12 @@ export default async function AdminSchedulePage({
 
                     <label className="block min-w-[140px]">
                       <span className="eyebrow">Time</span>
-                      <select
-                        name="scheduled_time"
-                        key={game.id + "-time"}
-                        defaultValue={
-                          COMMON_GAME_TIMES.find(
-                            (t) => t.value === toLocalTime(game.scheduled_at),
-                          )?.value ?? COMMON_GAME_TIMES[0].value
-                        }
-                        className={`mt-1 ${inputCls}`}
-                      >
-                        {COMMON_GAME_TIMES.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                        {/* Show current time as option if it's not a common slot */}
-                        {!COMMON_GAME_TIMES.find(
-                          (t) => t.value === toLocalTime(game.scheduled_at),
-                        ) && (
-                          <option value={toLocalTime(game.scheduled_at)}>
-                            {formatLocalTime(game.scheduled_at)} (current)
-                          </option>
-                        )}
-                      </select>
+                      <div className="mt-1">
+                        <TimeSelect
+                          key={game.id + "-time"}
+                          defaultValue={toLocalTime(game.scheduled_at)}
+                        />
+                      </div>
                     </label>
 
                     <label className="block flex-1 min-w-[180px]">
@@ -393,7 +372,7 @@ export default async function AdminSchedulePage({
                     <div className="pb-0.5">
                       <button
                         type="submit"
-                        className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
                       >
                         SAVE
                       </button>

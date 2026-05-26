@@ -38,7 +38,7 @@ export default async function SchedulePage() {
   }
 
   return (
-    <div className="space-y-5 sm:space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       <div className="rise">
         <SectionHeader
           eyebrow="The Calendar"
@@ -50,7 +50,7 @@ export default async function SchedulePage() {
 
       {Object.entries(groups).map(([month, monthGames], i) => (
         <section key={month} className={`rise delay-${Math.min(i + 1, 4)}`}>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-3">
             <span className="eyebrow text-goal">{month}</span>
             <span className="flex-1 h-px bg-rule" />
             <span className="eyebrow">{monthGames.length} games</span>

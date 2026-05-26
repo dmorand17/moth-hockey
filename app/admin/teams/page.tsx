@@ -90,6 +90,20 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
             <span className="eyebrow">Color</span>
             <ColorSwatches name="color" defaultValue="#ef4444" idPrefix="new-team" />
           </div>
+          <div className="flex items-center gap-2">
+            <span className="eyebrow shrink-0">Captain</span>
+            <select
+              name="captain_user_id"
+              className="flex-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
+            >
+              <option value="">— No captain —</option>
+              {(profiles ?? []).map((p) => (
+                <option key={p.user_id} value={p.user_id}>
+                  {userLabel(p.user_id)}
+                </option>
+              ))}
+            </select>
+          </div>
         </form>
       </section>
 
@@ -117,26 +131,28 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
                 <form action={updateTeam} className="space-y-3">
                   <input type="hidden" name="id" value={team.id} />
                   <input type="hidden" name="slug" value={team.slug} />
-                  <label className="block">
-                    <span className="eyebrow">Name</span>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      defaultValue={team.name}
-                      className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
-                    />
-                  </label>
+                  <div className="flex items-end gap-3">
+                    <label className="block flex-1">
+                      <span className="eyebrow">Name</span>
+                      <input
+                        type="text"
+                        name="name"
+                        required
+                        defaultValue={team.name}
+                        className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+                    >
+                      SAVE
+                    </button>
+                  </div>
                   <div>
                     <span className="eyebrow">Color</span>
                     <ColorSwatches name="color" defaultValue={team.color} idPrefix={`team-${team.id}`} />
                   </div>
-                  <button
-                    type="submit"
-                    className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-                  >
-                    SAVE
-                  </button>
                 </form>
 
                 <div className="border-t border-rule/50 pt-3">

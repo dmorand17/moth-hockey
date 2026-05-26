@@ -37,13 +37,23 @@ export async function createTeam(formData: FormData) {
     back("error=invalid_color");
   }
 
+  const captainUserId = String(formData.get("captain_user_id") ?? "").trim() || null;
+
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
+  const { data: team, error } = await supabase
     .from("teams")
-    .insert({ season_id: seasonId, name, slug, color });
+    .insert({ season_id: seasonId, name, slug, color })
+    .select("id")
+    .single();
 
   if (error) {
     back(`error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (captainUserId && team) {
+    await supabase
+      .from("team_captains")
+      .insert({ team_id: team.id, season_id: seasonId, user_id: captainUserId });
   }
 
   revalidatePath("/admin/teams");

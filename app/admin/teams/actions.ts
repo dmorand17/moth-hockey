@@ -118,6 +118,6 @@ export async function assignTeamCaptain(formData: FormData) {
   }
 
   revalidatePath("/admin/teams");
-  revalidatePath("/admin/users");
+  revalidatePath("/admin/players");
   redirect("/admin/teams?saved=captain");
 }

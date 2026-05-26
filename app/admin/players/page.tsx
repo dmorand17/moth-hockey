@@ -1,17 +1,41 @@
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
-import { createPlayer } from "./actions";
-import { PlayerFilters, type PlayerRow, type Team } from "./PlayerFilters";
+import { createPlayer, updateUserRole, linkUserToPlayer } from "./actions";
+import {
+  PlayerFilters,
+  type PlayerRow,
+  type Team,
+  type UnlinkedAccount,
+  type RoleOption,
+} from "./PlayerFilters";
+
+// Defined here (a server module) — exporting it from the "use client"
+// PlayerFilters module would turn it into a client-reference proxy on the
+// server and break the Needs-linking section's .map().
+const ROLE_OPTIONS: RoleOption[] = [
+  { value: "admin", label: "Admin" },
+  { value: "scorekeeper", label: "Scorekeeper" },
+  { value: "player", label: "Player" },
+];
 
 type SearchParams = Promise<{ saved?: string; error?: string }>;
 
 const FLASH_MESSAGES: Record<string, string> = {
   created: "Player created.",
   updated: "Player updated.",
+  role: "Role updated.",
+  link: "Player link updated.",
 };
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "First and last name are required.",
+};
+
+type RosterEntry = {
+  season_id: string;
+  position: "forward" | "defense" | "goalie";
+  jersey_number: number | null;
+  team: { id: string; name: string; color: string } | null;
 };
 
 export default async function AdminPlayersPage({
@@ -27,33 +51,70 @@ export default async function AdminPlayersPage({
   const flash = params.saved;
   const error = params.error;
 
-  const { data: rawPlayers } = await supabase
-    .from("players")
-    .select(
-      "id, first_name, last_name, user_id, team_players(season_id, position, jersey_number, team:team_id(id, name, color))",
-    )
-    .order("last_name")
-    .order("first_name");
+  const [{ data: rawPlayers }, { data: profiles }, { data: roles }] =
+    await Promise.all([
+      supabase
+        .from("players")
+        .select(
+          "id, first_name, last_name, user_id, team_players(season_id, position, jersey_number, team:team_id(id, name, color))",
+        )
+        .order("last_name")
+        .order("first_name"),
+      supabase
+        .from("user_profiles")
+        .select("user_id, email, full_name")
+        .order("created_at", { ascending: true }),
+      supabase.from("user_roles").select("user_id, role"),
+    ]);
 
-  // Transform into flat PlayerRow with current-season context
+  const roleByUser = new Map((roles ?? []).map((r) => [r.user_id, r.role]));
+  const profileByUser = new Map(
+    (profiles ?? []).map((p) => [p.user_id, p]),
+  );
+
+  // Flatten players into rows with current-season roster + linked account.
   const players: PlayerRow[] = (rawPlayers ?? []).map((p) => {
     const rosterEntry = (
-      p.team_players as unknown as {
-        season_id: string;
-        jersey_number: number | null;
-        team: { id: string; name: string; color: string } | null;
-      }[]
+      p.team_players as unknown as RosterEntry[]
     )?.find((tp) => tp.season_id === season.id);
+
+    const profile = p.user_id ? profileByUser.get(p.user_id) : null;
 
     return {
       id: p.id,
       first_name: p.first_name,
       last_name: p.last_name,
-      user_id: p.user_id,
       current_team: rosterEntry?.team ?? null,
       jersey_number: rosterEntry?.jersey_number ?? null,
+      position: rosterEntry?.position ?? null,
+      account: p.user_id
+        ? {
+            user_id: p.user_id,
+            email: profile?.email ?? "",
+            role: roleByUser.get(p.user_id) ?? null,
+          }
+        : null,
     };
   });
+
+  // Accounts that exist but aren't linked to any player → the "Needs linking"
+  // callout, and the per-row "link account" dropdown in the list.
+  const linkedUserIds = new Set(
+    (rawPlayers ?? []).map((p) => p.user_id).filter((id): id is string => !!id),
+  );
+  const unlinkedAccounts: UnlinkedAccount[] = (profiles ?? [])
+    .filter((p) => !linkedUserIds.has(p.user_id))
+    .map((p) => ({
+      user_id: p.user_id,
+      email: p.email,
+      full_name: p.full_name,
+      role: roleByUser.get(p.user_id) ?? null,
+    }));
+
+  // Players with no account → "link to player" dropdown in the callout.
+  const unlinkedPlayers = (rawPlayers ?? [])
+    .filter((p) => !p.user_id)
+    .map((p) => ({ id: p.id, name: `${p.last_name}, ${p.first_name}` }));
 
   // Derive unique teams from rostered players (sorted by name)
   const teamMap = new Map<string, Team>();
@@ -116,15 +177,114 @@ export default async function AdminPlayersPage({
         </form>
       </section>
 
+      {/* Accounts awaiting a player link */}
+      {unlinkedAccounts.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-display text-xl tracking-[0.04em] text-goal">
+            ⚠ NEEDS LINKING{" "}
+            <span className="eyebrow text-ink-faint align-middle">
+              {unlinkedAccounts.length}
+            </span>
+          </h2>
+          <p className="text-ink-dim text-[12px]">
+            Signed-up accounts not yet linked to a player.
+          </p>
+          <ul className="border border-goal/30 rounded divide-y divide-rule/50">
+            {unlinkedAccounts.map((acct) => (
+              <li
+                key={acct.user_id}
+                className="px-3 py-2 flex flex-col sm:flex-row sm:items-end gap-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-ink text-[13px] truncate">
+                    {acct.full_name || acct.email}
+                  </div>
+                  {acct.full_name && (
+                    <div className="font-mono text-[11px] text-ink-faint truncate">
+                      {acct.email}
+                    </div>
+                  )}
+                </div>
+
+                <form
+                  action={updateUserRole}
+                  className="flex items-end gap-2 shrink-0"
+                >
+                  <input type="hidden" name="user_id" value={acct.user_id} />
+                  <label className="block">
+                    <span className="eyebrow">Role</span>
+                    <select
+                      name="role"
+                      defaultValue={acct.role ?? "player"}
+                      className="mt-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
+                    >
+                      {acct.role === "team_captain" && (
+                        <option value="team_captain" disabled>
+                          Team Captain (via Teams)
+                        </option>
+                      )}
+                      {ROLE_OPTIONS.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                  >
+                    SAVE
+                  </button>
+                </form>
+
+                <form
+                  action={linkUserToPlayer}
+                  className="flex items-end gap-2 shrink-0"
+                >
+                  <input type="hidden" name="user_id" value={acct.user_id} />
+                  <label className="block flex-1 sm:flex-none">
+                    <span className="eyebrow">Link to player</span>
+                    <select
+                      name="player_id"
+                      defaultValue=""
+                      required
+                      className="mt-1 w-full bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
+                    >
+                      <option value="" disabled>
+                        — select player —
+                      </option>
+                      {unlinkedPlayers.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                  >
+                    LINK
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Filterable list */}
       <section className="space-y-3">
-        <header className="flex items-baseline justify-between">
-          <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-            PLAYERS
-          </h2>
-          <span className="eyebrow">{players.length} total</span>
-        </header>
-        <PlayerFilters players={players} teams={teams} />
+        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+          PLAYERS
+        </h2>
+        <PlayerFilters
+          players={players}
+          teams={teams}
+          unlinkedAccounts={unlinkedAccounts}
+          roleOptions={ROLE_OPTIONS}
+        />
       </section>
     </div>
   );

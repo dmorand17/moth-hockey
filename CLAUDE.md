@@ -2,7 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-@AGENTS.md
+## Documentation
+
+Project docs live in `docs/` — [`docs/README.md`](docs/README.md) is the index. Consult these before diving into code:
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — stack, directory layout, rendering/data-flow model, Supabase client split, auth & roles.
+- [`docs/DATABASE.md`](docs/DATABASE.md) — schema, enums, RLS, helper functions, and triggers (built from the migrations).
+- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — dev workflow, the Supabase migrations loop, and conventions.
+- [`docs/LOCAL-TESTING.md`](docs/LOCAL-TESTING.md) — run locally and sign in as the seeded test users (magic link via Mailpit).
+- [`docs/initial-build/`](docs/initial-build/) — build plans: `PLAN.md` (master source of truth), `MULTI-ROLE.md`, `MOBILE-PLAN.md`, `DEPLOY.md`.
 
 ## Critical: Next.js 16 + React 19
 
@@ -23,10 +31,6 @@ No test runner is configured.
 
 ## Architecture
 
-App Router project (`app/` directory). Currently a stock `create-next-app` scaffold with one route:
+App Router project (`app/`) backed by Supabase (Postgres / Auth). Server-first: pages are React Server Components that read via `lib/queries.ts`; mutations live in colocated `actions.ts` server actions gated by `lib/auth.ts`. Tailwind v4 is configured in `app/globals.css`, not `tailwind.config.*`. TypeScript path alias `@/*` → repo root.
 
-- `app/layout.tsx` — root layout. Loads Geist Sans/Mono via `next/font/google` as CSS variables (`--font-geist-sans`, `--font-geist-mono`); sets `<html>` to `h-full antialiased` and `<body>` to `min-h-full flex flex-col` so child pages can size against viewport height.
-- `app/globals.css` — Tailwind v4 entrypoint (PostCSS plugin in `postcss.config.mjs`). Tailwind v4 is configured via CSS, not `tailwind.config.*`.
-- `app/page.tsx` — landing page.
-
-TypeScript path alias `@/*` → repo root (see `tsconfig.json`).
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full directory layout, data-flow model, and Supabase client split, and [`docs/DATABASE.md`](docs/DATABASE.md) for the schema.

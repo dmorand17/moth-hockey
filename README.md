@@ -20,6 +20,26 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Local Auth (test users)
+
+Auth runs against a local Supabase instance (`supabase start`) and is passwordless
+magic-link only. `supabase/seed.sql` seeds three deterministic accounts that are
+recreated on every `supabase db reset`:
+
+| Email                   | Role          |
+| ----------------------- | ------------- |
+| `admin@moth.test`       | `admin`       |
+| `scorekeeper@moth.test` | `scorekeeper` |
+| `player@moth.test`      | `player` (normal user) |
+
+To sign in as one of them:
+
+1. `supabase db reset` — reseeds the database and recreates the users.
+2. Open `/login` and enter one of the emails above.
+3. Open Mailpit at [http://localhost:54324](http://localhost:54324) and click the magic link in the email.
+
+See [`docs/LOCAL-TESTING.md`](docs/LOCAL-TESTING.md) for full local dev + testing details.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -143,7 +143,22 @@ export default async function RootLayout({
               M.O.T.H HOCKEY <span className="text-rule-strong mx-2">/</span>{" "}
               <span className="text-ink-faint">SPRING 2026</span>
             </div>
-            <div className="eyebrow">Powered by the Milkman</div>
+            <div className="eyebrow inline-flex items-center gap-1.5">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0"
+              >
+                <path d="M10 1.5H14V5.7A2 2 0 0 0 14.55 7.08L15.65 8.26A2.8 2.8 0 0 1 16.4 10.2V20A1.5 1.5 0 0 1 14.9 21.5H9.1A1.5 1.5 0 0 1 7.6 20V10.2A2.8 2.8 0 0 1 8.35 8.26L9.45 7.08A2 2 0 0 0 10 5.7Z" />
+                <path d="M7.6 13H16.4" />
+              </svg>
+              Powered by the Milkman
+            </div>
           </div>
         </footer>
       </body>

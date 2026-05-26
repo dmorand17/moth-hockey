@@ -43,6 +43,9 @@ yarn-error.log*
 # local-only artifacts (Supabase CA cert, etc.)
 .local/
 
+# scratch/verification artifacts (e.g. screenshots from /verify)
+.tmp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

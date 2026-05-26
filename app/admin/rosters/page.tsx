@@ -163,9 +163,10 @@ export default async function AdminRostersPage({
         )}
       </section>
 
-      <header className="font-display text-xl tracking-[0.04em] text-ink">
-        ROSTERS
-      </header>
+      <section className="space-y-1">
+        <header className="font-display text-xl tracking-[0.04em] text-ink mb-2">
+          ROSTERS
+        </header>
 
       {(teams ?? []).map((team: TeamRow) => {
         const players = teamRosters.get(team.id) ?? [];
@@ -255,6 +256,7 @@ export default async function AdminRostersPage({
           </details>
         );
       })}
+      </section>
     </div>
   );
 }

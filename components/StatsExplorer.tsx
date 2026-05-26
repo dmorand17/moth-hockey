@@ -84,7 +84,7 @@ export function StatsExplorer({
   precomputed,
 }: Props) {
   const [position, setPosition] = useState<PositionFilter>("all");
-  const [kind, setKind] = useState<KindFilter>("all");
+  const [kind, setKind] = useState<KindFilter>("regular");
   const [teamId, setTeamId] = useState<string>("all");
 
   const { skaters, goalies } = useMemo(() => {

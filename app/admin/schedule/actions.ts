@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
+import { buildScheduledAt } from "@/lib/schedule-config";
 
 type Status = "scheduled" | "live" | "final";
 type DecidedIn = "regulation" | "ot" | "shootout";
@@ -26,11 +27,6 @@ function parseDecidedIn(raw: string): DecidedIn {
 function parseScore(raw: string): number {
   const n = parseInt(raw, 10);
   return isNaN(n) || n < 0 ? 0 : n;
-}
-
-function buildScheduledAt(date: string, time: string): string {
-  // Combine "YYYY-MM-DD" + "HH:mm" and treat as local time
-  return new Date(`${date}T${time}:00`).toISOString();
 }
 
 export async function createGame(formData: FormData) {

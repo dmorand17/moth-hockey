@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SectionHeader } from "@/components/SectionHeader";
+import { PlayoffChip } from "@/components/PlayoffChip";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
@@ -30,7 +31,7 @@ export default async function GamePage({
   const { data: game } = await supabase
     .from("games")
     .select(
-      "id, scheduled_at, location, status, home_score, away_score, period, clock_seconds, decided_in, shootout_home_goals, shootout_away_goals, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color)",
+      "id, scheduled_at, location, status, kind, playoff_round, home_score, away_score, period, clock_seconds, decided_in, shootout_home_goals, shootout_away_goals, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color)",
     )
     .eq("id", id)
     .single();
@@ -51,8 +52,15 @@ export default async function GamePage({
     .order("clock_seconds", { ascending: false });
   const events = (eventsRaw ?? []) as unknown as EventRow[];
 
-  const homeTeam = game.home_team as unknown as { id: string; name: string; slug: string; color: string };
-  const awayTeam = game.away_team as unknown as { id: string; name: string; slug: string; color: string };
+  const homeTeam = game.home_team as unknown as
+    | { id: string; name: string; slug: string; color: string }
+    | null;
+  const awayTeam = game.away_team as unknown as
+    | { id: string; name: string; slug: string; color: string }
+    | null;
+  const tbdTeam = { id: "tbd", name: "TBD", slug: "", color: "#6b7280" };
+  const homeView = homeTeam ?? tbdTeam;
+  const awayView = awayTeam ?? tbdTeam;
   const isFinal = game.status === "final";
   const isLive = game.status === "live";
   const homeWon = isFinal && game.home_score > game.away_score;
@@ -81,29 +89,34 @@ export default async function GamePage({
                 </>
               )}
             </div>
-            {isLive ? (
-              <span className="chip chip-live">
-                <span className="live-dot" /> LIVE · {formatPeriod(game.period)} · {formatClock(game.clock_seconds)}
-              </span>
-            ) : isFinal ? (
-              <span className="chip chip-final">
-                FINAL{game.decided_in && game.decided_in !== "regulation" ? `/${game.decided_in.toUpperCase()}` : ""}
-              </span>
-            ) : (
-              <span className="chip">UPCOMING</span>
-            )}
+            <div className="flex items-center gap-2">
+              {game.kind === "playoff" && (
+                <PlayoffChip round={game.playoff_round} />
+              )}
+              {isLive ? (
+                <span className="chip chip-live">
+                  <span className="live-dot" /> LIVE · {formatPeriod(game.period)} · {formatClock(game.clock_seconds)}
+                </span>
+              ) : isFinal ? (
+                <span className="chip chip-final">
+                  FINAL{game.decided_in && game.decided_in !== "regulation" ? `/${game.decided_in.toUpperCase()}` : ""}
+                </span>
+              ) : (
+                <span className="chip">UPCOMING</span>
+              )}
+            </div>
           </div>
 
           {/* Teams + scores — vertical stack on mobile, three-column on md+ */}
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-5 md:gap-8">
-            <TeamColumn team={awayTeam} score={game.away_score} won={awayWon} dimmed={isFinal && !awayWon} align="left" />
+            <TeamColumn team={awayView} score={game.away_score} won={awayWon} dimmed={isFinal && !awayWon} align="left" />
             <div className="flex md:flex-col items-center justify-center md:justify-start gap-3 md:gap-0">
               <div className="h-px flex-1 md:hidden bg-rule-strong" />
               <div className="font-display text-[18px] md:text-[24px] tracking-[0.18em] text-ink-faint">VS</div>
               <div className="h-px flex-1 md:hidden bg-rule-strong" />
               <div className="mt-2 hidden md:block h-px w-12 bg-rule-strong" />
             </div>
-            <TeamColumn team={homeTeam} score={game.home_score} won={homeWon} dimmed={isFinal && !homeWon} align="right" />
+            <TeamColumn team={homeView} score={game.home_score} won={homeWon} dimmed={isFinal && !homeWon} align="right" />
           </div>
 
           {game.decided_in === "shootout" && (
@@ -130,7 +143,7 @@ export default async function GamePage({
         ) : (
           <ol className="space-y-2">
             {events.map((e, idx) => {
-              const team = e.team_id === homeTeam.id ? homeTeam : awayTeam;
+              const team = e.team_id === homeView.id ? homeView : awayView;
               const isGoal = e.type === "goal";
               return (
                 <li

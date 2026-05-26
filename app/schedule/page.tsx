@@ -8,11 +8,13 @@ type ScheduleGame = {
   id: string;
   scheduled_at: string;
   status: "scheduled" | "live" | "final";
+  kind: "regular" | "playoff";
+  playoff_round: "sf1" | "sf2" | "final" | null;
   home_score: number;
   away_score: number;
   decided_in: "regulation" | "ot" | "shootout" | null;
-  home_team: TeamRef;
-  away_team: TeamRef;
+  home_team: TeamRef | null;
+  away_team: TeamRef | null;
 };
 
 export default async function SchedulePage() {
@@ -22,7 +24,7 @@ export default async function SchedulePage() {
   const { data: gamesRaw } = await supabase
     .from("games")
     .select(
-      "id, scheduled_at, status, home_score, away_score, decided_in, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
+      "id, scheduled_at, status, kind, playoff_round, home_score, away_score, decided_in, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
     )
     .eq("season_id", season.id)
     .order("scheduled_at");
@@ -67,6 +69,8 @@ export default async function SchedulePage() {
                 home_score={g.home_score}
                 away_score={g.away_score}
                 decided_in={g.decided_in}
+                kind={g.kind}
+                playoff_round={g.playoff_round}
               />
             ))}
           </div>

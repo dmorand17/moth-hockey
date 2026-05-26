@@ -1,13 +1,17 @@
 import { createSupabaseServerClient } from "./supabase/server";
 
 type TeamRef = { name: string; slug: string; color: string };
+export type PlayoffRound = "sf1" | "sf2" | "final";
+export type GameKind = "regular" | "playoff";
 export type ScheduledGame = {
   id: string;
   scheduled_at: string;
   location: string | null;
   status: "scheduled" | "live" | "final";
-  home_team: TeamRef;
-  away_team: TeamRef;
+  kind: GameKind;
+  playoff_round: PlayoffRound | null;
+  home_team: TeamRef | null;
+  away_team: TeamRef | null;
 };
 export type ResultGame = {
   id: string;
@@ -15,8 +19,10 @@ export type ResultGame = {
   home_score: number;
   away_score: number;
   decided_in: "regulation" | "ot" | "shootout" | null;
-  home_team: TeamRef;
-  away_team: TeamRef;
+  kind: GameKind;
+  playoff_round: PlayoffRound | null;
+  home_team: TeamRef | null;
+  away_team: TeamRef | null;
 };
 
 export async function getCurrentSeason() {
@@ -73,7 +79,8 @@ export async function getStandings(seasonId: string): Promise<StandingsRow[]> {
         .from("games")
         .select("home_team_id, away_team_id, home_score, away_score, status, decided_in")
         .eq("season_id", seasonId)
-        .eq("status", "final"),
+        .eq("status", "final")
+        .eq("kind", "regular"),
     ]);
   if (tErr) throw tErr;
   if (gErr) throw gErr;
@@ -90,6 +97,7 @@ export async function getStandings(seasonId: string): Promise<StandingsRow[]> {
   }
 
   for (const g of games ?? []) {
+    if (!g.home_team_id || !g.away_team_id) continue;
     const home = rows[g.home_team_id];
     const away = rows[g.away_team_id];
     if (!home || !away) continue;
@@ -200,7 +208,7 @@ export async function getUpcomingGames(seasonId: string, limit = 3): Promise<Sch
   const { data, error } = await supabase
     .from("games")
     .select(
-      "id, scheduled_at, location, status, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
+      "id, scheduled_at, location, status, kind, playoff_round, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
     )
     .eq("season_id", seasonId)
     .eq("status", "scheduled")
@@ -215,7 +223,7 @@ export async function getRecentResults(seasonId: string, limit = 5): Promise<Res
   const { data, error } = await supabase
     .from("games")
     .select(
-      "id, scheduled_at, home_score, away_score, decided_in, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
+      "id, scheduled_at, home_score, away_score, decided_in, kind, playoff_round, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
     )
     .eq("season_id", seasonId)
     .eq("status", "final")

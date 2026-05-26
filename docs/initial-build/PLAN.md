@@ -2,7 +2,7 @@
 
 Single source of truth for scope, decisions, and progress. The Phase 1 / Phase 2 sections are a living checklist — tick boxes here as work ships rather than maintaining a separate progress doc.
 
-Last updated: 2026-05-24
+Last updated: 2026-05-26
 
 **League name:** M.O.T.H Hockey ("Mostly Over The Hill" hockey). Header should display "M.O.T.H Hockey" with the expansion as a tagline/subtitle.
 
@@ -397,13 +397,13 @@ Decisions:
 ### 4. Admin CRUD ⬜
 - [x] Admin layout + route-level role gating (RLS already in place; needs route guards too)
 - [x] CRUD: teams (create/edit, color picker, slug)
-- [ ] CRUD: players (create/edit names, jersey numbers; admin-only `user_id` link UI lives on `/admin/players` — see merge below)
-- [ ] CRUD: rosters (assign players to teams per season, set position)
-- [ ] CRUD: schedule (create games, set status, manually enter scores)
+- [x] CRUD: players (create/edit names, jersey numbers; admin-only `user_id` link UI lives on `/admin/players` — see merge below)
+- [x] CRUD: rosters (assign players to teams per season, set position)
+- [x] CRUD: schedule (create games, set status, manually enter scores)
 - [x] CRUD: content pages (markdown editor for rules / FAQ / league) — `/admin/content`, react-markdown + remark-gfm rendering on `/about/[section]`
 - [~] CRUD: player awards (grant / revoke per season) — **skipped.** Awards are baked into historical stats and rendered as interactive badges on `/players/[id]`; admin grant/revoke UI not needed for v1.
-- [ ] Season management (start a new season)
-- [ ] Verify: an admin can set up a real season end-to-end without SQL
+- [x] Season management (start a new season) — `/admin/seasons`: create with optional teams-only carryover, manual Activate (two-step `is_current` flip), schedule auto-generation (round-robin × N rounds, weekday + COMMON_GAME_TIMES slots), guarded delete.
+- [x] Verify: an admin can set up a real season end-to-end without SQL — verified 2026-05-26 by creating Fall 2026, copying teams from Spring 2026, generating a 12-game balanced schedule, activating + reactivating Spring, exercising the delete-guard.
 
 **Players ⊕ Users — merge into one admin panel ✅**
 

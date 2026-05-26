@@ -257,14 +257,22 @@ export function StatsExplorer({
       />
 
       <section className="rise delay-1 mt-2">
-        <SectionHeader eyebrow="Skaters" title="Skater Stats" />
+        <div className="flex items-end justify-between gap-3 mb-3 sm:mb-5">
+          <SectionHeader eyebrow="Skaters" title="Skater Stats" />
+          <a
+            href="#goalies"
+            className="sm:hidden eyebrow shrink-0 inline-flex items-center min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
+          >
+            Goalies ↓
+          </a>
+        </div>
         <SkaterTable rows={skaters} />
         <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
           Tap any column header to sort. PEN = penalties committed; PS = penalty shots taken; PSG = penalty shots scored.
         </p>
       </section>
 
-      <section className="rise delay-2 mt-5 sm:mt-10">
+      <section id="goalies" className="rise delay-2 mt-5 sm:mt-10 scroll-mt-28">
         <SectionHeader eyebrow="Between The Pipes" title="Goalies" />
         <GoalieTable rows={goalies} />
         <p className="eyebrow mt-3 normal-case tracking-[0.06em]">

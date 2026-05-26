@@ -36,6 +36,8 @@ type GoalieKey = "name" | "team" | "gp" | "ga" | "ps_faced" | "ps_saved";
 
 type Direction = "asc" | "desc";
 
+const MOBILE_TOP_N = 10;
+
 const skaterCols: { key: SkaterKey; label: string; align: "left" | "right"; defaultDir: Direction; numeric: boolean }[] = [
   { key: "name", label: "Player", align: "left", defaultDir: "asc", numeric: false },
   { key: "team", label: "Team", align: "left", defaultDir: "asc", numeric: false },
@@ -73,6 +75,7 @@ function arrow(active: boolean, dir: Direction) {
 export function SkaterTable({ rows }: { rows: Skater[] }) {
   const [sortKey, setSortKey] = useState<SkaterKey>("points");
   const [dir, setDir] = useState<Direction>("desc");
+  const [expanded, setExpanded] = useState(false);
 
   const sorted = useMemo(() => {
     const copy = [...rows];
@@ -107,15 +110,15 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
             setDir(d);
           }}
         />
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {sorted.length === 0 ? (
             <div className="panel px-5 py-4 eyebrow">No stats yet</div>
           ) : (
-            sorted.map((s, i) => (
+            (expanded ? sorted : sorted.slice(0, MOBILE_TOP_N)).map((s, i) => (
               <Link
                 key={s.id}
                 href={`/players/${s.id}`}
-                className="panel p-3 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
+                className="panel px-3 py-2 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
               >
                 <span className="digit text-ink-faint w-7 shrink-0">{String(i + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1">
@@ -137,6 +140,15 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
             ))
           )}
         </div>
+        {sorted.length > MOBILE_TOP_N && (
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="mt-3 eyebrow inline-flex items-center justify-center w-full min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
+          >
+            {expanded ? "Show fewer" : `Show all ${sorted.length} skaters`}
+          </button>
+        )}
       </div>
 
       {/* Desktop sortable table */}
@@ -237,7 +249,7 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
             setDir(d);
           }}
         />
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {sorted.length === 0 ? (
             <div className="panel px-5 py-4 eyebrow">No goalies on file</div>
           ) : (
@@ -245,7 +257,7 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
               <Link
                 key={g.id}
                 href={`/players/${g.id}`}
-                className="panel p-3 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
+                className="panel px-3 py-2 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
               >
                 <span className="digit text-ink-faint w-7 shrink-0">{String(i + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1">

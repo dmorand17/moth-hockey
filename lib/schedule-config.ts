@@ -1,0 +1,7 @@
+export type GameTime = { label: string; value: string };
+
+/** Common ice time slots. Edit this list to change available quick-select options. */
+export const COMMON_GAME_TIMES: GameTime[] = [
+  { label: "8:20 PM", value: "20:20" },
+  { label: "9:30 PM", value: "21:30" },
+];

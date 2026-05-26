@@ -24,11 +24,13 @@ type GameRow = {
   scheduled_at: string;
   location: string | null;
   status: "scheduled" | "live" | "final";
+  kind: "regular" | "playoff";
+  playoff_round: "sf1" | "sf2" | "final" | null;
   home_score: number;
   away_score: number;
   decided_in: "regulation" | "ot" | "shootout" | null;
-  home_team: TeamRef;
-  away_team: TeamRef;
+  home_team: TeamRef | null;
+  away_team: TeamRef | null;
 };
 
 const inputCls =
@@ -101,7 +103,7 @@ export default async function AdminSchedulePage({
     supabase
       .from("games")
       .select(
-        "id, scheduled_at, location, status, home_score, away_score, decided_in, home_team:home_team_id(id, name, color), away_team:away_team_id(id, name, color)",
+        "id, scheduled_at, location, status, kind, playoff_round, home_score, away_score, decided_in, home_team:home_team_id(id, name, color), away_team:away_team_id(id, name, color)",
       )
       .eq("season_id", season.id)
       .order("scheduled_at"),
@@ -225,22 +227,29 @@ export default async function AdminSchedulePage({
                 <span className="flex items-center gap-1.5 flex-1 min-w-[200px]">
                   <span
                     className="h-2 w-2 rounded-sm shrink-0"
-                    style={{ background: game.home_team.color }}
+                    style={{ background: game.home_team?.color ?? "#3a4150" }}
                   />
                   <span className="text-ink text-[13px]">
-                    {game.home_team.name}
+                    {game.home_team?.name ?? "TBD"}
                   </span>
                   <span className="text-ink-faint text-[11px]">vs</span>
                   <span
                     className="h-2 w-2 rounded-sm shrink-0"
-                    style={{ background: game.away_team.color }}
+                    style={{ background: game.away_team?.color ?? "#3a4150" }}
                   />
                   <span className="text-ink text-[13px]">
-                    {game.away_team.name}
+                    {game.away_team?.name ?? "TBD"}
                   </span>
                 </span>
 
                 <span className="shrink-0 flex items-center gap-2">
+                  {game.kind === "playoff" && (
+                    <span className="chip chip-playoff text-[10px] px-1.5 py-0.5">
+                      {game.playoff_round === "final"
+                        ? "FINAL"
+                        : (game.playoff_round?.toUpperCase() ?? "PYO")}
+                    </span>
+                  )}
                   {game.status === "final" ? (
                     <>
                       <span className="font-mono text-ink text-[13px]">
@@ -323,9 +332,9 @@ export default async function AdminSchedulePage({
                       <span className="eyebrow">
                         <span
                           className="inline-block h-1.5 w-1.5 rounded-sm mr-1 align-middle"
-                          style={{ background: game.home_team.color }}
+                          style={{ background: game.home_team?.color ?? "#3a4150" }}
                         />
-                        {game.home_team.name} score
+                        {game.home_team?.name ?? "TBD"} score
                       </span>
                       <input
                         type="number"
@@ -341,9 +350,9 @@ export default async function AdminSchedulePage({
                       <span className="eyebrow">
                         <span
                           className="inline-block h-1.5 w-1.5 rounded-sm mr-1 align-middle"
-                          style={{ background: game.away_team.color }}
+                          style={{ background: game.away_team?.color ?? "#3a4150" }}
                         />
-                        {game.away_team.name} score
+                        {game.away_team?.name ?? "TBD"} score
                       </span>
                       <input
                         type="number"

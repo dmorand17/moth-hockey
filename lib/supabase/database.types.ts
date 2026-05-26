@@ -246,16 +246,17 @@ export type Database = {
       games: {
         Row: {
           away_score: number
-          away_team_id: string
+          away_team_id: string | null
           clock_seconds: number
           created_at: string
           decided_in: Database["public"]["Enums"]["game_decided_in"] | null
           home_score: number
-          home_team_id: string
+          home_team_id: string | null
           id: string
           kind: Database["public"]["Enums"]["game_kind"]
           location: string | null
           period: number
+          playoff_round: Database["public"]["Enums"]["playoff_round"] | null
           scheduled_at: string
           season_id: string
           shootout_away_goals: number | null
@@ -265,16 +266,17 @@ export type Database = {
         }
         Insert: {
           away_score?: number
-          away_team_id: string
+          away_team_id?: string | null
           clock_seconds?: number
           created_at?: string
           decided_in?: Database["public"]["Enums"]["game_decided_in"] | null
           home_score?: number
-          home_team_id: string
+          home_team_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["game_kind"]
           location?: string | null
           period?: number
+          playoff_round?: Database["public"]["Enums"]["playoff_round"] | null
           scheduled_at: string
           season_id: string
           shootout_away_goals?: number | null
@@ -284,16 +286,17 @@ export type Database = {
         }
         Update: {
           away_score?: number
-          away_team_id?: string
+          away_team_id?: string | null
           clock_seconds?: number
           created_at?: string
           decided_in?: Database["public"]["Enums"]["game_decided_in"] | null
           home_score?: number
-          home_team_id?: string
+          home_team_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["game_kind"]
           location?: string | null
           period?: number
+          playoff_round?: Database["public"]["Enums"]["playoff_round"] | null
           scheduled_at?: string
           season_id?: string
           shootout_away_goals?: number | null
@@ -687,6 +690,7 @@ export type Database = {
       game_status: "scheduled" | "live" | "final"
       penalty_shot_result: "goal" | "saved"
       player_position: "forward" | "defense" | "goalie"
+      playoff_round: "sf1" | "sf2" | "final"
       season_type: "spring" | "fall" | "winter"
       user_role: "admin" | "scorekeeper" | "team_captain" | "player"
     }
@@ -827,6 +831,7 @@ export const Constants = {
       game_status: ["scheduled", "live", "final"],
       penalty_shot_result: ["goal", "saved"],
       player_position: ["forward", "defense", "goalie"],
+      playoff_round: ["sf1", "sf2", "final"],
       season_type: ["spring", "fall", "winter"],
       user_role: ["admin", "scorekeeper", "team_captain", "player"],
     },

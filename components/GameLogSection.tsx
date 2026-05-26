@@ -27,6 +27,8 @@ export type GameLogRow = {
   ga: number;
   ps_faced: number;
   ps_saved: number;
+  kind?: "regular" | "playoff";
+  playoff_round?: "sf1" | "sf2" | "final" | null;
 };
 
 function ResultChip({ result }: { result: "W" | "L" | "OTL" }) {
@@ -108,6 +110,13 @@ export function GameLogSection({
                     {row.is_sub && (
                       <span className="eyebrow text-[9px] text-ink-faint">
                         SUB
+                      </span>
+                    )}
+                    {row.kind === "playoff" && (
+                      <span className="chip chip-playoff text-[9px] px-1 py-0">
+                        {row.playoff_round === "final"
+                          ? "F"
+                          : row.playoff_round?.toUpperCase() ?? "PYO"}
                       </span>
                     )}
                   </div>

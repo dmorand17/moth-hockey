@@ -128,6 +128,8 @@ export default async function Home() {
                 status={g.status}
                 home_team={g.home_team}
                 away_team={g.away_team}
+                kind={g.kind}
+                playoff_round={g.playoff_round}
               />
             ))}
           </div>
@@ -152,6 +154,8 @@ export default async function Home() {
                 home_score={g.home_score}
                 away_score={g.away_score}
                 decided_in={g.decided_in}
+                kind={g.kind}
+                playoff_round={g.playoff_round}
               />
             ))}
           </div>

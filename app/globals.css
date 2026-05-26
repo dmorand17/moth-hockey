@@ -164,6 +164,11 @@ body::before {
   border-color: rgba(74, 222, 128, 0.3);
   background: rgba(74, 222, 128, 0.05);
 }
+.chip.chip-playoff {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.1);
+}
 
 /* Pulsing red live dot */
 .live-dot {

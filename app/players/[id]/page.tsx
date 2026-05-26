@@ -109,7 +109,7 @@ export default async function PlayerPage({
       .eq("player_id", id),
     supabase
       .from("game_appearances")
-      .select("game_id, team_id, is_sub, game:game_id(id, season_id, scheduled_at, status, home_score, away_score, decided_in, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color))")
+      .select("game_id, team_id, is_sub, game:game_id(id, season_id, scheduled_at, status, kind, playoff_round, home_score, away_score, decided_in, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color))")
       .eq("player_id", id),
     supabase
       .from("game_events")
@@ -143,8 +143,12 @@ export default async function PlayerPage({
   }
 
   // ----- Build current-season stats from live events -----
+  // Regular-season only — playoff games appear in the game log but don't
+  // roll into season totals (mirrors hockey convention and the standings
+  // filter in lib/queries.ts).
   const finalAppearances = (appearances ?? []).filter((a) => {
     if (a.game?.status !== "final") return false;
+    if (a.game?.kind === "playoff") return false;
     const seasonId = a.game?.season_id;
     if (!seasonId) return false;
     const myTeam = myTeamBySeason.get(seasonId);
@@ -202,11 +206,15 @@ export default async function PlayerPage({
   for (const app of appearances ?? []) {
     const g = app.game as unknown as {
       id: string; season_id: string; scheduled_at: string; status: string;
+      kind: "regular" | "playoff";
+      playoff_round: "sf1" | "sf2" | "final" | null;
       home_score: number; away_score: number; decided_in: string | null;
-      home_team: { id: string; name: string; slug: string; color: string };
-      away_team: { id: string; name: string; slug: string; color: string };
+      home_team: { id: string; name: string; slug: string; color: string } | null;
+      away_team: { id: string; name: string; slug: string; color: string } | null;
     } | null;
     if (!g || g.status !== "final") continue;
+    // Game log shows TBD-resolved games only; stubs without teams can't appear in a player log anyway.
+    if (!g.home_team || !g.away_team) continue;
 
     const isHome = g.home_team.id === app.team_id;
     const opponent = isHome ? g.away_team : g.home_team;
@@ -248,6 +256,8 @@ export default async function PlayerPage({
       is_sub: !!app.is_sub,
       goals, assists, points: goals + assists, penalties, ps_taken: psTaken,
       ga, ps_faced: psFaced, ps_saved: psSaved,
+      kind: g.kind,
+      playoff_round: g.playoff_round,
     });
   }
   gameLog.sort((a, b) =>

@@ -403,6 +403,7 @@ Decisions:
 - [x] CRUD: content pages (markdown editor for rules / FAQ / league) — `/admin/content`, react-markdown + remark-gfm rendering on `/about/[section]`
 - [~] CRUD: player awards (grant / revoke per season) — **skipped.** Awards are baked into historical stats and rendered as interactive badges on `/players/[id]`; admin grant/revoke UI not needed for v1.
 - [x] Season management (start a new season) — `/admin/seasons`: create with optional teams-only carryover, manual Activate (two-step `is_current` flip), schedule auto-generation (round-robin × N rounds, weekday + COMMON_GAME_TIMES slots), guarded delete.
+- [x] Playoffs — top 4 from regular-season standings, single-elim SF + Final. Schedule generator reserves the last 2 weeks for SF1/SF2/Final stubs; `seedPlayoffs` action seeds the bracket from `getStandings` and idempotently fills the Final once both SFs are decided. Stats and standings exclude `kind='playoff'`; `StatsExplorer` "Pyo" pill still surfaces playoff numbers on demand. Migration `0007_games_playoffs.sql` adds `playoff_round` enum, makes team IDs nullable for stubs (with CHECK), and adds a partial unique index on `(season_id, playoff_round)`.
 - [x] Verify: an admin can set up a real season end-to-end without SQL — verified 2026-05-26 by creating Fall 2026, copying teams from Spring 2026, generating a 12-game balanced schedule, activating + reactivating Spring, exercising the delete-guard.
 
 **Players ⊕ Users — merge into one admin panel ✅**

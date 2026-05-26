@@ -7,6 +7,7 @@ import {
   createSeason,
   deleteSeason,
   generateSchedule,
+  seedPlayoffs,
 } from "./actions";
 
 type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
@@ -19,6 +20,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   not_enough_teams: "Need at least 2 teams in this season to generate a schedule.",
   cannot_delete_current: "Cannot delete the current season. Activate another first.",
   has_games: "Delete or move games before deleting the season.",
+  no_playoff_stubs: "Generate the schedule with playoffs first to seed the bracket.",
 };
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
@@ -54,38 +56,67 @@ export default async function AdminSeasonsPage({
 
   const seasons = (seasonsRaw ?? []) as SeasonRow[];
 
-  // Aggregate counts per season for the summary chips.
-  const [{ data: teamRows }, { data: gameRows }] = await Promise.all([
+  // Aggregate counts per season for the summary chips + playoff bracket details.
+  const [{ data: teamRows }, { data: gameRows }, { data: playoffRows }] = await Promise.all([
     supabase.from("teams").select("season_id"),
-    supabase.from("games").select("season_id, status"),
+    supabase.from("games").select("season_id, status, kind"),
+    supabase
+      .from("games")
+      .select(
+        "season_id, playoff_round, status, home_score, away_score, home_team:home_team_id(name, color), away_team:away_team_id(name, color)",
+      )
+      .eq("kind", "playoff")
+      .order("playoff_round"),
   ]);
 
   const teamCounts = new Map<string, number>();
   for (const t of teamRows ?? []) {
     teamCounts.set(t.season_id, (teamCounts.get(t.season_id) ?? 0) + 1);
   }
-  const gameCounts = new Map<string, AggRow & { final: number }>();
+  type GameAgg = AggRow & { final: number; regular_final: number };
+  const gameCounts = new Map<string, GameAgg>();
   for (const g of gameRows ?? []) {
     const cur = gameCounts.get(g.season_id) ?? {
       season_id: g.season_id,
       n: 0,
       final: 0,
+      regular_final: 0,
     };
     cur.n += 1;
-    if (g.status === "final") cur.final += 1;
+    if (g.status === "final") {
+      cur.final += 1;
+      if (g.kind === "regular") cur.regular_final += 1;
+    }
     gameCounts.set(g.season_id, cur);
+  }
+
+  type BracketSlot = {
+    playoff_round: "sf1" | "sf2" | "final" | null;
+    status: "scheduled" | "live" | "final";
+    home_score: number;
+    away_score: number;
+    home_team: { name: string; color: string } | null;
+    away_team: { name: string; color: string } | null;
+  };
+  const bracketBySeason = new Map<string, BracketSlot[]>();
+  for (const p of (playoffRows ?? []) as unknown as Array<BracketSlot & { season_id: string }>) {
+    const list = bracketBySeason.get(p.season_id) ?? [];
+    list.push(p);
+    bracketBySeason.set(p.season_id, list);
   }
 
   const flash =
     params.saved === "generated"
       ? `Generated ${params.n ?? "?"} games.`
-      : params.saved === "created"
-        ? "Season created."
-        : params.saved === "activated"
-          ? "Season activated."
-          : params.saved === "deleted"
-            ? "Season deleted."
-            : null;
+      : params.saved === "seeded"
+        ? `Bracket seeded — ${params.n ?? "0"} round(s) updated.`
+        : params.saved === "created"
+          ? "Season created."
+          : params.saved === "activated"
+            ? "Season activated."
+            : params.saved === "deleted"
+              ? "Season deleted."
+              : null;
   const error = params.error
     ? (ERROR_MESSAGES[params.error] ?? params.error)
     : null;
@@ -226,7 +257,15 @@ export default async function AdminSeasonsPage({
             const gameAgg = gameCounts.get(season.id);
             const gameTotal = gameAgg?.n ?? 0;
             const finalCount = gameAgg?.final ?? 0;
+            const regularFinalCount = gameAgg?.regular_final ?? 0;
             const canDelete = !season.is_current && gameTotal === 0;
+            const bracket = bracketBySeason.get(season.id) ?? [];
+            const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
+            const sf2 = bracket.find((b) => b.playoff_round === "sf2") ?? null;
+            const finalSlot =
+              bracket.find((b) => b.playoff_round === "final") ?? null;
+            const hasPlayoffStubs = bracket.length > 0;
+            const canSeed = hasPlayoffStubs && regularFinalCount > 0;
 
             return (
               <details
@@ -290,6 +329,45 @@ export default async function AdminSeasonsPage({
                         to this season.
                       </p>
                     </form>
+                  )}
+
+                  {/* Playoff bracket */}
+                  {hasPlayoffStubs && (
+                    <div className="border-t border-rule/50 pt-3 space-y-3">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-display text-[13px] tracking-[0.14em] text-ice">
+                          PLAYOFFS
+                        </span>
+                        <span className="chip chip-playoff text-[10px] px-1.5 py-0.5">
+                          BRACKET
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
+                        <BracketRow label="SF2 (#2 v #3)" slot={sf2} />
+                        <BracketRow label="Final" slot={finalSlot} />
+                      </div>
+                      <form action={seedPlayoffs} className="flex flex-wrap items-center gap-3">
+                        <input type="hidden" name="season_id" value={season.id} />
+                        <button
+                          type="submit"
+                          disabled={!canSeed}
+                          className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={
+                            !canSeed
+                              ? "Need final regular-season games to seed the bracket"
+                              : undefined
+                          }
+                        >
+                          SEED PLAYOFFS
+                        </button>
+                        <p className="text-ink-faint text-[11px]">
+                          Idempotent — only fills rounds that aren&apos;t
+                          already final. Final fills automatically once both
+                          SFs are decided.
+                        </p>
+                      </form>
+                    </div>
                   )}
 
                   {/* Generate schedule */}
@@ -379,12 +457,25 @@ export default async function AdminSeasonsPage({
                         </div>
                       </fieldset>
 
+                      <label className="inline-flex items-center gap-2 min-h-11">
+                        <input
+                          type="checkbox"
+                          name="with_playoffs"
+                          defaultChecked
+                          className="size-4 accent-ice"
+                        />
+                        <span className="font-mono text-[13px] text-ink">
+                          Reserve last 2 weeks for playoffs (top 4 → SF + Final)
+                        </span>
+                      </label>
+
                       <p className="text-ink-faint text-[12px]">
                         Round-robin: each pair of teams plays{" "}
                         <strong>rounds</strong> times. With {teamCount} teams,{" "}
                         rounds=1 produces{" "}
                         {teamCount >= 2 ? (teamCount * (teamCount - 1)) / 2 : 0}{" "}
-                        games.
+                        regular-season games. Playoffs add 3 more games (SF1, SF2,
+                        Final) as TBD-vs-TBD stubs.
                       </p>
 
                       <button
@@ -422,6 +513,56 @@ export default async function AdminSeasonsPage({
           })
         )}
       </section>
+    </div>
+  );
+}
+
+function BracketRow({
+  label,
+  slot,
+}: {
+  label: string;
+  slot: {
+    status: "scheduled" | "live" | "final";
+    home_score: number;
+    away_score: number;
+    home_team: { name: string; color: string } | null;
+    away_team: { name: string; color: string } | null;
+  } | null;
+}) {
+  const isFinal = slot?.status === "final";
+  return (
+    <div className="flex flex-wrap items-center gap-3 panel-bare px-3 py-2">
+      <span className="eyebrow text-[10px] shrink-0 w-24">{label}</span>
+      <span className="flex items-center gap-1.5 flex-1 min-w-[180px]">
+        <span
+          className="h-2 w-2 rounded-sm shrink-0"
+          style={{ background: slot?.home_team?.color ?? "#3a4150" }}
+        />
+        <span className="text-ink text-[13px]">
+          {slot?.home_team?.name ?? "TBD"}
+        </span>
+        <span className="text-ink-faint text-[11px]">vs</span>
+        <span
+          className="h-2 w-2 rounded-sm shrink-0"
+          style={{ background: slot?.away_team?.color ?? "#3a4150" }}
+        />
+        <span className="text-ink text-[13px]">
+          {slot?.away_team?.name ?? "TBD"}
+        </span>
+      </span>
+      {isFinal ? (
+        <span className="flex items-center gap-2 shrink-0">
+          <span className="font-mono text-ink text-[13px]">
+            {slot?.home_score}–{slot?.away_score}
+          </span>
+          <span className="chip chip-final text-[10px] px-1.5 py-0.5">FINAL</span>
+        </span>
+      ) : slot ? (
+        <span className="eyebrow text-ink-faint shrink-0">Scheduled</span>
+      ) : (
+        <span className="eyebrow text-ink-faint shrink-0">—</span>
+      )}
     </div>
   );
 }

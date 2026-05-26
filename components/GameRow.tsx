@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TeamBadge } from "./TeamBadge";
+import { PlayoffChip } from "./PlayoffChip";
 import { formatDate, formatTime } from "@/lib/format";
 
 type Team = { name: string; slug: string; color: string };
@@ -8,12 +9,28 @@ type Props = {
   id: string;
   scheduled_at: string;
   status: "scheduled" | "live" | "final";
-  home_team: Team;
-  away_team: Team;
+  home_team: Team | null;
+  away_team: Team | null;
   home_score?: number | null;
   away_score?: number | null;
   decided_in?: "regulation" | "ot" | "shootout" | null;
+  kind?: "regular" | "playoff";
+  playoff_round?: "sf1" | "sf2" | "final" | null;
 };
+
+function TbdBadge() {
+  return (
+    <span className="inline-flex items-center gap-2.5">
+      <span
+        aria-hidden
+        className="w-1 h-5 shrink-0 rounded-[1px] bg-rule-strong"
+      />
+      <span className="text-[15px] font-medium tracking-tight text-ink-faint">
+        TBD
+      </span>
+    </span>
+  );
+}
 
 export function GameRow({
   id,
@@ -24,6 +41,8 @@ export function GameRow({
   home_score,
   away_score,
   decided_in,
+  kind,
+  playoff_round,
 }: Props) {
   const isFinal = status === "final";
   const isLive = status === "live";
@@ -44,6 +63,7 @@ export function GameRow({
               <span className="text-ink-dim">{formatTime(scheduled_at)}</span>
             </>
           )}
+          {kind === "playoff" && <PlayoffChip round={playoff_round} size="sm" />}
         </div>
         {isLive ? (
           <span className="chip chip-live">
@@ -59,7 +79,11 @@ export function GameRow({
       </div>
       <div className="space-y-1.5 sm:space-y-2.5">
         <div className="flex items-center justify-between gap-3">
-          <TeamBadge {...away_team} asChild size="md" className={awayWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
+          {away_team ? (
+            <TeamBadge {...away_team} asChild size="md" className={awayWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
+          ) : (
+            <TbdBadge />
+          )}
           {isFinal && (
             <span className={`digit text-xl sm:text-2xl ${awayWon ? "text-ink" : "text-ink-faint"}`}>
               {away_score}
@@ -67,7 +91,11 @@ export function GameRow({
           )}
         </div>
         <div className="flex items-center justify-between gap-3">
-          <TeamBadge {...home_team} asChild size="md" className={homeWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
+          {home_team ? (
+            <TeamBadge {...home_team} asChild size="md" className={homeWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
+          ) : (
+            <TbdBadge />
+          )}
           {isFinal && (
             <span className={`digit text-xl sm:text-2xl ${homeWon ? "text-ink" : "text-ink-faint"}`}>
               {home_score}

@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getStandings } from "@/lib/queries";
 import {
   buildGameSlots,
+  buildPlayoffSlots,
   roundRobinPairs,
   type WeekdayIdx,
 } from "@/lib/season-schedule";
@@ -165,6 +167,7 @@ export async function generateSchedule(formData: FormData) {
   const rounds = parseInt0(String(formData.get("rounds") ?? "1"), 1);
   const location = String(formData.get("location") ?? "").trim() || null;
   const times = formData.getAll("times").map((v) => String(v));
+  const withPlayoffs = String(formData.get("with_playoffs") ?? "") === "on";
 
   if (!seasonId || weekday === null || rounds < 1 || times.length === 0) {
     back("error=invalid_input");
@@ -199,13 +202,62 @@ export async function generateSchedule(formData: FormData) {
   const pairs = roundRobinPairs(teamIds, rounds);
   const slots = buildGameSlots(season.start_date, weekday, times, pairs.length);
 
-  const rows = pairs.map(([home, away], i) => ({
+  type GameInsert = {
+    season_id: string;
+    home_team_id: string | null;
+    away_team_id: string | null;
+    scheduled_at: string;
+    location: string | null;
+    kind: "regular" | "playoff";
+    playoff_round?: "sf1" | "sf2" | "final" | null;
+  };
+
+  const rows: GameInsert[] = pairs.map(([home, away], i) => ({
     season_id: seasonId,
     home_team_id: home,
     away_team_id: away,
     scheduled_at: slots[i],
     location,
+    kind: "regular",
   }));
+
+  if (withPlayoffs) {
+    const ps = buildPlayoffSlots(
+      season.start_date,
+      weekday,
+      times,
+      pairs.length,
+    );
+    rows.push(
+      {
+        season_id: seasonId,
+        home_team_id: null,
+        away_team_id: null,
+        scheduled_at: ps.sf1,
+        location,
+        kind: "playoff",
+        playoff_round: "sf1",
+      },
+      {
+        season_id: seasonId,
+        home_team_id: null,
+        away_team_id: null,
+        scheduled_at: ps.sf2,
+        location,
+        kind: "playoff",
+        playoff_round: "sf2",
+      },
+      {
+        season_id: seasonId,
+        home_team_id: null,
+        away_team_id: null,
+        scheduled_at: ps.final,
+        location,
+        kind: "playoff",
+        playoff_round: "final",
+      },
+    );
+  }
 
   if (rows.length > 0) {
     const { error: insErr } = await supabase.from("games").insert(rows);
@@ -216,4 +268,86 @@ export async function generateSchedule(formData: FormData) {
   revalidatePath("/admin/schedule");
   revalidatePath("/schedule");
   redirect(`/admin/seasons?saved=generated&n=${rows.length}`);
+}
+
+export async function seedPlayoffs(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const seasonId = String(formData.get("season_id") ?? "").trim();
+  if (!seasonId) back("error=invalid_input");
+
+  const supabase = await createSupabaseServerClient();
+
+  // Pull the three playoff stubs (or partially-filled rows) for this season.
+  const { data: stubs } = await supabase
+    .from("games")
+    .select(
+      "id, playoff_round, status, home_team_id, away_team_id, home_score, away_score",
+    )
+    .eq("season_id", seasonId)
+    .eq("kind", "playoff");
+  const stubList = stubs ?? [];
+  if (stubList.length === 0) back("error=no_playoff_stubs");
+
+  const sf1 = stubList.find((s) => s.playoff_round === "sf1");
+  const sf2 = stubList.find((s) => s.playoff_round === "sf2");
+  const finalRow = stubList.find((s) => s.playoff_round === "final");
+
+  // Standings are regular-season only after the lib/queries change.
+  const standings = await getStandings(seasonId);
+  if (standings.length < 4) back("error=not_enough_teams");
+
+  const top4 = standings.slice(0, 4);
+  const updates: Array<{ id: string; home_team_id: string; away_team_id: string }> = [];
+
+  // SF1: #1 vs #4. Skip if already final (locked).
+  if (sf1 && sf1.status !== "final") {
+    updates.push({
+      id: sf1.id,
+      home_team_id: top4[0].team_id,
+      away_team_id: top4[3].team_id,
+    });
+  }
+  // SF2: #2 vs #3.
+  if (sf2 && sf2.status !== "final") {
+    updates.push({
+      id: sf2.id,
+      home_team_id: top4[1].team_id,
+      away_team_id: top4[2].team_id,
+    });
+  }
+
+  // Final: only fillable once both SFs are final.
+  if (finalRow && finalRow.status !== "final" && sf1 && sf2) {
+    if (sf1.status === "final" && sf2.status === "final") {
+      const sf1Winner =
+        sf1.home_score > sf1.away_score ? sf1.home_team_id : sf1.away_team_id;
+      const sf2Winner =
+        sf2.home_score > sf2.away_score ? sf2.home_team_id : sf2.away_team_id;
+      // Higher seed (sf1 winner came from #1/#4 bracket vs sf2 from #2/#3) gets home.
+      if (sf1Winner && sf2Winner) {
+        updates.push({
+          id: finalRow.id,
+          home_team_id: sf1Winner,
+          away_team_id: sf2Winner,
+        });
+      }
+    }
+  }
+
+  for (const u of updates) {
+    const { error } = await supabase
+      .from("games")
+      .update({
+        home_team_id: u.home_team_id,
+        away_team_id: u.away_team_id,
+      })
+      .eq("id", u.id);
+    if (error) back(`error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/admin/seasons");
+  revalidatePath("/admin/schedule");
+  revalidatePath("/schedule");
+  redirect(`/admin/seasons?saved=seeded&n=${updates.length}`);
 }

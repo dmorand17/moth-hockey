@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
+import { PlayoffChip } from "@/components/PlayoffChip";
 import { requireRole } from "@/lib/auth";
 import { getCurrentSeason } from "@/lib/queries";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -13,8 +14,10 @@ type ScoreGame = {
   scheduled_at: string;
   location: string | null;
   status: "scheduled" | "live" | "final";
-  home_team: Team;
-  away_team: Team;
+  kind: "regular" | "playoff";
+  playoff_round: "sf1" | "sf2" | "final" | null;
+  home_team: Team | null;
+  away_team: Team | null;
 };
 
 export default async function ScoreHomePage() {
@@ -25,7 +28,7 @@ export default async function ScoreHomePage() {
   const { data, error } = await supabase
     .from("games")
     .select(
-      "id, scheduled_at, location, status, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
+      "id, scheduled_at, location, status, kind, playoff_round, home_team:home_team_id(name, slug, color), away_team:away_team_id(name, slug, color)",
     )
     .eq("season_id", season.id)
     .in("status", ["scheduled", "live"])
@@ -111,18 +114,31 @@ function ScoreGameRow({ game }: { game: ScoreGame }) {
               </>
             )}
           </div>
-          {isLive ? (
-            <span className="chip chip-live shrink-0">
-              <span className="live-dot" /> LIVE
-            </span>
-          ) : (
-            <span className="chip shrink-0">SCORE</span>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {game.kind === "playoff" && (
+              <PlayoffChip round={game.playoff_round} size="sm" />
+            )}
+            {isLive ? (
+              <span className="chip chip-live">
+                <span className="live-dot" /> LIVE
+              </span>
+            ) : (
+              <span className="chip">SCORE</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <TeamBadge {...game.away_team} asChild size="md" />
+          {game.away_team ? (
+            <TeamBadge {...game.away_team} asChild size="md" />
+          ) : (
+            <span className="text-ink-faint text-[15px] font-medium">TBD</span>
+          )}
           <span className="eyebrow text-ink-faint">vs</span>
-          <TeamBadge {...game.home_team} asChild size="md" />
+          {game.home_team ? (
+            <TeamBadge {...game.home_team} asChild size="md" />
+          ) : (
+            <span className="text-ink-faint text-[15px] font-medium">TBD</span>
+          )}
         </div>
       </Link>
       {isLive && (

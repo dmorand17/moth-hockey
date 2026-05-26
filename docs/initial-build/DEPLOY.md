@@ -108,6 +108,6 @@ supabase db reset --linked
 - The `anon`/`publishable` key is safe to expose client-side. The `service_role`
   key is NOT — only use it server-side and never check it in.
 - RLS policies are enforced in production. Read access is open; writes require
-  an authenticated user with `admin` or `scorer` role in the `user_roles` table.
+  an authenticated user with `admin` or `scorekeeper` role in the `user_roles` table.
 - To create the first admin: insert a row into `user_roles` via the Supabase
   SQL editor after a user has signed up via magic-link.

@@ -6,6 +6,7 @@
 - [DATABASE.md](./DATABASE.md) — schema from the migrations: enums, tables, RLS, helper functions, triggers.
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — dev workflow: bun commands, the Supabase migrations loop, conventions.
 - [LOCAL-TESTING.md](./LOCAL-TESTING.md) — run locally and sign in as the seeded test users (magic link via Mailpit).
+- [OPERATIONS.md](./OPERATIONS.md) — recurring ops runbook: refresh staging seed data (keep users), load a single season.
 
 ## Build plans (`initial-build/`)
 

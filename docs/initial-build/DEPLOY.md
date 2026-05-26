@@ -88,11 +88,14 @@ When the staging build is approved and you want to launch with a clean slate:
 **Option A — same project, reset data:**
 
 ```bash
-# Truncates all data but preserves schema. Run from repo root.
+# Drops and recreates the database from migrations + seed. Run from repo root.
 supabase db reset --linked
 ```
 
-⚠️ This wipes the seed data permanently. Only run when you're sure.
+⚠️ This recreates the whole database — it wipes the seed data **and every auth
+user** permanently. Only run when you're sure. To refresh the seed data while
+keeping the accounts that have signed up, see the staging refresh runbook in
+[`../OPERATIONS.md`](../OPERATIONS.md).
 
 **Option B — separate prod project (recommended):**
 
@@ -101,6 +104,11 @@ supabase db reset --linked
 3. In Vercel: **Project Settings → Environments** → create a `Production`
    environment with the prod Supabase URL + key
 4. Configure your custom domain on the prod environment
+
+## 5. Recurring operations
+
+Periodic, post-launch tasks (e.g. refreshing staging seed data while keeping
+real users) live in the operations runbook: [`../OPERATIONS.md`](../OPERATIONS.md).
 
 ## Notes
 

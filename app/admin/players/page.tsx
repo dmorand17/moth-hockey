@@ -84,9 +84,9 @@ export default async function AdminPlayersPage({
         <h2 className="font-display text-xl tracking-[0.04em] text-ink">
           NEW PLAYER
         </h2>
-        <form action={createPlayer} className="panel p-4 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <label className="block flex-1">
+        <form action={createPlayer} className="panel p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block flex-1 min-w-[140px]">
               <span className="eyebrow">First name</span>
               <input
                 type="text"
@@ -96,7 +96,7 @@ export default async function AdminPlayersPage({
                 className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
               />
             </label>
-            <label className="block flex-1">
+            <label className="block flex-1 min-w-[140px]">
               <span className="eyebrow">Last name</span>
               <input
                 type="text"
@@ -106,13 +106,13 @@ export default async function AdminPlayersPage({
                 className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
               />
             </label>
+            <button
+              type="submit"
+              className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+            >
+              CREATE
+            </button>
           </div>
-          <button
-            type="submit"
-            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-          >
-            CREATE
-          </button>
         </form>
       </section>
 

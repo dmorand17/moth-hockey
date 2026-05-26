@@ -80,3 +80,34 @@ export async function updateTeam(formData: FormData) {
   revalidatePath("/admin/teams");
   redirect("/admin/teams?saved=updated");
 }
+
+export async function assignTeamCaptain(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const teamId = String(formData.get("team_id") ?? "");
+  const seasonId = String(formData.get("season_id") ?? "");
+  const targetUserId = String(formData.get("user_id") ?? "") || null;
+
+  if (!teamId || !seasonId) back("error=invalid_input");
+
+  const supabase = await createSupabaseServerClient();
+
+  const { error: clearErr } = await supabase
+    .from("team_captains")
+    .delete()
+    .eq("team_id", teamId)
+    .eq("season_id", seasonId);
+
+  if (clearErr) back(`error=${encodeURIComponent(clearErr.message)}`);
+
+  if (targetUserId) {
+    const { error: insertErr } = await supabase
+      .from("team_captains")
+      .insert({ team_id: teamId, season_id: seasonId, user_id: targetUserId });
+    if (insertErr) back(`error=${encodeURIComponent(insertErr.message)}`);
+  }
+
+  revalidatePath("/admin/teams");
+  revalidatePath("/admin/users");
+  redirect("/admin/teams?saved=captain");
+}

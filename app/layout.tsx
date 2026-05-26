@@ -83,7 +83,7 @@ export default async function RootLayout({
                 <div className="font-display text-[20px] sm:text-[26px] tracking-[0.06em] text-ink truncate">
                   M.O.T.H <span className="text-goal">HOCKEY</span>
                 </div>
-                <div className="eyebrow mt-1 text-[10px] hidden sm:block">Mostly Over The Hill · EST. PRE-COVID</div>
+                <div className="eyebrow mt-1 text-[10px] hidden sm:block">Mostly Over the Hill Hockey League</div>
               </div>
             </Link>
 

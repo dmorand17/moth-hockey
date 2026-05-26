@@ -25,7 +25,7 @@ persistently — eats too much real estate.
 **Fix:**
 - Drop `sticky top-0` on mobile (`md:sticky`). Brand-row sticky is unnecessary;
   the nav strip alone is fine sticky if you want one.
-- Hide the tagline (`Mostly Over The Hill · EST. PRE-COVID`) below `sm:` so the
+- Hide the tagline (`Mostly Over The Hill`) below `sm:` so the
   brand row shrinks from ~64px to ~52px.
 - Bump nav-strip from `py-2.5` (~38px) to `py-3 min-h-[44px]` to hit the 44px rule.
 - Reduce nav text from `text-[13px]` to `text-[12px]` at the smallest breakpoint

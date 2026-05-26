@@ -24,6 +24,9 @@ type TeamRow = { id: string; name: string; color: string };
 const inputCls =
   "mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice";
 
+const rowInputCls =
+  "bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice";
+
 export default async function AdminRostersPage({
   searchParams,
 }: {
@@ -104,23 +107,74 @@ export default async function AdminRostersPage({
         </p>
       )}
 
-      <header className="flex items-baseline gap-3">
-        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-          ROSTERS
-        </h2>
-        <span className="eyebrow">{season.name}</span>
-        {unrostered.length > 0 && (
-          <span className="eyebrow text-ink-faint">
-            · {unrostered.length} unrostered
-          </span>
+      <section className="space-y-3">
+        <header className="flex items-baseline gap-3">
+          <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+            ADD PLAYER
+          </h2>
+          <span className="eyebrow">{season.name}</span>
+          {unrostered.length > 0 && (
+            <span className="eyebrow text-ink-faint">
+              · {unrostered.length} unrostered
+            </span>
+          )}
+        </header>
+
+        {unrostered.length > 0 ? (
+          <form
+            action={addToRoster}
+            className="panel p-4 flex flex-wrap items-end gap-3"
+          >
+            <label className="block flex-1 min-w-[200px]">
+              <span className="eyebrow">Player</span>
+              <select name="player_id" className={inputCls}>
+                {unrostered.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.last_name}, {p.first_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block flex-1 min-w-[160px]">
+              <span className="eyebrow">Team</span>
+              <select name="team_id" className={inputCls}>
+                {(teams ?? []).map((t: TeamRow) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="pb-1">
+              <button
+                type="submit"
+                className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+              >
+                ADD
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="text-ink-dim text-sm panel-bare p-4">
+            All players are rostered.
+          </p>
         )}
+      </section>
+
+      <header className="font-display text-xl tracking-[0.04em] text-ink">
+        ROSTERS
       </header>
 
       {(teams ?? []).map((team: TeamRow) => {
         const players = teamRosters.get(team.id) ?? [];
         return (
-          <section key={team.id} className="space-y-3">
-            <header className="flex items-center gap-2">
+          <details key={team.id} className="group space-y-3">
+            <summary className="flex items-center gap-2 cursor-pointer list-none select-none py-1 -mx-1 px-1 rounded hover:bg-board-3 transition-colors">
+              <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block">
+                ▶
+              </span>
               <span
                 className="h-3 w-3 rounded-sm shrink-0"
                 style={{ background: team.color }}
@@ -129,67 +183,63 @@ export default async function AdminRostersPage({
                 {team.name.toUpperCase()}
               </h3>
               <span className="eyebrow">{players.length} players</span>
-            </header>
+            </summary>
 
             {players.length > 0 && (
-              <ul className="space-y-2">
+              <ul className="mt-1 border border-rule rounded divide-y divide-rule/50">
                 {players.map((player) => (
-                  <li key={player.player_id} className="panel p-3">
+                  <li key={player.player_id} className="flex items-center gap-2 px-3 py-1.5">
                     <form
                       action={updateRosterEntry}
-                      className="flex flex-wrap items-end gap-3"
+                      className="flex items-center gap-2 flex-1 min-w-0"
                     >
                       <input type="hidden" name="team_id" value={team.id} />
-                      <input
-                        type="hidden"
-                        name="player_id"
-                        value={player.player_id}
-                      />
+                      <input type="hidden" name="player_id" value={player.player_id} />
 
-                      <span className="flex-1 min-w-[160px] text-ink self-center pb-1">
+                      <span className="flex-1 text-ink text-[13px] truncate">
                         {player.first_name} {player.last_name}
                       </span>
 
-                      <label className="block">
-                        <span className="eyebrow">Position</span>
-                        <select
-                          name="position"
-                          key={player.player_id + "-pos"}
-                          defaultValue={player.position}
-                          className={inputCls}
-                        >
-                          <option value="forward">Forward</option>
-                          <option value="defense">Defense</option>
-                          <option value="goalie">Goalie</option>
-                        </select>
-                      </label>
+                      <select
+                        name="position"
+                        key={player.player_id + "-pos"}
+                        defaultValue={player.position}
+                        className={rowInputCls}
+                      >
+                        <option value="forward">Forward</option>
+                        <option value="defense">Defense</option>
+                        <option value="goalie">Goalie</option>
+                      </select>
 
-                      <label className="block w-24">
-                        <span className="eyebrow">Jersey #</span>
-                        <input
-                          type="number"
-                          name="jersey_number"
-                          key={player.player_id + "-jersey"}
-                          defaultValue={player.jersey_number ?? ""}
-                          min={0}
-                          max={99}
-                          placeholder="—"
-                          className={inputCls}
-                        />
-                      </label>
+                      <input
+                        type="number"
+                        name="jersey_number"
+                        key={player.player_id + "-jersey"}
+                        defaultValue={player.jersey_number ?? ""}
+                        min={0}
+                        max={99}
+                        placeholder="—"
+                        className={`${rowInputCls} w-14`}
+                      />
 
-                      <div className="flex gap-2 items-center shrink-0 pb-1">
-                        <button
-                          type="submit"
-                          className="min-h-11 px-4 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-                        >
-                          SAVE
-                        </button>
-                        <RemoveButton
-                          teamId={team.id}
-                          playerId={player.player_id}
-                        />
-                      </div>
+                      <button
+                        type="submit"
+                        className="px-2.5 py-1 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
+                      >
+                        SAVE
+                      </button>
+                    </form>
+
+                    <form action={removeFromRoster}>
+                      <input type="hidden" name="team_id" value={team.id} />
+                      <input type="hidden" name="player_id" value={player.player_id} />
+                      <button
+                        type="submit"
+                        className="text-goal/50 hover:text-goal text-[13px] transition-colors px-1 leading-none"
+                        aria-label="Remove player"
+                      >
+                        ✕
+                      </button>
                     </form>
                   </li>
                 ))}
@@ -202,57 +252,7 @@ export default async function AdminRostersPage({
               </p>
             )}
 
-            {/* Add player */}
-            {unrostered.length > 0 && (
-              <form
-                action={addToRoster}
-                className="flex flex-wrap items-end gap-3 p-3 rounded border border-dashed border-rule"
-              >
-                <input type="hidden" name="team_id" value={team.id} />
-
-                <label className="block flex-1 min-w-[200px]">
-                  <span className="eyebrow">Add player</span>
-                  <select name="player_id" className={inputCls}>
-                    {unrostered.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.last_name}, {p.first_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="eyebrow">Position</span>
-                  <select name="position" defaultValue="forward" className={inputCls}>
-                    <option value="forward">Forward</option>
-                    <option value="defense">Defense</option>
-                    <option value="goalie">Goalie</option>
-                  </select>
-                </label>
-
-                <label className="block w-24">
-                  <span className="eyebrow">Jersey #</span>
-                  <input
-                    type="number"
-                    name="jersey_number"
-                    min={0}
-                    max={99}
-                    placeholder="—"
-                    className={inputCls}
-                  />
-                </label>
-
-                <div className="pb-1">
-                  <button
-                    type="submit"
-                    className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-                  >
-                    ADD
-                  </button>
-                </div>
-              </form>
-            )}
-          </section>
+          </details>
         );
       })}
     </div>

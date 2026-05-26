@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 const adminNav = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/teams", label: "Teams" },
+  { href: "/admin/players", label: "Players" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

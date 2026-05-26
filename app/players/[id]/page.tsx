@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { BadgeShelf } from "@/components/BadgeShelf";
+import { GameLogSection, type GameLogRow } from "@/components/GameLogSection";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { initials } from "@/lib/format";
 import { getSessionIfRole } from "@/lib/auth";
@@ -121,7 +122,7 @@ export default async function PlayerPage({
       .eq("player_id", id),
     supabase
       .from("game_appearances")
-      .select("game_id, team_id, game:game_id(season_id, status)")
+      .select("game_id, team_id, is_sub, game:game_id(id, season_id, scheduled_at, status, home_score, away_score, decided_in, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color))")
       .eq("player_id", id),
     supabase
       .from("game_events")
@@ -200,6 +201,71 @@ export default async function PlayerPage({
       }
     }
   }
+
+  // ----- Build game log -----
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const eventsByGame = new Map<string, any[]>();
+  for (const e of events ?? []) {
+    const list = eventsByGame.get(e.game_id) ?? [];
+    list.push(e);
+    eventsByGame.set(e.game_id, list);
+  }
+
+  const gameLog: GameLogRow[] = [];
+  for (const app of appearances ?? []) {
+    const g = app.game as unknown as {
+      id: string; season_id: string; scheduled_at: string; status: string;
+      home_score: number; away_score: number; decided_in: string | null;
+      home_team: { id: string; name: string; slug: string; color: string };
+      away_team: { id: string; name: string; slug: string; color: string };
+    } | null;
+    if (!g || g.status !== "final") continue;
+
+    const isHome = g.home_team.id === app.team_id;
+    const opponent = isHome ? g.away_team : g.home_team;
+    const myScore = isHome ? g.home_score : g.away_score;
+    const oppScore = isHome ? g.away_score : g.home_score;
+
+    const result: "W" | "L" | "OTL" =
+      myScore > oppScore ? "W"
+      : g.decided_in === "ot" || g.decided_in === "shootout" ? "OTL"
+      : "L";
+
+    let goals = 0, assists = 0, penalties = 0, psTaken = 0;
+    let ga = 0, psFaced = 0, psSaved = 0;
+    for (const e of eventsByGame.get(app.game_id) ?? []) {
+      if (e.type === "goal") {
+        if (e.player_id === id) goals++;
+        if (e.assist1_player_id === id || e.assist2_player_id === id) assists++;
+        if (isGoalie && e.team_id !== app.team_id) ga++;
+      } else if (e.type === "penalty") {
+        if (e.player_id === id) penalties++;
+        if (e.penalty_shot_taker_id === id) psTaken++;
+        if (isGoalie && e.team_id === app.team_id) {
+          psFaced++;
+          if (e.penalty_shot_result === "saved") psSaved++;
+          else if (e.penalty_shot_result === "goal") ga++;
+        }
+      }
+    }
+
+    gameLog.push({
+      game_id: app.game_id,
+      scheduled_at: g.scheduled_at,
+      opponent,
+      home_score: g.home_score,
+      away_score: g.away_score,
+      is_home: isHome,
+      decided_in: g.decided_in as "regulation" | "ot" | "shootout" | null,
+      result,
+      is_sub: !!app.is_sub,
+      goals, assists, points: goals + assists, penalties, ps_taken: psTaken,
+      ga, ps_faced: psFaced, ps_saved: psSaved,
+    });
+  }
+  gameLog.sort((a, b) =>
+    new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
+  );
 
   // ----- Build per-season rows: current (live) + historical (imported) -----
   const seasonById = new Map((seasons ?? []).map((s) => [s.id, s]));
@@ -572,6 +638,12 @@ export default async function PlayerPage({
             </p>
           </>
         )}
+      </section>
+
+      {/* Game log */}
+      <section className="rise delay-2">
+        <SectionHeader eyebrow="Game Log" title="Recent Games" />
+        <GameLogSection rows={gameLog} isGoalie={isGoalie} />
       </section>
     </div>
   );

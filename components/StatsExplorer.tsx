@@ -212,13 +212,15 @@ export function StatsExplorer({
   return (
     <>
       <div className="rise">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <SectionHeader
-            eyebrow="The Numbers"
-            title="Stats"
-            subtitle={`${seasonName} · league leaders`}
-            size="lg"
-          />
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <SectionHeader
+              eyebrow="The Numbers"
+              title="Stats"
+              subtitle={`${seasonName} · league leaders`}
+              size="lg"
+            />
+          </div>
           <div className="mt-1 shrink-0">
             <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
           </div>

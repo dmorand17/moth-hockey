@@ -16,8 +16,10 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
 
   const header = (
     <div className="rise">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <SectionHeader eyebrow="The Table" title="Standings" subtitle={season.name} size="lg" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <SectionHeader eyebrow="The Table" title="Standings" subtitle={season.name} size="lg" />
+        </div>
         <div className="mt-1 shrink-0">
           <SeasonSelect seasons={seasons} selectedId={season.id} />
         </div>

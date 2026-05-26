@@ -7,6 +7,7 @@ import { GameLogSection, type GameLogRow } from "@/components/GameLogSection";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { initials } from "@/lib/format";
 import { getSessionIfRole } from "@/lib/auth";
+import { AWARD_LABELS, AWARD_ORDER } from "@/lib/awards";
 
 type SeasonStatsRow = {
   season_id: string;
@@ -28,20 +29,6 @@ type SeasonStatsRow = {
   isCurrent: boolean;
 };
 
-const AWARD_LABELS: Record<string, string> = {
-  champion: "Champion",
-  mvp: "MVP",
-  mvd: "MVD",
-  goon: "Goon",
-  sniper: "Sniper",
-  playmaker: "Playmaker",
-  vezina: "Vezina",
-  iron_man: "Iron Man",
-  most_hat_tricks: "Most Hat Tricks",
-};
-
-// Order in which badges are displayed (most prestigious first)
-const AWARD_ORDER = ["champion", "mvp", "mvd", "vezina", "sniper", "most_hat_tricks", "playmaker", "iron_man", "goon"];
 
 export default async function PlayerPage({
   params,

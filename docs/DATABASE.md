@@ -40,7 +40,12 @@ value be used in the same transaction that adds it.
 - **`seasons`** — `season_type`+`year` unique; `is_current` (partial unique index
   enforces at most one current); `period_length_minutes` (default 17).
 - **`teams`** — per-season (`season_id`); `slug` + `name` unique within a season;
-  `color`, `logo_url`.
+  `color`, `logo_url`. **League convention:** teams are named by **color**
+  (Red, Blue, White, Black) and the same colors recur every season, but each
+  season is a distinct `teams` row with its own roster — players are redrafted
+  year to year, so a color team's lineup changes between seasons. Because
+  `players` are league-wide and `team_players` is per-season, the same player can
+  appear on different color teams in different seasons.
 - **`players`** — league-wide identity (`first_name`, `last_name`, `photo_url`);
   `user_id` nullable FK to `auth.users` (admin-set link; unique when present).
 - **`team_players`** — roster membership PK `(team_id, player_id)`;

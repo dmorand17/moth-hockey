@@ -30,6 +30,25 @@ export async function getCurrentSeason() {
   return data;
 }
 
+export type SeasonOption = {
+  id: string;
+  name: string;
+  season_type: "spring" | "fall" | "winter";
+  year: number;
+  is_current: boolean;
+};
+
+// All seasons, most recent first — powers the season picker on stats/standings.
+export async function getSeasons(): Promise<SeasonOption[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("seasons")
+    .select("id, name, season_type, year, is_current")
+    .order("start_date", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as SeasonOption[];
+}
+
 export type StandingsRow = {
   team_id: string;
   name: string;
@@ -102,6 +121,73 @@ export async function getStandings(seasonId: string): Promise<StandingsRow[]> {
   result.sort((a, b) =>
     b.pts - a.pts ||
     b.w - a.w ||
+    b.diff - a.diff ||
+    b.gf - a.gf ||
+    a.name.localeCompare(b.name),
+  );
+  return result;
+}
+
+export type HistoricalStandingsRow = {
+  team_id: string;
+  name: string;
+  slug: string;
+  color: string;
+  gp: number;
+  gf: number;
+  ga: number;
+  diff: number;
+  is_champion: boolean;
+};
+
+// Standings for a past season that has no game results, only aggregated
+// season_player_stats. W/L/OTL/PTS can't be derived, so teams are ranked by
+// goal differential (team goals for, from skater+goalie goals; goals against,
+// from goalie goals_against). The champion is taken from player_awards.
+export async function getHistoricalStandings(seasonId: string): Promise<HistoricalStandingsRow[]> {
+  const supabase = await createSupabaseServerClient();
+  const [{ data: teams, error: tErr }, { data: stats, error: sErr }, { data: awards, error: aErr }] =
+    await Promise.all([
+      supabase.from("teams").select("id, name, slug, color").eq("season_id", seasonId),
+      supabase
+        .from("season_player_stats")
+        .select("player_id, team_id, goals, goals_against, games_played")
+        .eq("season_id", seasonId),
+      supabase
+        .from("player_awards")
+        .select("player_id")
+        .eq("season_id", seasonId)
+        .eq("award_type", "champion"),
+    ]);
+  if (tErr) throw tErr;
+  if (sErr) throw sErr;
+  if (aErr) throw aErr;
+
+  const rows: Record<string, HistoricalStandingsRow> = {};
+  for (const t of teams ?? []) {
+    rows[t.id] = {
+      team_id: t.id,
+      name: t.name,
+      slug: t.slug,
+      color: t.color,
+      gp: 0, gf: 0, ga: 0, diff: 0, is_champion: false,
+    };
+  }
+
+  const championPlayers = new Set((awards ?? []).map((a) => a.player_id));
+  for (const s of stats ?? []) {
+    if (!s.team_id) continue;
+    const row = rows[s.team_id];
+    if (!row) continue;
+    row.gf += s.goals ?? 0;
+    row.ga += s.goals_against ?? 0;
+    row.gp = Math.max(row.gp, s.games_played ?? 0);
+    if (championPlayers.has(s.player_id)) row.is_champion = true;
+  }
+
+  const result = Object.values(rows).map((r) => ({ ...r, diff: r.gf - r.ga }));
+  // Ranked by goal differential (the champion is only flagged, not pinned to #1).
+  result.sort((a, b) =>
     b.diff - a.diff ||
     b.gf - a.gf ||
     a.name.localeCompare(b.name),

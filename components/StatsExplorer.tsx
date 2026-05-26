@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { SectionHeader } from "./SectionHeader";
+import { SeasonSelect } from "./SeasonSelect";
+import { AwardWinners, type AwardWinnerGroup } from "./AwardWinners";
 import {
   SkaterTable,
   GoalieTable,
@@ -13,6 +15,16 @@ import {
 type Team = { id: string; name: string; slug: string; color: string };
 
 type GameMeta = { id: string; kind: "regular" | "playoff" };
+
+type SeasonOption = { id: string; name: string };
+
+// Historical (aggregated) seasons arrive pre-aggregated rather than derived
+// from events; rows carry the extra fields needed for the position/team filters.
+export type PrecomputedSkater = Skater & {
+  position: "forward" | "defense" | "goalie";
+  teamId?: string;
+};
+export type PrecomputedGoalie = Goalie & { teamId?: string };
 
 type RosterEntry = {
   id: string;
@@ -40,22 +52,54 @@ export type StatsAppearance = {
 
 type Props = {
   seasonName: string;
+  seasons: SeasonOption[];
+  selectedSeasonId: string;
   teams: Team[];
-  games: GameMeta[];
-  roster: RosterEntry[];
-  appearances: StatsAppearance[];
-  events: StatsEvent[];
+  awardWinners: AwardWinnerGroup[];
+  // Awards aren't decided yet (current, in-progress season with no awards on file).
+  awardsPending: boolean;
+  // Live (current-season) inputs — stats derive from game events.
+  games?: GameMeta[];
+  roster?: RosterEntry[];
+  appearances?: StatsAppearance[];
+  events?: StatsEvent[];
+  // Historical (past-season) inputs — already aggregated, no events.
+  precomputed?: { skaters: PrecomputedSkater[]; goalies: PrecomputedGoalie[] };
 };
 
 type PositionFilter = "all" | "forward" | "defense";
 type KindFilter = "all" | "regular" | "playoff";
 
-export function StatsExplorer({ seasonName, teams, games, roster, appearances, events }: Props) {
+export function StatsExplorer({
+  seasonName,
+  seasons,
+  selectedSeasonId,
+  teams,
+  awardWinners,
+  awardsPending,
+  games = [],
+  roster = [],
+  appearances = [],
+  events = [],
+  precomputed,
+}: Props) {
   const [position, setPosition] = useState<PositionFilter>("all");
   const [kind, setKind] = useState<KindFilter>("all");
   const [teamId, setTeamId] = useState<string>("all");
 
   const { skaters, goalies } = useMemo(() => {
+    if (precomputed) {
+      const skatersOut = precomputed.skaters.filter(
+        (s) =>
+          (position === "all" || s.position === position) &&
+          (teamId === "all" || s.teamId === teamId),
+      );
+      const goaliesOut = precomputed.goalies.filter(
+        (g) => teamId === "all" || g.teamId === teamId,
+      );
+      return { skaters: skatersOut, goalies: goaliesOut };
+    }
+
     const gameKindById = new Map(games.map((g) => [g.id, g.kind]));
     const includeGame = (gid: string) => {
       if (kind === "all") return true;
@@ -147,7 +191,7 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
     }
 
     return { skaters: skatersOut, goalies: goaliesOut };
-  }, [appearances, events, games, roster, position, kind, teamId]);
+  }, [precomputed, appearances, events, games, roster, position, kind, teamId]);
 
   const leaders = useMemo(() => {
     const top = (key: "goals" | "assists" | "points"): Skater | null => {
@@ -168,18 +212,36 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
   return (
     <>
       <div className="rise">
-        <SectionHeader
-          eyebrow="The Numbers"
-          title="Stats"
-          subtitle={`${seasonName} · league leaders`}
-          size="lg"
-        />
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <SectionHeader
+            eyebrow="The Numbers"
+            title="Stats"
+            subtitle={`${seasonName} · league leaders`}
+            size="lg"
+          />
+          <div className="mt-1 shrink-0">
+            <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
+          </div>
+        </div>
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} accent="goal" />
           <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} accent="ice" />
           <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} accent="ink" />
         </div>
       </div>
+
+      {(awardWinners.length > 0 || awardsPending) && (
+        <section className="rise delay-1">
+          <SectionHeader eyebrow="The Hardware" title="Award Winners" />
+          {awardWinners.length > 0 ? (
+            <AwardWinners awards={awardWinners} />
+          ) : (
+            <p className="eyebrow normal-case tracking-[0.06em] text-ink-faint">
+              Awards are announced at the end of the season.
+            </p>
+          )}
+        </section>
+      )}
 
       <FilterBar
         teams={teams}
@@ -189,6 +251,7 @@ export function StatsExplorer({ seasonName, teams, games, roster, appearances, e
         setKind={setKind}
         teamId={teamId}
         setTeamId={setTeamId}
+        showKind={!precomputed}
       />
 
       <section className="rise delay-1 mt-2">
@@ -218,6 +281,7 @@ function FilterBar({
   setKind,
   teamId,
   setTeamId,
+  showKind,
 }: {
   teams: Team[];
   position: PositionFilter;
@@ -226,8 +290,9 @@ function FilterBar({
   setKind: (k: KindFilter) => void;
   teamId: string;
   setTeamId: (id: string) => void;
+  showKind: boolean;
 }) {
-  const hasActiveFilter = position !== "all" || kind !== "all" || teamId !== "all";
+  const hasActiveFilter = position !== "all" || (showKind && kind !== "all") || teamId !== "all";
 
   const resetAll = () => {
     setPosition("all");
@@ -249,17 +314,19 @@ function FilterBar({
             ]}
           />
         </FilterField>
-        <FilterField label="Type">
-          <SegmentedFilter<KindFilter>
-            value={kind}
-            onChange={setKind}
-            options={[
-              { value: "all", label: "All" },
-              { value: "regular", label: "Reg" },
-              { value: "playoff", label: "Pyo" },
-            ]}
-          />
-        </FilterField>
+        {showKind && (
+          <FilterField label="Type">
+            <SegmentedFilter<KindFilter>
+              value={kind}
+              onChange={setKind}
+              options={[
+                { value: "all", label: "All" },
+                { value: "regular", label: "Reg" },
+                { value: "playoff", label: "Pyo" },
+              ]}
+            />
+          </FilterField>
+        )}
         <FilterField label="Team">
           <select
             value={teamId}

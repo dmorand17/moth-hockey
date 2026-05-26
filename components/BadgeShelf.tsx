@@ -1,53 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import {
+  AWARD_PALETTE as PALETTE,
+  DEFAULT_AWARD_STYLE as DEFAULT_STYLE,
+  HEADLINE_AWARDS as HEADLINE,
+} from "@/lib/awards";
 
 type Award = {
   type: string;
   label: string;
   seasons: string[];
 };
-
-type Style = {
-  bg: string;
-  border: string;
-  fg: string;
-  star: string;
-  glow?: string;
-};
-
-const PALETTE: Record<string, Style> = {
-  champion: {
-    bg: "linear-gradient(180deg, rgba(255, 56, 56, 0.28) 0%, rgba(255, 56, 56, 0.16) 100%)",
-    border: "rgba(255, 80, 80, 0.85)",
-    fg: "#ffd9d9",
-    star: "★",
-    glow: "0 0 14px rgba(255, 56, 56, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06)",
-  },
-  mvp: {
-    bg: "linear-gradient(180deg, rgba(245, 158, 11, 0.30) 0%, rgba(245, 158, 11, 0.15) 100%)",
-    border: "rgba(251, 191, 36, 0.85)",
-    fg: "#fde7b4",
-    star: "★",
-    glow: "0 0 14px rgba(245, 158, 11, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06)",
-  },
-  mvd: { bg: "rgba(124, 227, 240, 0.10)", border: "rgba(124, 227, 240, 0.45)", fg: "var(--ice)", star: "★" },
-  vezina: { bg: "rgba(59, 130, 246, 0.12)", border: "rgba(96, 165, 250, 0.55)", fg: "#93c5fd", star: "▼" },
-  sniper: { bg: "rgba(232, 121, 249, 0.12)", border: "rgba(232, 121, 249, 0.55)", fg: "#f0abfc", star: "◎" },
-  most_hat_tricks: { bg: "rgba(45, 212, 191, 0.12)", border: "rgba(45, 212, 191, 0.55)", fg: "#5eead4", star: "♛" },
-  playmaker: { bg: "rgba(34, 197, 94, 0.10)", border: "rgba(74, 222, 128, 0.50)", fg: "#86efac", star: "✦" },
-  iron_man: { bg: "rgba(156, 163, 175, 0.10)", border: "rgba(156, 163, 175, 0.45)", fg: "#d1d5db", star: "◆" },
-  goon: { bg: "rgba(168, 85, 247, 0.10)", border: "rgba(192, 132, 252, 0.50)", fg: "#c084fc", star: "✪" },
-};
-
-const DEFAULT_STYLE: Style = {
-  bg: "rgba(107, 114, 128, 0.12)",
-  border: "rgba(107, 114, 128, 0.5)",
-  fg: "var(--ink-dim)",
-  star: "★",
-};
-
-const HEADLINE = new Set(["champion", "mvp"]);
 
 export function BadgeShelf({ awards }: { awards: Award[] }) {
   const [selectedType, setSelectedType] = useState<string | null>(awards[0]?.type ?? null);

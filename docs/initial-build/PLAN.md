@@ -168,7 +168,7 @@ season_player_stats (season_id, player_id, team_id,
 
 player_awards    (id, player_id, season_id, award_type, notes)
                   -- award_type: champion | mvp | mvd | vezina | sniper |
-                                 most_hat_tricks | playmaker | iron_man | goon
+                                 most_hat_tricks | playmaker | goon
                   -- one row per award per player per season
                   -- rendered as interactive badges on /players/[id]
 ```
@@ -502,7 +502,7 @@ Goal: polish, history, and admin ergonomics. Pull these in based on what the lea
 - [ ] **Configurable game time presets** — move `COMMON_GAME_TIMES` from `lib/schedule-config.ts` into a `game_time_presets` DB table (new migration, public read / admin write RLS). Admin UI at `/admin/settings` to add/remove slots. `TimeSelect` component updated to accept presets as a prop fetched server-side. The "Custom…" escape hatch already exists in `TimeSelect.tsx`.
 - [ ] **Stricter contact privacy mode** — currently captains read every linked player's email/phone (intentional, for sub-finding). If the league later wants to lock this down: add an opt-in sub list on `/account`, or per-team RLS scoping with a "broadcast a sub request" workflow. The `team_captains` join exists already, so the model supports it.
 - [ ] **WhatsApp group per team** — one-click "create WhatsApp group" from the team page. Generates a `wa.me/?text=...` invite URL or a `chat.whatsapp.com` group link, pre-populated with the captain-visible phone numbers from `user_profiles`. Captain-only action. Open question: WhatsApp's Business API requires a verified business number for programmatic group creation — the lighter-weight version is generating a `https://wa.me/<number>` per-roster directory and letting the captain add members manually.
-- [ ] **Awards page** — `/awards` league-wide award browser. Group `player_awards` rows by award type (Champion / MVP / MVD / Vezina / Sniper / Most Hat Tricks / Playmaker / Iron Man / Goon) and season, with per-award all-time leaderboards (most wins, current holder, full history). Sources from the existing `player_awards` table — no schema work, just the UI.
+- [ ] **Awards page** — `/awards` league-wide award browser. Group `player_awards` rows by award type (Champion / MVP / MVD / Vezina / Sniper / Most Hat Tricks / Playmaker / Goon) and season, with per-award all-time leaderboards (most wins, current holder, full history). Sources from the existing `player_awards` table — no schema work, just the UI.
 - [ ] **Sub stats accounting.** Today, when a rostered player subs for another team, their goals/assists/penalties from that night appear in the boxscore but are NOT counted in their own season totals (and are also NOT counted on the team they subbed for). Decide whether to surface these somewhere — options include: (a) a separate "as a sub" row in the player profile, (b) a league-wide "sub stats" leaderboard, (c) opt-in toggle to fold them into the player's season totals. Boxscore behavior stays as-is regardless.
 - [ ] **Track pulled goalie.** Today goalie stats assume the listed goalie is in net the entire game — every goal-against and penalty shot lands on that one player. When a coach pulls the goalie (extra attacker), goals scored during the empty-net stretch shouldn't count against the goalie. Need a `goalie_change` event type (or a simpler "goalie out / in" toggle on the scorekeeper UI) plus stats queries that segment GA / PSF / PSV by who was actually in net at the time of each event. UI: a small "🥅 Pull goalie / Goalie back" button next to the GOAL button on each team's column.
 - [ ] **Custom domain.**
@@ -516,7 +516,7 @@ Goal: polish, history, and admin ergonomics. Pull these in based on what the lea
 - Penalty shot result: `goal | saved` only (no missed)
 - 5 forwards + 3 defense + 1 goalie per team is the seed convention
 - Footer reads "Powered by the Milkman"
-- Award types: champion, mvp, mvd, vezina, sniper, most_hat_tricks, playmaker, iron_man, goon
+- Award types: champion, mvp, mvd, vezina, sniper, most_hat_tricks, playmaker, goon (Iron Man was dropped — too many players tie on games played for it to be meaningful)
 - Award badges are interactive: hover/click to see which seasons earned
 - No SV% column for goalies — only PSF/PSV (since we only track penalty shots)
 - Auth: open self-signup via **magic link only** (no password, no OAuth); default role `player`; elevated roles assigned by admin

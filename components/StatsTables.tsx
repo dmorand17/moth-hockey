@@ -10,6 +10,7 @@ export type Skater = {
   id: string;
   name: string;
   team?: Team;
+  isChampion?: boolean;
   gp: number;
   goals: number;
   assists: number;
@@ -23,6 +24,7 @@ export type Goalie = {
   id: string;
   name: string;
   team?: Team;
+  isChampion?: boolean;
   gp: number;
   ga: number;
   ps_faced: number;
@@ -120,6 +122,7 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
                   <span className="block truncate">{s.name}</span>
                   <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
                     {s.team && <TeamBadge {...s.team} size="sm" asChild />}
+                    {s.isChampion && <span title="Season champion">🏆</span>}
                     <span>
                       {s.gp}GP · {s.goals}G · {s.assists}A · {s.penalties}P
                     </span>
@@ -173,7 +176,14 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
                       {s.name}
                     </Link>
                   </td>
-                  <td>{s.team && <TeamBadge {...s.team} size="sm" />}</td>
+                  <td>
+                    {s.team && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <TeamBadge {...s.team} size="sm" />
+                        {s.isChampion && <span title="Season champion">🏆</span>}
+                      </span>
+                    )}
+                  </td>
                   <td className="text-right tnum text-ink-dim">{s.gp}</td>
                   <td className="text-right tnum text-ink">{s.goals}</td>
                   <td className="text-right tnum text-ink-dim">{s.assists}</td>
@@ -242,6 +252,7 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
                   <span className="block truncate">{g.name}</span>
                   <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
                     {g.team && <TeamBadge {...g.team} size="sm" asChild />}
+                    {g.isChampion && <span title="Season champion">🏆</span>}
                     <span>{g.gp}GP · {g.ga}GA · {g.ps_faced}PSF</span>
                   </div>
                 </div>
@@ -290,7 +301,14 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
                       {g.name}
                     </Link>
                   </td>
-                  <td>{g.team && <TeamBadge {...g.team} size="sm" />}</td>
+                  <td>
+                    {g.team && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <TeamBadge {...g.team} size="sm" />
+                        {g.isChampion && <span title="Season champion">🏆</span>}
+                      </span>
+                    )}
+                  </td>
                   <td className="text-right tnum text-ink-dim">{g.gp}</td>
                   <td className="text-right tnum text-ink-dim">{g.ga}</td>
                   <td className="text-right tnum text-ink-dim">{g.ps_faced}</td>

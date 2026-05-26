@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import { NavLink } from "@/components/NavLink";
 import { getAuthSession } from "@/lib/auth";
 import "./globals.css";
 
@@ -48,15 +49,15 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getAuthSession();
-  const authLinks: { href: string; label: string }[] = session
+  const authLinks: { href: string; label: string; match?: string }[] = session
     ? [
         ...(session.role === "admin"
-          ? [{ href: "/admin/users", label: "Admin" }]
+          ? [{ href: "/admin/players", label: "Admin", match: "/admin" }]
           : session.role === "team_captain"
-            ? [{ href: "/captains/contacts", label: "Captains" }]
+            ? [{ href: "/captains/contacts", label: "Captains", match: "/captains" }]
             : []),
         ...(session.role === "admin" || session.role === "scorekeeper"
-          ? [{ href: "/score", label: "Score" }]
+          ? [{ href: "/score", label: "Score", match: "/score" }]
           : []),
         { href: "/account", label: "Account" },
       ]
@@ -65,10 +66,10 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bebas.variable} ${inter.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${bebas.variable} ${inter.variable} ${jetbrains.variable} antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <header className="relative z-10 border-b border-rule-strong bg-board/80 backdrop-blur-md md:sticky md:top-0">
+      <body className="min-h-screen flex flex-col">
+        <header className="sticky top-0 z-10 border-b border-rule-strong bg-board/80 backdrop-blur-md">
           <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-goal via-rule-strong to-ice opacity-50" />
           <div className="mx-auto max-w-6xl px-4 sm:px-5 py-2.5 md:py-4 flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group tap min-w-0">
@@ -89,43 +90,45 @@ export default async function RootLayout({
 
             <nav className="hidden md:flex items-stretch">
               {navLinks.map((link, i) => (
-                <Link
+                <NavLink
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-2 font-display text-[15px] tracking-[0.14em] uppercase text-ink-dim hover:text-ink transition-colors relative inline-flex items-center min-h-[44px] ${
+                  label={link.label}
+                  className={`relative px-4 py-2 font-display text-[15px] tracking-[0.14em] uppercase text-ink-dim hover:text-ink transition-colors inline-flex items-center min-h-[44px] ${
                     i > 0 ? "border-l border-rule" : ""
                   }`}
-                >
-                  {link.label}
-                </Link>
+                  activeClassName="text-ink after:content-[''] after:absolute after:left-4 after:right-4 after:bottom-0 after:h-[2px] after:bg-ice"
+                />
               ))}
             </nav>
 
             {/* Auth slot — same row as the brand on every breakpoint */}
             <div className="flex items-stretch shrink-0">
               {authLinks.map((link, i) => (
-                <Link
+                <NavLink
                   key={link.href}
                   href={link.href}
-                  className={`px-3 sm:px-4 font-display text-[12px] sm:text-[14px] tracking-[0.14em] uppercase text-ice hover:text-ink transition-colors inline-flex items-center min-h-[44px] whitespace-nowrap ${
+                  label={link.label}
+                  match={link.match}
+                  className={`relative px-3 sm:px-4 font-display text-[12px] sm:text-[14px] tracking-[0.14em] uppercase text-ice hover:text-ink transition-colors inline-flex items-center min-h-[44px] whitespace-nowrap ${
                     i > 0 ? "border-l border-rule" : ""
                   }`}
-                >
-                  {link.label}
-                </Link>
+                  activeClassName="text-ink after:content-[''] after:absolute after:left-3 sm:after:left-4 after:right-3 sm:after:right-4 after:bottom-0 after:h-[2px] after:bg-ice"
+                />
               ))}
             </div>
           </div>
-          {/* Mobile primary nav — auth lives in the brand row above */}
-          <nav className="md:hidden sticky top-0 z-10 flex border-t border-rule bg-board/85 backdrop-blur-md">
+          {/* Mobile primary nav — auth lives in the brand row above.
+              The whole header is sticky, so this row pins along with the brand. */}
+          <nav className="md:hidden flex border-t border-rule bg-board/85 backdrop-blur-md">
             {navLinks.map((link) => (
-              <Link
+              <NavLink
                 key={link.href}
                 href={link.href}
-                className="flex-1 inline-flex items-center justify-center min-h-[44px] px-2 font-display text-[11.5px] tracking-[0.14em] uppercase text-ink-dim hover:text-ink transition-colors whitespace-nowrap"
-              >
-                {link.label}
-              </Link>
+                label={link.label}
+                className="relative flex-1 inline-flex items-center justify-center min-h-[44px] px-2 font-display text-[11.5px] tracking-[0.14em] uppercase text-ink-dim hover:text-ink transition-colors whitespace-nowrap"
+                activeClassName="text-ink after:content-[''] after:absolute after:inset-x-2 after:top-0 after:h-[2px] after:bg-ice"
+              />
             ))}
           </nav>
         </header>

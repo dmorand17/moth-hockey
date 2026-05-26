@@ -159,7 +159,7 @@ export default async function AdminSchedulePage({
               </select>
             </label>
 
-            <label className="block flex-1 min-w-[140px]">
+            <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[140px]">
               <span className="eyebrow">Date</span>
               <input
                 type="date"
@@ -169,7 +169,7 @@ export default async function AdminSchedulePage({
               />
             </label>
 
-            <label className="block min-w-[140px]">
+            <label className="block w-full sm:w-auto sm:min-w-[140px]">
               <span className="eyebrow">Time</span>
               <div className="mt-1">
                 <TimeSelect />
@@ -266,7 +266,7 @@ export default async function AdminSchedulePage({
                   <input type="hidden" name="id" value={game.id} />
 
                   <div className="flex flex-wrap gap-3">
-                    <label className="block flex-1 min-w-[140px]">
+                    <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[140px]">
                       <span className="eyebrow">Date</span>
                       <input
                         type="date"
@@ -278,7 +278,7 @@ export default async function AdminSchedulePage({
                       />
                     </label>
 
-                    <label className="block min-w-[140px]">
+                    <label className="block w-full sm:w-auto sm:min-w-[140px]">
                       <span className="eyebrow">Time</span>
                       <div className="mt-1">
                         <TimeSelect

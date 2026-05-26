@@ -397,13 +397,25 @@ Decisions:
 ### 4. Admin CRUD ⬜
 - [x] Admin layout + route-level role gating (RLS already in place; needs route guards too)
 - [x] CRUD: teams (create/edit, color picker, slug)
-- [ ] CRUD: players (create/edit names, jersey numbers; admin-only `user_id` link UI lives in `/admin/users`)
+- [ ] CRUD: players (create/edit names, jersey numbers; admin-only `user_id` link UI lives on `/admin/players` — see merge below)
 - [ ] CRUD: rosters (assign players to teams per season, set position)
 - [ ] CRUD: schedule (create games, set status, manually enter scores)
 - [ ] CRUD: content pages (markdown editor for rules / FAQ / league)
 - [ ] CRUD: player awards (grant / revoke per season)
 - [ ] Season management (start a new season)
 - [ ] Verify: an admin can set up a real season end-to-end without SQL
+
+**Players ⊕ Users — merge into one admin panel ✅**
+
+Consolidates `/admin/users` (role + player link) into `/admin/players`; the Users tab is removed.
+Captain assignment already lives on the Teams page; awards management remains deferred.
+
+- [x] Move `updateUserRole` + `linkUserToPlayer` into `app/admin/players/actions.ts` (redirects → `/admin/players`)
+- [x] `/admin/players`: fetch `user_profiles` + `user_roles`; derive linked/unlinked; render "⚠ Needs linking" callout for signups with no player
+- [x] Link-status filter (All / Linked / Not linked) + counts line + LINKED/NOT LINKED chip on each collapsed row, so players with no account are scannable
+- [x] Players rows become expandable: name edit · account (email read-only, role select, link/unlink) · read-only roster (link to Rosters) · "View public profile →"
+- [x] Remove "Users" from admin nav; redirect `/admin`, `/admin/users`, and header "Admin" link → `/admin/players`; delete `app/admin/users/actions.ts`; fix `teams/actions.ts` revalidate path
+- [x] Verify: link / unlink round-trip + Needs-linking + Account filter exercised in browser at 390px; no horizontal scroll; `bun run lint` clean; no console errors
 
 ### 5. Scorekeeper ⬜
 

@@ -498,6 +498,55 @@ export async function finalizeGame(input: { gameId: string }): Promise<ActionRes
   return { ok: true };
 }
 
+// Revert to the previous period. Only allowed when no events have been
+// recorded in the current period — prevents orphaning stats.
+export async function revertPeriod(input: { gameId: string }): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const { supabase, game } = guard;
+
+  if (game.period <= 1) return { ok: false, error: "Already at period 1." };
+
+  const { count, error: countErr } = await supabase
+    .from("game_events")
+    .select("id", { count: "exact", head: true })
+    .eq("game_id", input.gameId)
+    .eq("period", game.period);
+  if (countErr) return { ok: false, error: countErr.message };
+  if ((count ?? 0) > 0) {
+    return { ok: false, error: "Can't go back — events are recorded in this period. Undo them first." };
+  }
+
+  const prev = game.period - 1;
+  let clock = 0;
+  if (prev <= 3) {
+    const { data: gameMeta, error: metaErr } = await supabase
+      .from("games")
+      .select("season_id")
+      .eq("id", input.gameId)
+      .single();
+    if (metaErr || !gameMeta) return { ok: false, error: metaErr?.message ?? "Game not found." };
+    const { data: seasonRow } = await supabase
+      .from("seasons")
+      .select("period_length_minutes")
+      .eq("id", gameMeta.season_id)
+      .single();
+    clock = (seasonRow?.period_length_minutes ?? 17) * 60;
+  } else if (prev === 4) {
+    clock = 5 * 60;
+  }
+
+  const { error } = await supabase
+    .from("games")
+    .update({ period: prev, clock_seconds: clock })
+    .eq("id", input.gameId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}
+
 // Undo a specific event by id. Reverses any score increment it caused.
 export async function undoEvent(input: {
   gameId: string;

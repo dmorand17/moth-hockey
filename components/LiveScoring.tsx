@@ -8,6 +8,7 @@ import {
   finalizeGame,
   recordGoal,
   recordPenalty,
+  revertPeriod,
   setClock,
   undoEvent,
 } from "@/app/score/[gameId]/actions";
@@ -73,6 +74,14 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   const [displayClock, setDisplayClock] = useState(game.clockSeconds);
   const lastPersistedRef = useRef(game.clockSeconds);
 
+  // Used by the visibilitychange handler to read current running state
+  // without adding it to that effect's deps.
+  const runningRef = useRef(false);
+  useEffect(() => { runningRef.current = running; }, [running]);
+
+  // localStorage key scoped to this game for screen-off recovery.
+  const clockKey = `sk_clock_${game.id}`;
+
   // When the server clock changes (refresh after an action), resync.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -94,6 +103,36 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     }, 1000);
     return () => clearInterval(id);
   }, [running]);
+
+  // Save a wall-clock reference when running starts so we can recover if the
+  // screen turns off and the interval is throttled/paused by the browser.
+  useEffect(() => {
+    if (running) {
+      localStorage.setItem(clockKey, JSON.stringify({ at: Date.now(), clock: displayClock }));
+    } else {
+      localStorage.removeItem(clockKey);
+    }
+  // displayClock excluded: we only want the value at the moment running changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, clockKey]);
+
+  // When the screen comes back on, snap the clock forward by the real elapsed
+  // time rather than trusting the (possibly stalled) interval.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !runningRef.current) return;
+      const raw = localStorage.getItem(clockKey);
+      if (!raw) return;
+      const ref = JSON.parse(raw) as { at: number; clock: number };
+      const elapsed = Math.floor((Date.now() - ref.at) / 1000);
+      const next = Math.max(0, ref.clock - elapsed);
+      setDisplayClock(next);
+      if (next === 0) setRunning(false);
+      localStorage.setItem(clockKey, JSON.stringify({ at: Date.now(), clock: next }));
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [clockKey]);
 
   // Persist to DB on pause and every 10s while running.
   useEffect(() => {
@@ -142,6 +181,13 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     if (!confirm("Undo this event? Score will be adjusted if needed.")) return;
     run(() => undoEvent({ gameId: game.id, eventId }));
   };
+
+  const onRevertPeriod = () => {
+    if (!confirm(`Go back to ${formatPeriod(game.period - 1)}? The clock will reset.`)) return;
+    run(() => revertPeriod({ gameId: game.id }));
+  };
+
+  const hasEventsInCurrentPeriod = events.some((e) => e.period === game.period);
 
   const isP3End = game.period === 3;
   const inOT = game.period === 4;
@@ -221,16 +267,16 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule rounded-[2px] hover:text-ink hover:border-rule-strong text-ink-dim"
+          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
         >
-          End {formatPeriod(game.period)} →
+          Start Next Period →
         </button>
       ) : isP3End && tied ? (
         <button
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
+          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
         >
           End regulation → Overtime
         </button>
@@ -248,7 +294,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
+          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
         >
           OT tied → Shootout
         </button>
@@ -274,6 +320,17 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         <div className="w-full min-h-[40px] eyebrow text-[11px] text-ink-faint flex items-center justify-center text-center">
           Shootout tied — adjust tallies to finalize
         </div>
+      )}
+
+      {game.period > 1 && !hasEventsInCurrentPeriod && (
+        <button
+          type="button"
+          onClick={onRevertPeriod}
+          disabled={pending}
+          className="w-full min-h-[36px] eyebrow text-[10px] text-ink-faint hover:text-ink-dim disabled:opacity-50"
+        >
+          ← Back to {formatPeriod(game.period - 1)}
+        </button>
       )}
 
       {/* Events log */}

@@ -8,6 +8,7 @@ import {
   finalizeGame,
   recordGoal,
   recordPenalty,
+  revertPeriod,
   setClock,
   undoEvent,
 } from "@/app/score/[gameId]/actions";
@@ -181,6 +182,13 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     run(() => undoEvent({ gameId: game.id, eventId }));
   };
 
+  const onRevertPeriod = () => {
+    if (!confirm(`Go back to ${formatPeriod(game.period - 1)}? The clock will reset.`)) return;
+    run(() => revertPeriod({ gameId: game.id }));
+  };
+
+  const hasEventsInCurrentPeriod = events.some((e) => e.period === game.period);
+
   const isP3End = game.period === 3;
   const inOT = game.period === 4;
   const inSO = game.period === 5;
@@ -259,16 +267,16 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule rounded-[2px] hover:text-ink hover:border-rule-strong text-ink-dim"
+          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
         >
-          End {formatPeriod(game.period)} →
+          Start Next Period →
         </button>
       ) : isP3End && tied ? (
         <button
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
+          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
         >
           End regulation → Overtime
         </button>
@@ -286,7 +294,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[40px] eyebrow text-[11px] border border-rule-strong rounded-[2px] hover:text-ink hover:border-ice text-ink-dim"
+          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
         >
           OT tied → Shootout
         </button>
@@ -312,6 +320,17 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         <div className="w-full min-h-[40px] eyebrow text-[11px] text-ink-faint flex items-center justify-center text-center">
           Shootout tied — adjust tallies to finalize
         </div>
+      )}
+
+      {game.period > 1 && !hasEventsInCurrentPeriod && (
+        <button
+          type="button"
+          onClick={onRevertPeriod}
+          disabled={pending}
+          className="w-full min-h-[36px] eyebrow text-[10px] text-ink-faint hover:text-ink-dim disabled:opacity-50"
+        >
+          ← Back to {formatPeriod(game.period - 1)}
+        </button>
       )}
 
       {/* Events log */}

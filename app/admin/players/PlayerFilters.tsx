@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePlayer, updateUserRole, linkUserToPlayer } from "./actions";
+import { useRouter } from "next/navigation";
+import { updatePlayer, updateUserRole, linkUserToPlayer, deletePlayer, mergePlayer } from "./actions";
 
 export type Team = { id: string; name: string; color: string };
 
@@ -54,11 +55,56 @@ export function PlayerFilters({
   unlinkedAccounts: UnlinkedAccount[];
   roleOptions: RoleOption[];
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
   const [linkFilter, setLinkFilter] = useState<LinkFilter>("all");
   const [expanded, setExpanded] = useState(false);
   const [, startTransition] = useTransition();
+  const [actionPending, startAction] = useTransition();
+  const [playerErrors, setPlayerErrors] = useState<Map<string, string>>(new Map());
+  const [mergeTargets, setMergeTargets] = useState<Map<string, string>>(new Map());
+
+  const setPlayerError = (playerId: string, msg: string | null) => {
+    setPlayerErrors((prev) => {
+      const next = new Map(prev);
+      if (msg === null) next.delete(playerId);
+      else next.set(playerId, msg);
+      return next;
+    });
+  };
+
+  const handleDelete = (player: PlayerRow) => {
+    if (!confirm(`Delete ${player.first_name} ${player.last_name}? This cannot be undone.`)) return;
+    startAction(async () => {
+      const result = await deletePlayer({ playerId: player.id });
+      if (result.ok) {
+        router.refresh();
+      } else {
+        setPlayerError(player.id, result.error);
+      }
+    });
+  };
+
+  const handleMerge = (player: PlayerRow) => {
+    const keepId = mergeTargets.get(player.id) ?? "";
+    if (!keepId) return;
+    const keepPlayer = players.find((p) => p.id === keepId);
+    if (
+      !confirm(
+        `Merge ${player.first_name} ${player.last_name} INTO ${keepPlayer?.first_name} ${keepPlayer?.last_name}?\n\nAll game data will be reassigned to the canonical player and the duplicate will be deleted. This cannot be undone.`,
+      )
+    )
+      return;
+    startAction(async () => {
+      const result = await mergePlayer({ keepId, duplicateId: player.id });
+      if (result.ok) {
+        router.refresh();
+      } else {
+        setPlayerError(player.id, result.error);
+      }
+    });
+  };
 
   const q = search.trim().toLowerCase();
   const filtered = players.filter((p) => {
@@ -299,7 +345,7 @@ export function PlayerFilters({
                             <input type="hidden" name="player_id" value="" />
                             <button
                               type="submit"
-                              className="px-2.5 py-1 min-h-8 text-goal/70 hover:text-goal border border-transparent hover:border-goal/30 font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                              className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors"
                             >
                               UNLINK
                             </button>
@@ -371,10 +417,10 @@ export function PlayerFilters({
                     </span>
                     <span className="flex items-center gap-3 shrink-0">
                       <a
-                        href="/admin/rosters"
+                        href="/admin/teams"
                         className="eyebrow hover:text-ink transition-colors"
                       >
-                        Manage on Rosters →
+                        Manage on Teams →
                       </a>
                       <a
                         href={`/players/${player.id}`}
@@ -383,6 +429,56 @@ export function PlayerFilters({
                         View profile →
                       </a>
                     </span>
+                  </div>
+
+                  {/* Per-player action error */}
+                  {playerErrors.get(player.id) && (
+                    <p className="text-goal text-[12px]">{playerErrors.get(player.id)}</p>
+                  )}
+
+                  {/* Danger zone */}
+                  <div className="border-t border-rule/50 pt-3 space-y-3">
+                    <span className="eyebrow text-ink-faint">Danger Zone</span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(player)}
+                      disabled={actionPending}
+                      className="block px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
+                    >
+                      DELETE PLAYER
+                    </button>
+
+                    <div className="flex flex-wrap items-end gap-2">
+                      <label className="block flex-1 min-w-[200px]">
+                        <span className="eyebrow">Merge into</span>
+                        <select
+                          value={mergeTargets.get(player.id) ?? ""}
+                          onChange={(e) =>
+                            setMergeTargets((prev) => new Map(prev).set(player.id, e.target.value))
+                          }
+                          className={`mt-1 w-full ${rowInputCls}`}
+                        >
+                          <option value="">— select canonical player —</option>
+                          {players
+                            .filter((p) => p.id !== player.id)
+                            .sort((a, b) => a.last_name.localeCompare(b.last_name))
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.last_name}, {p.first_name}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleMerge(player)}
+                        disabled={actionPending || !mergeTargets.get(player.id)}
+                        className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
+                      >
+                        MERGE
+                      </button>
+                    </div>
                   </div>
                 </div>
               </details>

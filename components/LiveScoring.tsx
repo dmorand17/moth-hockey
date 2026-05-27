@@ -73,6 +73,14 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   const [displayClock, setDisplayClock] = useState(game.clockSeconds);
   const lastPersistedRef = useRef(game.clockSeconds);
 
+  // Used by the visibilitychange handler to read current running state
+  // without adding it to that effect's deps.
+  const runningRef = useRef(false);
+  useEffect(() => { runningRef.current = running; }, [running]);
+
+  // localStorage key scoped to this game for screen-off recovery.
+  const clockKey = `sk_clock_${game.id}`;
+
   // When the server clock changes (refresh after an action), resync.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -94,6 +102,36 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     }, 1000);
     return () => clearInterval(id);
   }, [running]);
+
+  // Save a wall-clock reference when running starts so we can recover if the
+  // screen turns off and the interval is throttled/paused by the browser.
+  useEffect(() => {
+    if (running) {
+      localStorage.setItem(clockKey, JSON.stringify({ at: Date.now(), clock: displayClock }));
+    } else {
+      localStorage.removeItem(clockKey);
+    }
+  // displayClock excluded: we only want the value at the moment running changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, clockKey]);
+
+  // When the screen comes back on, snap the clock forward by the real elapsed
+  // time rather than trusting the (possibly stalled) interval.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !runningRef.current) return;
+      const raw = localStorage.getItem(clockKey);
+      if (!raw) return;
+      const ref = JSON.parse(raw) as { at: number; clock: number };
+      const elapsed = Math.floor((Date.now() - ref.at) / 1000);
+      const next = Math.max(0, ref.clock - elapsed);
+      setDisplayClock(next);
+      if (next === 0) setRunning(false);
+      localStorage.setItem(clockKey, JSON.stringify({ at: Date.now(), clock: next }));
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [clockKey]);
 
   // Persist to DB on pause and every 10s while running.
   useEffect(() => {

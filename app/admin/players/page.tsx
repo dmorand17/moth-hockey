@@ -191,83 +191,86 @@ export default async function AdminPlayersPage({
           </p>
           <ul className="border border-goal/30 rounded divide-y divide-rule/50">
             {unlinkedAccounts.map((acct) => (
-              <li
-                key={acct.user_id}
-                className="px-3 py-2 flex flex-col sm:flex-row sm:items-end gap-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-ink text-[13px] truncate">
-                    {acct.full_name || acct.email}
-                  </div>
-                  {acct.full_name && (
-                    <div className="font-mono text-[11px] text-ink-faint truncate">
-                      {acct.email}
-                    </div>
-                  )}
-                </div>
-
-                <form
-                  action={updateUserRole}
-                  className="flex items-end gap-2 shrink-0"
-                >
-                  <input type="hidden" name="user_id" value={acct.user_id} />
-                  <label className="block">
-                    <span className="eyebrow">Role</span>
-                    <select
-                      name="role"
-                      defaultValue={acct.role ?? "player"}
-                      className="mt-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
-                    >
-                      {acct.role === "team_captain" && (
-                        <option value="team_captain" disabled>
-                          Team Captain (via Teams)
-                        </option>
+              <li key={acct.user_id}>
+                <details className="group">
+                  <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer list-none select-none hover:bg-board-3 transition-colors">
+                    <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+                      ▶
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-ink text-[13px]">
+                        {acct.full_name || acct.email}
+                      </span>
+                      {acct.full_name && (
+                        <span className="font-mono text-[11px] text-ink-faint ml-2 truncate">
+                          {acct.email}
+                        </span>
                       )}
-                      {ROLE_OPTIONS.map((r) => (
-                        <option key={r.value} value={r.value}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="submit"
-                    className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors"
-                  >
-                    SAVE
-                  </button>
-                </form>
+                    </div>
+                    <span className="eyebrow text-[10px] text-ink-faint shrink-0">
+                      {acct.role ?? "player"}
+                    </span>
+                  </summary>
 
-                <form
-                  action={linkUserToPlayer}
-                  className="flex items-end gap-2 shrink-0"
-                >
-                  <input type="hidden" name="user_id" value={acct.user_id} />
-                  <label className="block flex-1 sm:flex-none">
-                    <span className="eyebrow">Link to player</span>
-                    <select
-                      name="player_id"
-                      defaultValue=""
-                      required
-                      className="mt-1 w-full bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
-                    >
-                      <option value="" disabled>
-                        — select player —
-                      </option>
-                      {unlinkedPlayers.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="submit"
-                    className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors"
-                  >
-                    LINK
-                  </button>
-                </form>
+                  <div className="border-t border-rule/50 px-3 py-3 flex flex-col sm:flex-row sm:items-end gap-3">
+                    <form action={updateUserRole} className="flex items-end gap-2 shrink-0">
+                      <input type="hidden" name="user_id" value={acct.user_id} />
+                      <label className="block">
+                        <span className="eyebrow">Role</span>
+                        <select
+                          name="role"
+                          defaultValue={acct.role ?? "player"}
+                          className="mt-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
+                        >
+                          {acct.role === "team_captain" && (
+                            <option value="team_captain" disabled>
+                              Team Captain (via Teams)
+                            </option>
+                          )}
+                          {ROLE_OPTIONS.map((r) => (
+                            <option key={r.value} value={r.value}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="submit"
+                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                      >
+                        SAVE
+                      </button>
+                    </form>
+
+                    <form action={linkUserToPlayer} className="flex items-end gap-2 flex-1">
+                      <input type="hidden" name="user_id" value={acct.user_id} />
+                      <label className="block flex-1">
+                        <span className="eyebrow">Link to player</span>
+                        <select
+                          name="player_id"
+                          defaultValue=""
+                          required
+                          className="mt-1 w-full bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
+                        >
+                          <option value="" disabled>
+                            — select player —
+                          </option>
+                          {unlinkedPlayers.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="submit"
+                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
+                      >
+                        LINK
+                      </button>
+                    </form>
+                  </div>
+                </details>
               </li>
             ))}
           </ul>

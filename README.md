@@ -1,36 +1,58 @@
 # M.O.T.H Hockey
 
-**Mostly Over The Hill** — a league-management web app for one recreational ("beer league")
-hockey league. Public scores, standings, and stats for everyone; live scoring and admin tools
-for the people who run the league.
+## Overview
 
-Built mobile-first: most users are on a phone at the rink, on the bench, or between shifts.
-Dark "scoreboard" look with per-team accent colors. _Powered by the Milkman._
+**M.O.T.H Hockey** ("Mostly Over The Hill") is a purpose-built league-management web app for one
+recreational ("beer league") hockey league. It gives everyone public scores, standings, and stats,
+while the people who run the league get live scoring and admin tooling behind a login.
+
+It is **mobile-first** by design — most users are on a phone at the rink, on the bench, or between
+shifts — with a dark "scoreboard" look and per-team accent colors. Pages are server-rendered from
+Supabase, and player/goalie stats are derived at query time from the game event log rather than
+stored as aggregates. _Powered by the Milkman._
 
 🏒 **Live (staging):** [moth-hockey.vercel.app](https://moth-hockey.vercel.app/)
 
 ![M.O.T.H Hockey home page](docs/images/home.png)
 
-## What it does
+## Features
 
-Server-rendered pages read from Supabase; player and goalie stats are derived at query time from
-the game event log rather than stored as aggregates.
+### Public (no login)
 
-**Public (no login):**
+| Feature             | What it does                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| **Standings**       | 2-1-0 points (win=2, OT/SO loss=1, regulation loss=0) with full tiebreakers (pts → wins → goal differential → goals for). |
+| **Teams & rosters** | Per-team roster grouped by forwards / defense / goalies, plus team stats, schedule, and a captain badge. |
+| **Schedule**        | Full season schedule, filterable by team and grouped by month.                                   |
+| **Boxscores**       | Live or final, with a goal and penalty-shot event log, including OT and shootout.                |
+| **Player profiles** | Career stats per season plus all-time totals, interactive award badges, and captain history.     |
+| **League leaders**  | Points, goals, assists, penalties, and goalie stats.                                             |
+| **Content pages**   | Markdown-powered rules, FAQ, and league info, editable by admins.                                |
 
-- **Standings** — 2-1-0 points (win=2, OT/SO loss=1, regulation loss=0) with full tiebreakers (pts → wins → goal differential → goals for).
-- **Teams & rosters** — per-team roster grouped by forwards / defense / goalies, team stats, schedule, and a captain badge.
-- **Schedule** — full season schedule, filterable by team and grouped by month.
-- **Boxscores** — live or final, with a goal and penalty-shot event log, including OT and shootout.
-- **Player profiles** — career stats per season plus all-time totals, interactive award badges, and captain history.
-- **League leaders** — points, goals, assists, penalties, and goalie stats.
-- **Content pages** — markdown-powered rules, FAQ, and league info, editable by admins.
+### Scorekeeper
 
-**Scorekeepers** — mobile live-scoring UI: pre-game roster check-in, a sticky running clock, GOAL and PENALTY-SHOT flows with UNDO, OT and shootout sub-flows, and game finalize.
+| Feature             | What it does                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| **Roster check-in** | Pre-game check-in of who's playing, including adding subs.                                        |
+| **Live scoring**    | Mobile-first scoring UI with a sticky running clock and GOAL / PENALTY-SHOT flows, each with UNDO. |
+| **OT & shootout**   | Sudden-death overtime and shootout sub-flows.                                                    |
+| **Finalize**        | Lock a game once it's complete. Finalized games can no longer be edited by scorekeepers.          |
 
-**Captains** — a contact directory (email + phone) for every rostered player, grouped by team.
+### Captain
 
-**Admins** — full CRUD over teams, players, rosters, and schedule; season management (round-robin generation, activation, playoff seeding); content pages; awards; and user/role assignment.
+| Feature               | What it does                                                                  |
+| --------------------- | ----------------------------------------------------------------------------- |
+| **Contact directory** | Email and phone for every rostered player, grouped by team.                   |
+
+### Admin
+
+| Feature                | What it does                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| **League data CRUD**   | Create and edit teams, players, rosters, and the schedule.                    |
+| **Season management**  | Round-robin generation, season activation, and playoff seeding.               |
+| **Content & awards**   | Edit the markdown content pages and assign per-season player awards.          |
+| **Users & roles**      | Link signups to players and assign roles (scorekeeper, admin, etc.).          |
+| **Edit finalized games** | Correct events on games scorekeepers have already locked.                    |
 
 ## League rules (baked in)
 

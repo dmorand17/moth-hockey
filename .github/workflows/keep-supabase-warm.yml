@@ -2,13 +2,16 @@ name: keep-supabase-warm
 
 on:
   schedule:
-    - cron: '0 12 */3 * *'   # every 3 days at 12:00 UTC (well inside the 7-day window)
-  workflow_dispatch:          # allow manual run for testing
+    - cron: "0 12 */3 * *" # every 3 days at 12:00 UTC (well inside the 7-day window)
+  workflow_dispatch: # allow manual run for testing
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    environment: Staging
+    strategy:
+      matrix:
+        env: [Staging, Production]
+    environment: ${{ matrix.env }}
     steps:
       - name: Ping Supabase REST API
         env:

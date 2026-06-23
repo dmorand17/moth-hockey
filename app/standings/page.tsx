@@ -2,6 +2,7 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SeasonSelect } from "@/components/SeasonSelect";
 import { getSeasons, getStandings, getHistoricalStandings } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
 
 type SearchParams = Promise<{ season?: string }>;
 
@@ -9,6 +10,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
   const { season: seasonParam } = await searchParams;
 
   const seasons = await getSeasons();
+  if (seasons.length === 0) return <NoSeason />;
   const season =
     seasons.find((s) => s.id === seasonParam) ??
     seasons.find((s) => s.is_current) ??

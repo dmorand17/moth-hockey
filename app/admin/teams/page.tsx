@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
 import { assignTeamCaptain, createTeam, updateTeam } from "./actions";
 import { ColorSwatches } from "./color-swatches";
 import { RosterEditor } from "./RosterEditor";
@@ -33,6 +34,7 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
+  if (!season) return <NoSeason isAdmin />;
 
   const params = await searchParams;
 

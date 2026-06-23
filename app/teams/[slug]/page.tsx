@@ -4,6 +4,7 @@ import { GameRow } from "@/components/GameRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
 
 type TeamRef = { name: string; slug: string; color: string };
 type TeamGame = {
@@ -26,6 +27,7 @@ export default async function TeamPage({
 }) {
   const { slug } = await params;
   const season = await getCurrentSeason();
+  if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
 
   const { data: team } = await supabase

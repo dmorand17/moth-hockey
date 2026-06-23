@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
 import { createGame, updateGame, deleteGame } from "./actions";
 import { TimeSelect } from "./TimeSelect";
@@ -91,6 +92,7 @@ export default async function AdminSchedulePage({
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
+  if (!season) return <NoSeason isAdmin />;
 
   const params = await searchParams;
 

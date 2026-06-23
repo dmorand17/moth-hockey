@@ -9,6 +9,8 @@ Dark "scoreboard" look with per-team accent colors. _Powered by the Milkman._
 
 🏒 **Live (staging):** [moth-hockey.vercel.app](https://moth-hockey.vercel.app/)
 
+![M.O.T.H Hockey home page](docs/images/home.png)
+
 ## What it does
 
 Server-rendered pages read from Supabase; player and goalie stats are derived at query time from
@@ -94,6 +96,14 @@ See [`docs/LOCAL-TESTING.md`](docs/LOCAL-TESTING.md) for full local dev and test
 - `bun run lint` — ESLint
 
 No test runner is configured.
+
+## Screenshots
+
+|                          Standings                          |                       Teams                       |
+| :---------------------------------------------------------: | :-----------------------------------------------: |
+|        ![Standings table](docs/images/standings.png)        |       ![Teams list](docs/images/teams.png)        |
+|                       **League leaders**                    |               **Boxscore (shootout)**             |
+|            ![League stats](docs/images/stats.png)           |     ![Game boxscore](docs/images/boxscore.png)    |
 
 ## Documentation
 

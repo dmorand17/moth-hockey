@@ -116,6 +116,24 @@ See [`docs/LOCAL-TESTING.md`](docs/LOCAL-TESTING.md) for full local dev and test
 
 No test runner is configured.
 
+## Git workflow
+
+`main` is the production line; `staging` is the pre-production line that the staging
+deployment tracks. **All work flows through `staging` first, then gets promoted to
+`main`** — never merge a feature branch straight into `main`, or the two branches
+drift apart.
+
+1. **Branch off `staging`:** `git checkout staging && git pull && git checkout -b fix/my-change`
+2. **Open a PR into `staging`.** Review, then merge.
+3. **Promote:** open a PR from `staging` → `main`. Merging it ships to production.
+4. **Re-sync:** after the promotion merges, update `staging` so it isn't left behind:
+   `git checkout staging && git merge origin/main`
+
+This keeps `main` and `staging` from diverging — every change lands on `staging`
+before `main`, and `staging` is brought back level right after each promotion.
+
+> Use `git-c` instead of `git` when pushing to the remote.
+
 ## Screenshots
 
 |                          Standings                          |                       Teams                       |

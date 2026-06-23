@@ -54,15 +54,6 @@ stored as aggregates. _Powered by the Milkman._
 | **Users & roles**      | Link signups to players and assign roles (scorekeeper, admin, etc.).          |
 | **Edit finalized games** | Correct events on games scorekeepers have already locked.                    |
 
-## League rules (baked in)
-
-This league doesn't play standard hockey, and the data model reflects that:
-
-- A penalty results in a **penalty shot**, not a power play — no PIM.
-- Regulation is **3 periods of 17 minutes running time** (the clock doesn't stop for whistles).
-- Tied games go to a **5-minute sudden-death overtime**, then a **shootout**.
-- Shootout goals and saves are tracked separately and **don't count toward player stats**.
-
 ## Roles
 
 Auth is passwordless **magic-link** only — players sign in once or twice a season.
@@ -132,6 +123,20 @@ No test runner is configured.
 <p align="center">
   <img src="docs/images/scorekeeper.png" alt="Scorekeeper live scoring UI" width="360" />
 </p>
+
+## Status & roadmap
+
+Phase 1 (the MVP) is essentially complete and live on staging. The full, living checklist is in
+[`docs/initial-build/PLAN.md`](docs/initial-build/PLAN.md) — this is the short version.
+
+**Shipped:** public site, magic-link signup + roles, admin CRUD (teams, players, rosters, schedule, content, seasons, playoffs), full scorekeeper scoring (roster check-in, live goals/penalty shots, OT + shootout, finalize), and derived stats/standings.
+
+**Remaining (Phase 1):**
+
+- Realtime boxscore — `/games/[id]` updating within ~1s of scorekeeper input.
+- Production deploy — a clean Supabase + Vercel project (staging is already live).
+
+**Phase 2 (pull in as the league asks):** player/team photos (Cloudflare R2), CSV import for historical seasons, a season archive, an awards browser, sub-stat accounting, multi-role users, and a custom domain.
 
 ## Documentation
 

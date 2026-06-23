@@ -8,6 +8,10 @@
 - [LOCAL-TESTING.md](./LOCAL-TESTING.md) — run locally and sign in as the seeded test users (magic link via Mailpit).
 - [OPERATIONS.md](./OPERATIONS.md) — recurring ops runbook: refresh staging seed data (keep users), load a single season.
 
+## Decisions (`adr/`)
+
+- [adr/](./adr/README.md) — Architecture Decision Records. Start with [0001 — Game Preview / Matchup Analyzer](./adr/0001-game-preview-matchup-analyzer.md).
+
 ## Build plans (`initial-build/`)
 
 - [PLAN.md](./initial-build/PLAN.md) — master build plan: scope, data model, routes, roles/permissions, Phase 1/2 checklists. Living source of truth.

@@ -4,6 +4,7 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { PlayoffChip } from "@/components/PlayoffChip";
 import { requireRole } from "@/lib/auth";
 import { getCurrentSeason } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDate, formatTime } from "@/lib/format";
 
@@ -23,6 +24,7 @@ type ScoreGame = {
 export default async function ScoreHomePage() {
   await requireRole(["admin", "scorekeeper"]);
   const season = await getCurrentSeason();
+  if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase

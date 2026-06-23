@@ -25,13 +25,15 @@ export type ResultGame = {
   away_team: TeamRef | null;
 };
 
+// Returns null when no season is marked current (e.g. a freshly-provisioned
+// database). Callers render a "no active season" placeholder rather than crash.
 export async function getCurrentSeason() {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("seasons")
     .select("*")
     .eq("is_current", true)
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }

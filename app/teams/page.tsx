@@ -2,9 +2,11 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SectionHeader } from "@/components/SectionHeader";
 import { getCurrentSeason, getStandings } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
 
 export default async function TeamsPage() {
   const season = await getCurrentSeason();
+  if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
   const [{ data: teams }, standings] = await Promise.all([
     supabase

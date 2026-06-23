@@ -33,6 +33,7 @@ export async function createGame(formData: FormData) {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
+  if (!season) back("error=no_season");
 
   const homeTeamId = String(formData.get("home_team_id") ?? "").trim();
   const awayTeamId = String(formData.get("away_team_id") ?? "").trim();

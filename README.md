@@ -2,14 +2,13 @@
 
 ## Overview
 
-**M.O.T.H Hockey** ("Mostly Over The Hill") is a purpose-built league-management web app for one
-recreational ("beer league") hockey league. It gives everyone public scores, standings, and stats,
+**M.O.T.H Hockey** ("Mostly Over The Hill") is a league-management web app. It gives everyone public scores, standings, and stats,
 while the people who run the league get live scoring and admin tooling behind a login.
 
 It is **mobile-first** by design — most users are on a phone at the rink, on the bench, or between
 shifts — with a dark "scoreboard" look and per-team accent colors. Pages are server-rendered from
 Supabase, and player/goalie stats are derived at query time from the game event log rather than
-stored as aggregates. _Powered by the Milkman._
+stored as aggregates.
 
 🏒 **Live (staging):** [moth-hockey.vercel.app](https://moth-hockey.vercel.app/)
 

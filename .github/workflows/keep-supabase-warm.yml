@@ -1,0 +1,20 @@
+name: keep-supabase-warm
+
+on:
+  schedule:
+    - cron: '0 12 */3 * *'   # every 3 days at 12:00 UTC (well inside the 7-day window)
+  workflow_dispatch:          # allow manual run for testing
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          curl --fail-with-body \
+            "$SUPABASE_URL/rest/v1/seasons?select=id&limit=1" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY"

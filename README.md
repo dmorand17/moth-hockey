@@ -127,6 +127,12 @@ No test runner is configured.
 |                       **League leaders**                    |               **Boxscore (shootout)**             |
 |            ![League stats](docs/images/stats.png)           |     ![Game boxscore](docs/images/boxscore.png)    |
 
+**Live scoring (mobile)** — the scorekeeper's one-handed scoring view: running clock, per-team GOAL / PENALTY-SHOT controls, and a tap-to-undo event log.
+
+<p align="center">
+  <img src="docs/images/scorekeeper.png" alt="Scorekeeper live scoring UI" width="360" />
+</p>
+
 ## Documentation
 
 Project docs live in [`docs/`](docs/README.md):

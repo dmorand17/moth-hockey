@@ -29,6 +29,7 @@ export async function addToRoster(formData: FormData) {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
+  if (!season) back("error=no_season");
 
   const teamId = String(formData.get("team_id") ?? "").trim();
   const playerId = String(formData.get("player_id") ?? "").trim();
@@ -86,6 +87,7 @@ export async function saveRosterChanges(input: {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
+  if (!season) return { ok: false, error: "no_season" };
 
   for (const r of input.toRemove) {
     const { error } = await supabase

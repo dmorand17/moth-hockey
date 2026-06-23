@@ -2,8 +2,9 @@
 
 This is the **single staging environment** path: one Supabase project + one Vercel
 deployment with the seed data loaded for QA. When you're ready for real prod,
-spin up a second Supabase project and a second Vercel project — same steps,
-different env values.
+spin up a second **Supabase** project for prod — but keep the **same Vercel
+project**. A Vercel project maps to one git repo; environments are separated by
+branch + scoped env vars, not by separate projects (see §4 Option B).
 
 ## Prereqs
 
@@ -99,11 +100,66 @@ keeping the accounts that have signed up, see the staging refresh runbook in
 
 **Option B — separate prod project (recommended):**
 
-1. Repeat step 1 with name `moth-hockey-prod` (do NOT seed)
-2. Apply only the migrations: `supabase db push` (point to the new project)
-3. In Vercel: **Project Settings → Environments** → create a `Production`
-   environment with the prod Supabase URL + key
-4. Configure your custom domain on the prod environment
+This is the full prod runbook. It uses **one Vercel project** with two
+environments split by branch:
+
+| Vercel environment | Git branch | Supabase project |
+|---|---|---|
+| Production | `main` | `moth-hockey-prod` |
+| Preview (staging) | `staging` | current staging project |
+
+Prod starts **empty** (no seed) — real league data is entered through the admin
+UI after launch.
+
+1. **Provision the prod project.** Repeat step 1 with name `moth-hockey-prod`.
+   Save the DB password in a password manager.
+2. **Apply migrations only** (no seed): `supabase link --project-ref <prod-ref>`
+   then `supabase db push`. This applies all migrations on a clean DB — do
+   **not** run `supabase/seed.sql` (that's test fixture data).
+3. **Configure auth URLs + SMTP** on the **prod** Supabase project (dashboard-only
+   — `supabase/config.toml` carries localhost values that do not apply to cloud
+   projects):
+   - **Authentication → URL Configuration**: set `Site URL` to the prod domain
+     and add it to `Redirect URLs`. Magic-link sign-in redirects break if this
+     still points at localhost.
+   - **Authentication → Emails (SMTP)**: configure a production SMTP provider
+     (e.g. Resend, SendGrid). The built-in Supabase mailer is heavily
+     rate-limited and will silently drop magic-link emails under real traffic.
+4. **Point the Vercel environments at the right Supabase projects.** In
+   **Project Settings → Environment Variables**, scope each value to its
+   environment. `NEXT_PUBLIC_*` vars are **baked in at build time**, so each
+   environment must build with its own values:
+   - **Production** (`main`): set `NEXT_PUBLIC_SUPABASE_URL` +
+     `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the **prod** project's values.
+   - **Staging** (`staging` branch): set the same two vars to the **staging**
+     project's values. Use the **branch-specific** scope (`staging`) rather than
+     the broad Preview scope if you don't want every PR preview pointing at the
+     staging DB.
+   > If your existing single Vercel deployment currently points Production at the
+   > staging Supabase project, "going to prod" is mostly **repointing** these
+   > vars — prod values on Production, staging values on the `staging` branch —
+   > not building anything new.
+5. **Custom domain.** Attach it to the Production environment (`main`).
+6. **Staging preview URL → Supabase redirect allow-list.** Vercel preview
+   deploys get a generated, changing URL per push, but Supabase's redirect
+   allow-list needs exact URLs. Either assign a **stable alias/domain** to the
+   `staging` branch deploy and allow-list that one URL (cleaner), or add a
+   **wildcard** redirect URL (e.g. `https://*.vercel.app`) on the staging
+   Supabase project (broader). Do this on the staging project's
+   **Authentication → URL Configuration**.
+7. **GitHub `Production` environment.** The
+   [`keep-supabase-warm.yml`](../../.github/workflows/keep-supabase-warm.yml)
+   workflow pings both `Staging` and `Production` on a schedule. Create a
+   `Production` environment under **Repo Settings → Environments** with
+   `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` secrets set to the prod values,
+   or that matrix leg fails on every run.
+8. **Bootstrap the first admin.** Prod has no roles. After the first user signs
+   in via magic link (step 3 must be done first), insert their row into
+   `user_roles` with role `admin` via the SQL editor — see Notes below.
+9. **Smoke test before go-live.** Confirm: magic-link sign-in works on the real
+   domain; an authenticated admin write succeeds; an anonymous public read
+   succeeds; an anonymous write is rejected (RLS). Verify no `service_role` key
+   is set on any `NEXT_PUBLIC_*` / client-exposed Vercel var.
 
 ## 5. Recurring operations
 

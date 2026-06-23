@@ -3,9 +3,13 @@ import { GameRow } from "@/components/GameRow";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { getCurrentSeason, getStandings, getUpcomingGames, getRecentResults } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
+import { getSessionIfRole } from "@/lib/auth";
 
 export default async function Home() {
   const season = await getCurrentSeason();
+  if (!season) return <NoSeason isAdmin={!!(await getSessionIfRole(["admin"]))} />;
+
   const [standings, upcoming, recent] = await Promise.all([
     getStandings(season.id),
     getUpcomingGames(season.id, 3),

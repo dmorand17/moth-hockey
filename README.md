@@ -10,9 +10,16 @@ shifts — with a dark "scoreboard" look and per-team accent colors. Pages are s
 Supabase, and player/goalie stats are derived at query time from the game event log rather than
 stored as aggregates.
 
-🏒 **Live (staging):** [moth-hockey.vercel.app](https://moth-hockey.vercel.app/)
+🏒 **Live:** [moth-hockey.vercel.app](https://moth-hockey.vercel.app/)
 
 ![M.O.T.H Hockey home page](docs/images/home.png)
+
+## Environments
+
+| Environment | URL |
+| ----------- | --- |
+| Production | [https://moth-hockey.vercel.app](https://moth-hockey.vercel.app) |
+| Staging | [https://moth-hockey-git-staging-doug-morands-projects.vercel.app](https://moth-hockey-git-staging-doug-morands-projects.vercel.app) |
 
 ## Features
 

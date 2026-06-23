@@ -67,6 +67,33 @@ supabase db diff -f my_change
 > *before* any migration that references the new value — see
 > `0003_user_role_enum.sql`.
 
+## Branches & deploys
+
+Deploys are driven by git branch — Vercel builds each branch against its own
+Supabase project:
+
+| Git branch | Vercel environment | Supabase project |
+|---|---|---|
+| `staging` | Preview (staging) | staging project |
+| `main` | Production | prod project |
+
+Day-to-day work lands on `staging`: open PRs against `staging`, and a merge
+there deploys the Preview build pointed at the **staging Supabase database**.
+Use staging to QA against real cloud data before promoting to prod by merging
+`staging` → `main`.
+
+Because `NEXT_PUBLIC_*` vars are baked in at build time, each branch builds with
+its own Supabase URL + publishable key (scoped per Vercel environment). Schema
+changes reach staging by pushing migrations to the staging project:
+
+```bash
+supabase link --project-ref <staging-ref>   # one-time per machine
+supabase db push                             # apply migrations to staging
+```
+
+For the full prod runbook (provisioning, env-var scoping, auth/SMTP, custom
+domain), see [`initial-build/DEPLOY.md`](./initial-build/DEPLOY.md).
+
 ## Seed data
 
 `supabase/seed.sql` runs automatically after `supabase db reset`. It seeds a

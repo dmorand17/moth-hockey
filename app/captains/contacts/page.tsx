@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { SectionHeader } from "@/components/SectionHeader";
+import { NoSeason } from "@/components/NoSeason";
 
 type RosterRow = {
   player_id: string;
@@ -17,6 +18,7 @@ type RosterRow = {
 export default async function CaptainContactsPage() {
   await requireRole(["admin", "team_captain"]);
   const season = await getCurrentSeason();
+  if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
 
   const [{ data: teams }, { data: rosterRows }, { data: profiles }] = await Promise.all([

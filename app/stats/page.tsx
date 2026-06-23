@@ -8,6 +8,7 @@ import {
 import { type AwardWinnerGroup } from "@/components/AwardWinners";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSeasons } from "@/lib/queries";
+import { NoSeason } from "@/components/NoSeason";
 import { AWARD_LABELS, AWARD_ORDER } from "@/lib/awards";
 
 type SearchParams = Promise<{ season?: string }>;
@@ -17,6 +18,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
   const supabase = await createSupabaseServerClient();
 
   const seasons = await getSeasons();
+  if (seasons.length === 0) return <NoSeason />;
   const season =
     seasons.find((s) => s.id === seasonParam) ??
     seasons.find((s) => s.is_current) ??

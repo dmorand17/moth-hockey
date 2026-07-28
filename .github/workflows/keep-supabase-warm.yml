@@ -2,7 +2,7 @@ name: keep-supabase-warm
 
 on:
   schedule:
-    - cron: "0 12 */3 * *" # every 3 days at 12:00 UTC (well inside the 7-day window)
+    - cron: "0 12 * * *" # daily at 12:00 UTC
   workflow_dispatch: # allow manual run for testing
 
 jobs:
@@ -22,3 +22,18 @@ jobs:
             "$SUPABASE_URL/rest/v1/seasons?select=id&limit=1" \
             -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY"
+
+      - name: Notify via ntfy on failure
+        if: failure()
+        env:
+          NTFY_URL: ${{ secrets.NTFY_URL }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          MATRIX_ENV: ${{ matrix.env }}
+        run: |
+          curl -s \
+            -H "Authorization: Bearer $NTFY_TOKEN" \
+            -H "Title: Supabase $MATRIX_ENV may be paused" \
+            -H "Priority: high" \
+            -H "Tags: warning,database" \
+            -d "Supabase $MATRIX_ENV ping failed — project may be paused. Visit the Supabase Dashboard to restore it. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            "$NTFY_URL"

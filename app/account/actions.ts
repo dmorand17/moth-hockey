@@ -76,5 +76,6 @@ export async function setAvailability(input: {
   }
 
   revalidatePath("/account");
+  revalidatePath(`/games/${gameId}`);
   return { ok: true };
 }

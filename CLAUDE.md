@@ -22,7 +22,7 @@ Uses **bun** (see `bun.lock`). Use `bun install` / `bun add` rather than npm or 
 
 ## Commands
 
-- `bun dev` — start the dev server (Next.js, defaults to http://localhost:3000)
+- `bun dev` — start the dev server (Next.js, runs on http://localhost:3001)
 - `bun run build` — production build
 - `bun start` — run the production build
 - `bun run lint` — ESLint (flat config in `eslint.config.mjs`, extends `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`)

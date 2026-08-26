@@ -17,12 +17,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
 
   return (
     <div className="mx-auto max-w-md rise">
-      <div className="mb-6 rounded-lg overflow-hidden bg-white">
+      <div className="mb-6 rounded-lg overflow-hidden border border-rule">
         <Image
-          src="/moth-banner.png"
+          src="/moth-banner-dark.png"
           alt="M.O.T.H Hockey League"
           width={1200}
-          height={670}
+          height={675}
           priority
           className="w-full h-auto"
         />

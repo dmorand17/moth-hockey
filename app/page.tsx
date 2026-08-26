@@ -27,14 +27,14 @@ export default async function Home() {
   return (
     <div className="space-y-6 sm:space-y-10">
       {/* BRAND BANNER */}
-      <div className="rise flex justify-center rounded-lg overflow-hidden bg-white">
+      <div className="rise w-full rounded-lg overflow-hidden border border-rule">
         <Image
-          src="/moth-banner.png"
+          src="/moth-banner-dark.png"
           alt="M.O.T.H Hockey League — Mostly Over the Hill"
           width={1200}
-          height={670}
+          height={675}
           priority
-          className="h-auto w-full max-w-2xl"
+          className="w-full h-[130px] sm:h-[170px] object-cover object-center"
         />
       </div>
 
@@ -80,9 +80,58 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* STANDINGS PREVIEW */}
+      {/* UPCOMING */}
       <section className="rise delay-1">
-        <SectionHeader eyebrow="01" title="The Table" linkHref="/standings" linkLabel="Full standings" />
+        <SectionHeader eyebrow="01" title="Upcoming" linkHref="/schedule" linkLabel="All games" />
+        {upcoming.length === 0 ? (
+          <p className="eyebrow">No games on the schedule</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-3">
+            {upcoming.map((g) => (
+              <GameRow
+                key={g.id}
+                id={g.id}
+                scheduled_at={g.scheduled_at}
+                status={g.status}
+                home_team={g.home_team}
+                away_team={g.away_team}
+                kind={g.kind}
+                playoff_round={g.playoff_round}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* RECENT RESULTS */}
+      <section className="rise delay-2">
+        <SectionHeader eyebrow="02" title="Recent Results" />
+        {recent.length === 0 ? (
+          <p className="eyebrow">No results yet — first puck drops soon.</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-3">
+            {recent.map((g) => (
+              <GameRow
+                key={g.id}
+                id={g.id}
+                scheduled_at={g.scheduled_at}
+                status="final"
+                home_team={g.home_team}
+                away_team={g.away_team}
+                home_score={g.home_score}
+                away_score={g.away_score}
+                decided_in={g.decided_in}
+                kind={g.kind}
+                playoff_round={g.playoff_round}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* STANDINGS PREVIEW */}
+      <section className="rise delay-3">
+        <SectionHeader eyebrow="03" title="The Table" linkHref="/standings" linkLabel="Full standings" />
         <div className="panel overflow-hidden">
           <table className="board-table">
             <thead>
@@ -115,55 +164,6 @@ export default async function Home() {
             </tbody>
           </table>
         </div>
-      </section>
-
-      {/* UPCOMING */}
-      <section className="rise delay-2">
-        <SectionHeader eyebrow="02" title="Upcoming" linkHref="/schedule" linkLabel="All games" />
-        {upcoming.length === 0 ? (
-          <p className="eyebrow">No games on the schedule</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-3">
-            {upcoming.map((g) => (
-              <GameRow
-                key={g.id}
-                id={g.id}
-                scheduled_at={g.scheduled_at}
-                status={g.status}
-                home_team={g.home_team}
-                away_team={g.away_team}
-                kind={g.kind}
-                playoff_round={g.playoff_round}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* RECENT RESULTS */}
-      <section className="rise delay-3">
-        <SectionHeader eyebrow="03" title="Recent Results" />
-        {recent.length === 0 ? (
-          <p className="eyebrow">No results yet — first puck drops soon.</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-3">
-            {recent.map((g) => (
-              <GameRow
-                key={g.id}
-                id={g.id}
-                scheduled_at={g.scheduled_at}
-                status="final"
-                home_team={g.home_team}
-                away_team={g.away_team}
-                home_score={g.home_score}
-                away_score={g.away_score}
-                decided_in={g.decided_in}
-                kind={g.kind}
-                playoff_round={g.playoff_round}
-              />
-            ))}
-          </div>
-        )}
       </section>
     </div>
   );

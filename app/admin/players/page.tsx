@@ -2,7 +2,7 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
-import { createPlayer, updateUserRole, linkUserToPlayer } from "./actions";
+import { createPlayer, importPlayers, updateUserRole, linkUserToPlayer } from "./actions";
 import {
   PlayerFilters,
   type PlayerRow,
@@ -20,7 +20,13 @@ const ROLE_OPTIONS: RoleOption[] = [
   { value: "player", label: "Player" },
 ];
 
-type SearchParams = Promise<{ saved?: string; error?: string }>;
+type SearchParams = Promise<{
+  saved?: string;
+  error?: string;
+  added?: string;
+  dup?: string;
+  bad?: string;
+}>;
 
 const FLASH_MESSAGES: Record<string, string> = {
   created: "Player created.",
@@ -31,6 +37,21 @@ const FLASH_MESSAGES: Record<string, string> = {
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "First and last name are required.",
 };
+
+function importSummary(params: {
+  added?: string;
+  dup?: string;
+  bad?: string;
+}): string {
+  const added = Number(params.added ?? 0);
+  const dup = Number(params.dup ?? 0);
+  const bad = Number(params.bad ?? 0);
+  const parts = [`Added ${added}`];
+  if (dup > 0) parts.push(`skipped ${dup} duplicate${dup === 1 ? "" : "s"}`);
+  if (bad > 0)
+    parts.push(`${bad} line${bad === 1 ? "" : "s"} couldn't be parsed`);
+  return parts.join(" · ") + ".";
+}
 
 type RosterEntry = {
   season_id: string;
@@ -133,7 +154,9 @@ export default async function AdminPlayersPage({
     <div className="space-y-6">
       {flash && (
         <p role="status" className="text-ice text-sm">
-          {FLASH_MESSAGES[flash] ?? "Saved."}
+          {flash === "imported"
+            ? importSummary(params)
+            : (FLASH_MESSAGES[flash] ?? "Saved.")}
         </p>
       )}
       {error && (
@@ -176,6 +199,35 @@ export default async function AdminPlayersPage({
               CREATE
             </button>
           </div>
+        </form>
+      </section>
+
+      {/* Bulk import */}
+      <section className="space-y-3">
+        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+          IMPORT PLAYERS
+        </h2>
+        <form action={importPlayers} className="panel p-4 space-y-3">
+          <label className="block">
+            <span className="eyebrow">Paste names — one per line</span>
+            <textarea
+              name="names"
+              required
+              rows={6}
+              placeholder={"Wayne Gretzky\nGretzky, Wayne"}
+              className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 text-ink focus:outline-none focus:border-ice font-mono text-[13px]"
+            />
+          </label>
+          <p className="text-ink-faint text-[12px] leading-relaxed">
+            One player per line — use <strong>First Last</strong> or{" "}
+            <strong>Last, First</strong>. Names already in the list are skipped.
+          </p>
+          <button
+            type="submit"
+            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+          >
+            IMPORT
+          </button>
         </form>
       </section>
 

@@ -186,7 +186,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   };
 
   const onUndoSpecific = (eventId: string) => {
-    if (!confirm("Undo this event? Score will be adjusted if needed.")) return;
+    if (!confirm("Delete this event? Score will be adjusted if needed.")) return;
     run(() => undoEvent({ gameId: game.id, eventId }));
   };
 
@@ -421,7 +421,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
             }}
             className="w-full min-h-[52px] font-display text-[16px] tracking-[0.12em] rounded-[2px] border bg-board-3 text-goal border-goal/40 hover:border-goal"
           >
-            UNDO
+            DELETE
           </button>
         </Sheet>
       )}
@@ -684,7 +684,7 @@ function EventsList({
       <div className="border-t border-rule pt-3">
         <div className="flex items-center justify-between">
           <span className="eyebrow text-[10px] text-ink-faint">Events</span>
-          <span className="eyebrow text-[10px] text-ink-faint">tap to edit or undo</span>
+          <span className="eyebrow text-[10px] text-ink-faint">tap to edit</span>
         </div>
         <p className="eyebrow text-[10px] text-ink-faint text-center py-4">
           No events yet
@@ -698,7 +698,7 @@ function EventsList({
         <span className="eyebrow text-[10px] text-ink-faint">
           Events · {events.length}
         </span>
-        <span className="eyebrow text-[10px] text-ink-faint">tap to edit or undo</span>
+        <span className="eyebrow text-[10px] text-ink-faint">tap to edit</span>
       </div>
       <ol className="divide-y divide-rule">
         {events.map((e) => {

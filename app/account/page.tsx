@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PhoneInput from "@/components/PhoneInput";
@@ -58,12 +59,25 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
 
         <div>
           <div className="eyebrow">Linked player</div>
-          <div className="text-ink mt-1">
-            {linkedPlayer
-              ? `${linkedPlayer.first_name} ${linkedPlayer.last_name}`
-              : <span className="text-ink-faint">Not linked yet — an admin will connect you to your roster row.</span>
-            }
-          </div>
+          {linkedPlayer ? (
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <span className="text-ink">
+                {linkedPlayer.first_name} {linkedPlayer.last_name}
+              </span>
+              <Link
+                href={`/players/${linkedPlayer.id}`}
+                className="eyebrow text-ice hover:text-ink shrink-0"
+              >
+                View your profile →
+              </Link>
+            </div>
+          ) : (
+            <div className="text-ink mt-1">
+              <span className="text-ink-faint">
+                Not linked yet — an admin will connect you to your roster row.
+              </span>
+            </div>
+          )}
         </div>
       </section>
 

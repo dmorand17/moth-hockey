@@ -175,3 +175,29 @@ real users) live in the operations runbook: [`../OPERATIONS.md`](../OPERATIONS.m
   an authenticated user with `admin` or `scorekeeper` role in the `user_roles` table.
 - To create the first admin: insert a row into `user_roles` via the Supabase
   SQL editor after a user has signed up via magic-link.
+
+## Troubleshooting
+
+### Magic-link sign-in redirects to a broken URL / `{"error":"requested path is invalid"}`
+
+Symptom: after clicking the magic link, the browser lands on the Supabase host
+with the app's domain mangled into the path, e.g.
+`https://<ref>.supabase.co/moth-hockey-…vercel.app?code=…`, and shows
+`{"error":"requested path is invalid"}`.
+
+Cause: the app sends a correct `emailRedirectTo`
+(`https://<domain>/auth/callback?next=…`), but the Supabase project's redirect
+allow-list doesn't include that domain, so Supabase falls back to the **Site
+URL** — and the Site URL is a **bare hostname without `https://`**, which
+Supabase resolves as a path on its own host.
+
+Fix (on the affected project's **Authentication → URL Configuration** — dashboard
+only, `supabase/config.toml` is local-dev only):
+
+1. **Site URL** must include the scheme, e.g.
+   `https://moth-hockey-git-staging-<team>.vercel.app` (not the bare host).
+2. **Redirect URLs** must allow-list the deploy domain, e.g.
+   `https://moth-hockey-git-staging-<team>.vercel.app/**` (add a
+   `https://*-<team>.vercel.app/**` wildcard to also cover per-commit previews).
+
+Then request a **fresh** magic link — consumed/old links won't retry.

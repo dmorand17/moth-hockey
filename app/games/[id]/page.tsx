@@ -163,7 +163,7 @@ export default async function GamePage({
       </Link>
 
       {/* SCOREBOARD */}
-      <section className="rise scoreboard p-4 sm:p-6 md:p-10 relative overflow-hidden">
+      <section className="rise scoreboard p-4 sm:p-5 md:p-6 relative overflow-hidden">
         <div className="absolute inset-0 stripes opacity-40 pointer-events-none" />
         <div className="relative">
           {/* Status row */}
@@ -252,14 +252,14 @@ export default async function GamePage({
         {events.length === 0 ? (
           <p className="eyebrow">No events recorded.</p>
         ) : (
-          <ol className="space-y-2">
+          <ol className="space-y-1.5">
             {events.map((e, idx) => {
               const team = e.team_id === homeView.id ? homeView : awayView;
               const isGoal = e.type === "goal";
               return (
                 <li
                   key={e.id}
-                  className={`panel p-4 grid grid-cols-[auto_1fr] md:grid-cols-[auto_72px_1fr_auto] gap-x-4 gap-y-1 items-start border-l-[3px] md:border-l-2`}
+                  className={`panel p-3 grid grid-cols-[auto_1fr] md:grid-cols-[auto_72px_1fr_auto] gap-x-4 gap-y-1 items-start border-l-[3px] md:border-l-2`}
                   style={{ borderLeftColor: team.color, borderLeftStyle: "solid" }}
                 >
                   {/* Index */}
@@ -290,7 +290,7 @@ export default async function GamePage({
                     {isGoal && e.scorer && (
                       <>
                         <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="inline-flex items-center min-h-11 font-medium hover:text-ice transition-colors">
+                          <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                         </div>
@@ -311,7 +311,7 @@ export default async function GamePage({
                     {!isGoal && e.scorer && (
                       <>
                         <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="inline-flex items-center min-h-11 font-medium hover:text-ice transition-colors">
+                          <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                           <span className="text-ink-dim"> · {e.penalty_type}</span>
@@ -322,7 +322,7 @@ export default async function GamePage({
                         {e.shooter && (
                           <div className="mt-2 text-[13px] flex items-center gap-2 flex-wrap">
                             <span className="eyebrow text-[10px]">PS</span>
-                            <Link href={`/players/${e.shooter.id}`} className="inline-flex items-center min-h-11 hover:text-ink-dim transition-colors text-ink-dim">
+                            <Link href={`/players/${e.shooter.id}`} className="hover:text-ink transition-colors text-ink-dim">
                               {e.shooter.first_name} {e.shooter.last_name}
                             </Link>
                             <span
@@ -434,7 +434,7 @@ function TeamColumn({
           {align === "left" ? "Away" : "Home"}
         </div>
         <div
-          className={`mt-2 font-display text-[24px] sm:text-[28px] md:text-[44px] leading-[0.95] tracking-[0.04em] ${
+          className={`mt-2 font-display text-[22px] sm:text-[26px] md:text-[34px] leading-[0.95] tracking-[0.04em] ${
             dimmed ? "text-ink-dim" : "text-ink"
           } group-hover:text-ice transition-colors`}
         >
@@ -446,7 +446,7 @@ function TeamColumn({
         />
       </Link>
       <div
-        className={`digit text-[48px] md:text-[88px] leading-none md:mt-3 shrink-0 ${
+        className={`digit text-[40px] md:text-[64px] leading-none md:mt-2 shrink-0 ${
           won ? "text-ink" : dimmed ? "text-ink-faint" : "text-ink"
         }`}
         style={won ? { textShadow: `0 0 24px ${team.color}66` } : undefined}

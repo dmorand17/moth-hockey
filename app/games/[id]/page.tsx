@@ -446,7 +446,7 @@ function TeamColumn({
         />
       </Link>
       <div
-        className={`digit text-[72px] md:text-[140px] leading-none md:mt-3 shrink-0 ${
+        className={`digit text-[48px] md:text-[88px] leading-none md:mt-3 shrink-0 ${
           won ? "text-ink" : dimmed ? "text-ink-faint" : "text-ink"
         }`}
         style={won ? { textShadow: `0 0 24px ${team.color}66` } : undefined}

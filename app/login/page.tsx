@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -16,6 +17,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
 
   return (
     <div className="mx-auto max-w-md rise">
+      <div className="mb-6 rounded-lg overflow-hidden bg-white">
+        <Image
+          src="/moth-banner.png"
+          alt="M.O.T.H Hockey League"
+          width={1200}
+          height={670}
+          priority
+          className="w-full h-auto"
+        />
+      </div>
       <header className="mb-6">
         <h1 className="font-display text-3xl tracking-[0.06em] text-ink">LOG IN</h1>
         <p className="eyebrow mt-2">We&apos;ll email you a magic link</p>

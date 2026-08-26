@@ -22,10 +22,32 @@ const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+// Absolute base for OpenGraph/Twitter image URLs. Uses the prod domain on
+// Vercel, falls back to localhost in dev.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3001");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "M.O.T.H Hockey — Spring 2026",
   description: "Mostly Over The Hill hockey league.",
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    title: "M.O.T.H Hockey — Spring 2026",
+    description: "Mostly Over The Hill hockey league.",
+    images: [
+      { url: "/moth-banner.png", width: 1200, height: 670, alt: "M.O.T.H Hockey League" },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "M.O.T.H Hockey — Spring 2026",
+    description: "Mostly Over The Hill hockey league.",
+    images: ["/moth-banner.png"],
+  },
   // Tells iOS Safari to launch chromeless from the home screen.
   appleWebApp: {
     capable: true,

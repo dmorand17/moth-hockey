@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { GameRow } from "@/components/GameRow";
 import { TeamBadge } from "@/components/TeamBadge";
@@ -22,6 +23,18 @@ export default async function Home() {
 
   return (
     <div className="space-y-6 sm:space-y-10">
+      {/* BRAND BANNER */}
+      <div className="rise flex justify-center rounded-lg overflow-hidden bg-white">
+        <Image
+          src="/moth-banner.png"
+          alt="M.O.T.H Hockey League — Mostly Over the Hill"
+          width={1200}
+          height={670}
+          priority
+          className="h-auto w-full max-w-2xl"
+        />
+      </div>
+
       {/* HERO SCOREBOARD */}
       <section className="rise relative">
         <div className="grid md:grid-cols-[1.4fr_1fr] gap-3 md:gap-5">

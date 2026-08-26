@@ -2,10 +2,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SectionHeader } from "@/components/SectionHeader";
 import { PlayoffChip } from "@/components/PlayoffChip";
+import { TeamBadge } from "@/components/TeamBadge";
+import { CheckInToggle } from "@/components/CheckInToggle";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
 type PlayerRef = { id: string; first_name: string; last_name: string };
+type TeamRef = { id: string; name: string; slug: string; color: string };
+type AvailPlayer = { id: string; name: string; jersey: number | null };
+type TeamAvail = { in: AvailPlayer[]; out: AvailPlayer[]; none: AvailPlayer[] };
+type RosterPlayerRow = {
+  team_id: string;
+  jersey_number: number | null;
+  player: PlayerRef | null;
+};
 type EventRow = {
   id: string;
   period: number;
@@ -31,7 +41,7 @@ export default async function GamePage({
   const { data: game } = await supabase
     .from("games")
     .select(
-      "id, scheduled_at, location, status, kind, playoff_round, home_score, away_score, period, clock_seconds, decided_in, shootout_home_goals, shootout_away_goals, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color)",
+      "id, scheduled_at, location, status, kind, playoff_round, season_id, home_team_id, away_team_id, home_score, away_score, period, clock_seconds, decided_in, shootout_home_goals, shootout_away_goals, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color)",
     )
     .eq("id", id)
     .single();
@@ -66,6 +76,86 @@ export default async function GamePage({
   const homeWon = isFinal && game.home_score > game.away_score;
   const awayWon = isFinal && game.away_score > game.home_score;
 
+  // Availability / check-in — scheduled games with two real teams only.
+  const isScheduled = game.status === "scheduled";
+  let availability:
+    | {
+        home: TeamAvail;
+        away: TeamAvail;
+        viewerStatus: "in" | "out" | null;
+        viewerCanCheckIn: boolean;
+        viewerTeamName: string | null;
+      }
+    | null = null;
+
+  if (isScheduled && homeTeam && awayTeam) {
+    const [{ data: rosterRaw }, { data: availRaw }, { data: userData }] =
+      await Promise.all([
+        supabase
+          .from("team_players")
+          .select("team_id, jersey_number, player:player_id(id, first_name, last_name)")
+          .eq("season_id", game.season_id)
+          .in("team_id", [homeTeam.id, awayTeam.id]),
+        supabase
+          .from("game_availability")
+          .select("player_id, status")
+          .eq("game_id", id),
+        supabase.auth.getUser(),
+      ]);
+
+    const roster = (rosterRaw ?? []) as unknown as RosterPlayerRow[];
+    const statusBy = new Map<string, "in" | "out">();
+    for (const a of availRaw ?? []) {
+      statusBy.set(a.player_id, a.status as "in" | "out");
+    }
+
+    let viewerPlayerId: string | null = null;
+    if (userData.user) {
+      const { data: me } = await supabase
+        .from("players")
+        .select("id")
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+      viewerPlayerId = me?.id ?? null;
+    }
+
+    const byName = (a: AvailPlayer, b: AvailPlayer) => a.name.localeCompare(b.name);
+    const bucket = (teamId: string): TeamAvail => {
+      const acc: TeamAvail = { in: [], out: [], none: [] };
+      for (const r of roster) {
+        if (r.team_id !== teamId || !r.player) continue;
+        const p: AvailPlayer = {
+          id: r.player.id,
+          name: `${r.player.first_name} ${r.player.last_name}`,
+          jersey: r.jersey_number,
+        };
+        const s = statusBy.get(r.player.id);
+        if (s === "in") acc.in.push(p);
+        else if (s === "out") acc.out.push(p);
+        else acc.none.push(p);
+      }
+      acc.in.sort(byName);
+      acc.out.sort(byName);
+      acc.none.sort(byName);
+      return acc;
+    };
+
+    const onHome =
+      viewerPlayerId != null &&
+      roster.some((r) => r.player?.id === viewerPlayerId && r.team_id === homeTeam.id);
+    const onAway =
+      viewerPlayerId != null &&
+      roster.some((r) => r.player?.id === viewerPlayerId && r.team_id === awayTeam.id);
+
+    availability = {
+      home: bucket(homeTeam.id),
+      away: bucket(awayTeam.id),
+      viewerStatus: viewerPlayerId ? (statusBy.get(viewerPlayerId) ?? null) : null,
+      viewerCanCheckIn: onHome || onAway,
+      viewerTeamName: onHome ? homeTeam.name : onAway ? awayTeam.name : null,
+    };
+  }
+
   return (
     <div className="space-y-5 sm:space-y-8">
       <Link href="/schedule" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
@@ -73,7 +163,7 @@ export default async function GamePage({
       </Link>
 
       {/* SCOREBOARD */}
-      <section className="rise scoreboard p-4 sm:p-6 md:p-10 relative overflow-hidden">
+      <section className="rise scoreboard p-4 sm:p-5 md:p-6 relative overflow-hidden">
         <div className="absolute inset-0 stripes opacity-40 pointer-events-none" />
         <div className="relative">
           {/* Status row */}
@@ -135,20 +225,41 @@ export default async function GamePage({
         </div>
       </section>
 
+      {/* AVAILABILITY (scheduled games) */}
+      {availability && (
+        <section className="rise delay-1 space-y-4">
+          <SectionHeader eyebrow="Roster" title="Availability" subtitle="Who's in for this game" />
+          {availability.viewerCanCheckIn && (
+            <div className="panel p-4 space-y-3">
+              <p className="text-[14px] text-ink">
+                You&apos;re on{" "}
+                <span className="font-medium">{availability.viewerTeamName}</span> — are you
+                in?
+              </p>
+              <CheckInToggle gameId={game.id} status={availability.viewerStatus} />
+            </div>
+          )}
+          <div className="grid gap-4 md:grid-cols-2">
+            <TeamAvailabilityCard team={awayView} avail={availability.away} />
+            <TeamAvailabilityCard team={homeView} avail={availability.home} />
+          </div>
+        </section>
+      )}
+
       {/* EVENTS LOG */}
       <section className="rise delay-1">
         <SectionHeader eyebrow="Play-by-play" title="Scoring & Penalties" />
         {events.length === 0 ? (
           <p className="eyebrow">No events recorded.</p>
         ) : (
-          <ol className="space-y-2">
+          <ol className="space-y-1.5">
             {events.map((e, idx) => {
               const team = e.team_id === homeView.id ? homeView : awayView;
               const isGoal = e.type === "goal";
               return (
                 <li
                   key={e.id}
-                  className={`panel p-4 grid grid-cols-[auto_1fr] md:grid-cols-[auto_72px_1fr_auto] gap-x-4 gap-y-1 items-start border-l-[3px] md:border-l-2`}
+                  className={`panel p-3 grid grid-cols-[auto_1fr] md:grid-cols-[auto_72px_1fr_auto] gap-x-4 gap-y-1 items-start border-l-[3px] md:border-l-2`}
                   style={{ borderLeftColor: team.color, borderLeftStyle: "solid" }}
                 >
                   {/* Index */}
@@ -164,54 +275,48 @@ export default async function GamePage({
                   </div>
                   {/* Body */}
                   <div className="col-span-1 md:col-span-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <div className="flex items-baseline gap-2 flex-wrap mb-0.5">
                       <span
-                        className={`font-display text-[14px] tracking-[0.16em] ${
+                        className={`font-display text-[13px] tracking-[0.16em] ${
                           isGoal ? "text-goal" : "text-ice"
                         }`}
                       >
                         {isGoal ? "GOAL" : "PENALTY"}
                       </span>
-                      <span className="md:hidden eyebrow">
+                      <span className="md:hidden eyebrow text-[10px]">
                         {formatPeriod(e.period)} · {formatClock(e.clock_seconds)}
+                        <span style={{ color: team.color }}> · {team.name}</span>
                       </span>
                     </div>
                     {isGoal && e.scorer && (
-                      <>
-                        <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="inline-flex items-center min-h-11 font-medium hover:text-ice transition-colors">
-                            {e.scorer.first_name} {e.scorer.last_name}
-                          </Link>
-                        </div>
-                        <div className="md:hidden eyebrow text-[10px] mt-0.5" style={{ color: team.color }}>
-                          {team.name}
-                        </div>
+                      <div className="text-[15px]">
+                        <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
+                          {e.scorer.first_name} {e.scorer.last_name}
+                        </Link>
                         {(e.assist1 || e.assist2) && (
-                          <div className="text-[13px] text-ink-dim mt-0.5">
-                            <span className="eyebrow text-[10px] mr-2">A</span>
+                          <span className="text-[13px] text-ink-dim">
+                            {" · "}
+                            <span className="eyebrow text-[9px]">A</span>{" "}
                             {[e.assist1, e.assist2]
                               .filter(Boolean)
                               .map((a) => `${a!.first_name} ${a!.last_name}`)
                               .join(", ")}
-                          </div>
+                          </span>
                         )}
-                      </>
+                      </div>
                     )}
                     {!isGoal && e.scorer && (
                       <>
                         <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="inline-flex items-center min-h-11 font-medium hover:text-ice transition-colors">
+                          <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                           <span className="text-ink-dim"> · {e.penalty_type}</span>
                         </div>
-                        <div className="md:hidden eyebrow text-[10px] mt-0.5" style={{ color: team.color }}>
-                          {team.name}
-                        </div>
                         {e.shooter && (
                           <div className="mt-2 text-[13px] flex items-center gap-2 flex-wrap">
                             <span className="eyebrow text-[10px]">PS</span>
-                            <Link href={`/players/${e.shooter.id}`} className="inline-flex items-center min-h-11 hover:text-ink-dim transition-colors text-ink-dim">
+                            <Link href={`/players/${e.shooter.id}`} className="hover:text-ink transition-colors text-ink-dim">
                               {e.shooter.first_name} {e.shooter.last_name}
                             </Link>
                             <span
@@ -245,6 +350,57 @@ export default async function GamePage({
   );
 }
 
+function TeamAvailabilityCard({ team, avail }: { team: TeamRef; avail: TeamAvail }) {
+  return (
+    <div
+      className="panel p-4 space-y-3"
+      style={{ borderLeftColor: team.color, borderLeftWidth: 3, borderLeftStyle: "solid" }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <TeamBadge name={team.name} slug={team.slug} color={team.color} size="sm" />
+        <span className="eyebrow text-ink-faint">
+          {avail.in.length} in · {avail.out.length} out
+        </span>
+      </div>
+      <AvailGroup label="In" color="text-goal" players={avail.in} />
+      <AvailGroup label="Out" color="text-ice" players={avail.out} />
+      <AvailGroup label="No response" color="text-ink-faint" players={avail.none} />
+      {avail.in.length + avail.out.length + avail.none.length === 0 && (
+        <p className="text-ink-faint text-[13px]">No roster set for this season.</p>
+      )}
+    </div>
+  );
+}
+
+function AvailGroup({
+  label,
+  color,
+  players,
+}: {
+  label: string;
+  color: string;
+  players: AvailPlayer[];
+}) {
+  if (players.length === 0) return null;
+  return (
+    <div>
+      <div className={`eyebrow ${color}`}>
+        {label} · {players.length}
+      </div>
+      <ul className="mt-1 space-y-0.5">
+        {players.map((p) => (
+          <li key={p.id} className="text-[14px] text-ink-dim">
+            <Link href={`/players/${p.id}`} className="hover:text-ink transition-colors">
+              {p.name}
+              {p.jersey != null ? ` · #${p.jersey}` : ""}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function TeamColumn({
   team,
   score,
@@ -272,7 +428,7 @@ function TeamColumn({
           {align === "left" ? "Away" : "Home"}
         </div>
         <div
-          className={`mt-2 font-display text-[24px] sm:text-[28px] md:text-[44px] leading-[0.95] tracking-[0.04em] ${
+          className={`mt-2 font-display text-[22px] sm:text-[26px] md:text-[34px] leading-[0.95] tracking-[0.04em] ${
             dimmed ? "text-ink-dim" : "text-ink"
           } group-hover:text-ice transition-colors`}
         >
@@ -284,7 +440,7 @@ function TeamColumn({
         />
       </Link>
       <div
-        className={`digit text-[72px] md:text-[140px] leading-none md:mt-3 shrink-0 ${
+        className={`digit text-[40px] md:text-[64px] leading-none md:mt-2 shrink-0 ${
           won ? "text-ink" : dimmed ? "text-ink-faint" : "text-ink"
         }`}
         style={won ? { textShadow: `0 0 24px ${team.color}66` } : undefined}

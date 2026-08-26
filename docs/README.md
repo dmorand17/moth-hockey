@@ -5,6 +5,7 @@
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — stack, directory layout, rendering/data flow, Supabase client split, auth & roles.
 - [DATABASE.md](./DATABASE.md) — schema from the migrations: enums, tables, RLS, helper functions, triggers.
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — dev workflow: bun commands, the Supabase migrations loop, conventions.
+- [SUPABASE.md](./SUPABASE.md) — Supabase command reference: local stack, migrations, linking to projects, pushing to cloud.
 - [LOCAL-TESTING.md](./LOCAL-TESTING.md) — run locally and sign in as the seeded test users (magic link via Mailpit).
 - [OPERATIONS.md](./OPERATIONS.md) — recurring ops runbook: refresh staging seed data (keep users), load a single season.
 

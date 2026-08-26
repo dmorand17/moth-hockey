@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import { GameRow } from "@/components/GameRow";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -41,25 +40,9 @@ export default async function Home() {
 
       {/* SEASON HEADER + LEADERS */}
       <section className="rise space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="eyebrow flex items-center gap-3">
-            <span className="inline-block w-8 h-px bg-goal" />
-            <span>{season.name} · Season in progress</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/standings"
-              className="inline-flex items-center min-h-[44px] px-4 bg-goal text-board font-display tracking-[0.14em] text-[13px] hover:bg-goal-glow transition-colors"
-            >
-              STANDINGS →
-            </Link>
-            <Link
-              href="/schedule"
-              className="inline-flex items-center min-h-[44px] px-4 border border-rule-strong text-ink font-display tracking-[0.14em] text-[13px] hover:bg-board-3 transition-colors"
-            >
-              SCHEDULE
-            </Link>
-          </div>
+        <div className="eyebrow flex items-center gap-3">
+          <span className="inline-block w-8 h-px bg-goal" />
+          <span>{season.name} · Season in progress</span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">

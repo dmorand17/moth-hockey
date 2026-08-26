@@ -200,12 +200,16 @@ async function LiveView({ game }: { game: GameRow }) {
     team_id: e.team_id,
     period: e.period,
     clock_seconds: e.clock_seconds,
+    scorer_id: e.scorer?.id ?? null,
     scorer_name: e.scorer ? `${e.scorer.first_name} ${e.scorer.last_name}` : null,
+    assist1_id: e.assist1?.id ?? null,
     assist1_name: e.assist1 ? `${e.assist1.first_name} ${e.assist1.last_name}` : null,
+    assist2_id: e.assist2?.id ?? null,
     assist2_name: e.assist2 ? `${e.assist2.first_name} ${e.assist2.last_name}` : null,
     penalty_type: e.penalty_type,
     penalty_type_other: e.penalty_type_other,
     penalty_shot_result: e.penalty_shot_result,
+    shooter_id: e.shooter?.id ?? null,
     shooter_name: e.shooter ? `${e.shooter.first_name} ${e.shooter.last_name}` : null,
   }));
 

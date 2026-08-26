@@ -142,7 +142,7 @@ export default async function Home() {
 
       {/* RECENT RESULTS */}
       <section className="rise delay-3">
-        <SectionHeader eyebrow="03" title="Last on the ice" />
+        <SectionHeader eyebrow="03" title="Recent Results" />
         {recent.length === 0 ? (
           <p className="eyebrow">No results yet — first puck drops soon.</p>
         ) : (

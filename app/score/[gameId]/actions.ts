@@ -597,3 +597,110 @@ export async function undoEvent(input: {
   revalidatePath(`/games/${input.gameId}`);
   return { ok: true };
 }
+
+export type EditPayload =
+  | {
+      type: "goal";
+      scorerId: string;
+      assist1Id: string | null;
+      assist2Id: string | null;
+      period: number;
+      clockSeconds: number;
+    }
+  | {
+      type: "penalty";
+      offenderId: string;
+      penaltyType: PenaltyType;
+      penaltyTypeOther: string | null;
+      shotTakerId: string;
+      shotResult: "goal" | "saved";
+      period: number;
+      clockSeconds: number;
+    };
+
+// Edit an existing goal/penalty event in place (live only). Goal edits are
+// stats-only. A penalty edit only changes the score when its shot result flips
+// goal<->saved; the scoring (shooting) team is the side opposite the committing
+// team (ev.team_id), which is never editable.
+export async function editEvent(
+  input: { gameId: string; eventId: string } & EditPayload,
+): Promise<ActionResult> {
+  const guard = await ensureLiveAccess(input.gameId);
+  if (!guard.ok) return guard;
+  const { supabase, game } = guard;
+
+  const { data: ev, error: fetchErr } = await supabase
+    .from("game_events")
+    .select("id, type, team_id, penalty_shot_result")
+    .eq("id", input.eventId)
+    .eq("game_id", input.gameId)
+    .single();
+  if (fetchErr || !ev) return { ok: false, error: fetchErr?.message ?? "Event not found." };
+  if (ev.type !== input.type) {
+    return { ok: false, error: "Event type can't be changed." };
+  }
+
+  // Clamp to the current period — an event can't belong to a period the game
+  // hasn't reached (mirrors the client picker's 1..current bound).
+  const period = Math.max(1, Math.min(game.period, Math.floor(input.period)));
+  const clock = Math.max(0, Math.min(60 * 99, Math.floor(input.clockSeconds)));
+
+  if (input.type === "goal") {
+    if (!input.scorerId) return { ok: false, error: "Scorer required." };
+    const { error: updErr } = await supabase
+      .from("game_events")
+      .update({
+        period,
+        clock_seconds: clock,
+        player_id: input.scorerId,
+        assist1_player_id: input.assist1Id ?? null,
+        assist2_player_id: input.assist2Id ?? null,
+      })
+      .eq("id", input.eventId);
+    if (updErr) return { ok: false, error: updErr.message };
+  } else {
+    if (!input.offenderId) return { ok: false, error: "Offender required." };
+    if (!PENALTY_TYPES.includes(input.penaltyType)) {
+      return { ok: false, error: "Invalid penalty type." };
+    }
+    if (input.penaltyType === "other" && !input.penaltyTypeOther?.trim()) {
+      return { ok: false, error: "Describe the penalty in the notes." };
+    }
+    if (!input.shotTakerId) return { ok: false, error: "Shot taker required." };
+
+    const oldWasGoal = ev.penalty_shot_result === "goal";
+    const newIsGoal = input.shotResult === "goal";
+
+    const { error: updErr } = await supabase
+      .from("game_events")
+      .update({
+        period,
+        clock_seconds: clock,
+        player_id: input.offenderId,
+        penalty_type: input.penaltyType,
+        penalty_type_other:
+          input.penaltyType === "other" ? (input.penaltyTypeOther ?? "").trim() : null,
+        penalty_shot_result: input.shotResult,
+        penalty_shot_taker_id: input.shotTakerId,
+      })
+      .eq("id", input.eventId);
+    if (updErr) return { ok: false, error: updErr.message };
+
+    if (oldWasGoal !== newIsGoal) {
+      // Shooting team = opposite of committing team (ev.team_id).
+      const shootingTeamIsHome = ev.team_id !== game.home_team_id;
+      const cur = shootingTeamIsHome ? game.home_score : game.away_score;
+      const next = Math.max(0, cur + (newIsGoal ? 1 : -1));
+      const update = shootingTeamIsHome ? { home_score: next } : { away_score: next };
+      const { error: scoreErr } = await supabase
+        .from("games")
+        .update(update)
+        .eq("id", input.gameId);
+      if (scoreErr) return { ok: false, error: scoreErr.message };
+    }
+  }
+
+  revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
+  return { ok: true };
+}

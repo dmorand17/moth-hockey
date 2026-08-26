@@ -27,12 +27,16 @@ type EventRow = {
   team_id: string;
   period: number;
   clock_seconds: number;
+  scorer_id: string | null;
   scorer_name: string | null;
+  assist1_id: string | null;
   assist1_name: string | null;
+  assist2_id: string | null;
   assist2_name: string | null;
   penalty_type: string | null;
   penalty_type_other: string | null;
   penalty_shot_result: "goal" | "saved" | null;
+  shooter_id: string | null;
   shooter_name: string | null;
 };
 

@@ -312,7 +312,8 @@ export async function linkUserToPlayer(formData: FormData) {
 // "Last, First"; otherwise "First Last..." (first token = first name, the
 // rest = last name). Lines that don't yield both a first and last name are
 // counted as invalid, not imported.
-export function parsePlayerNames(text: string): {
+// Not exported: a "use server" module may only export async server actions.
+function parsePlayerNames(text: string): {
   valid: { first: string; last: string }[];
   invalidCount: number;
 } {

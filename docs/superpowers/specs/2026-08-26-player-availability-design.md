@@ -35,14 +35,17 @@ create policy "players manage own availability" on game_availability for all
   using (player_id in (select id from public.players where user_id = auth.uid()))
   with check (player_id in (select id from public.players where user_id = auth.uid()));
 
--- Captains + admins may read all availability (Increment 2's per-game list).
-create policy "captains and admins read availability" on game_availability for select
-  using (public.is_team_captain_or_admin());
+-- Availability is public-readable (matches the app's open-read posture). This
+-- avoids depending on a captains role that isn't set up yet; Increment 2 gates
+-- WHO sees the per-game list in the UI, not the row-level read.
+create policy "public read availability" on game_availability for select
+  using (true);
 ```
 
 Notes:
 - No row for a (game, player) = "no response". Statuses are only `in`/`out`.
-- `is_team_captain_or_admin()` exists (migration 0004).
+- Read is open (consistent with the rest of the schema — see DATABASE.md); only
+  writes are gated (to the row's own linked player).
 - Creating a new enum type and using it in the same migration is fine (unlike
   *adding a value* to an existing enum — the gotcha in DEVELOPMENT.md).
 - Grants: migrations add none; cloud relies on Supabase default privileges, as

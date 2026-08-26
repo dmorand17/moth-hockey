@@ -275,38 +275,35 @@ export default async function GamePage({
                   </div>
                   {/* Body */}
                   <div className="col-span-1 md:col-span-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <div className="flex items-baseline gap-2 flex-wrap mb-0.5">
                       <span
-                        className={`font-display text-[14px] tracking-[0.16em] ${
+                        className={`font-display text-[13px] tracking-[0.16em] ${
                           isGoal ? "text-goal" : "text-ice"
                         }`}
                       >
                         {isGoal ? "GOAL" : "PENALTY"}
                       </span>
-                      <span className="md:hidden eyebrow">
+                      <span className="md:hidden eyebrow text-[10px]">
                         {formatPeriod(e.period)} · {formatClock(e.clock_seconds)}
+                        <span style={{ color: team.color }}> · {team.name}</span>
                       </span>
                     </div>
                     {isGoal && e.scorer && (
-                      <>
-                        <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
-                            {e.scorer.first_name} {e.scorer.last_name}
-                          </Link>
-                        </div>
-                        <div className="md:hidden eyebrow text-[10px] mt-0.5" style={{ color: team.color }}>
-                          {team.name}
-                        </div>
+                      <div className="text-[15px]">
+                        <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
+                          {e.scorer.first_name} {e.scorer.last_name}
+                        </Link>
                         {(e.assist1 || e.assist2) && (
-                          <div className="text-[13px] text-ink-dim mt-0.5">
-                            <span className="eyebrow text-[10px] mr-2">A</span>
+                          <span className="text-[13px] text-ink-dim">
+                            {" · "}
+                            <span className="eyebrow text-[9px]">A</span>{" "}
                             {[e.assist1, e.assist2]
                               .filter(Boolean)
                               .map((a) => `${a!.first_name} ${a!.last_name}`)
                               .join(", ")}
-                          </div>
+                          </span>
                         )}
-                      </>
+                      </div>
                     )}
                     {!isGoal && e.scorer && (
                       <>
@@ -315,9 +312,6 @@ export default async function GamePage({
                             {e.scorer.first_name} {e.scorer.last_name}
                           </Link>
                           <span className="text-ink-dim"> · {e.penalty_type}</span>
-                        </div>
-                        <div className="md:hidden eyebrow text-[10px] mt-0.5" style={{ color: team.color }}>
-                          {team.name}
                         </div>
                         {e.shooter && (
                           <div className="mt-2 text-[13px] flex items-center gap-2 flex-wrap">

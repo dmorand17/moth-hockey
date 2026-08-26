@@ -14,7 +14,7 @@ locally, see [`LOCAL-TESTING.md`](./LOCAL-TESTING.md); for shipping, see
 
 ```bash
 bun install
-bun dev          # Next.js dev server → http://127.0.0.1:3000
+bun dev          # Next.js dev server → http://127.0.0.1:3001
 bun run build    # production build
 bun start        # serve the production build
 bun run lint     # ESLint (flat config, eslint.config.mjs)

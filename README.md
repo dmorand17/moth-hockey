@@ -92,10 +92,10 @@ Requires [bun](https://bun.sh) and the [Supabase CLI](https://supabase.com/docs/
 bun install
 bunx supabase start      # local Postgres + Auth + Mailpit
 bunx supabase db reset   # apply migrations + reseed the test users
-bun dev                  # http://localhost:3000
+bun dev                  # http://localhost:3001
 ```
 
-Sign in with a magic link: open [`/login`](http://localhost:3000/login), enter one of the seeded
+Sign in with a magic link: open [`/login`](http://localhost:3001/login), enter one of the seeded
 emails below, then open Mailpit at [http://localhost:54324](http://localhost:54324) and click the link.
 `supabase db reset` recreates these accounts every time.
 

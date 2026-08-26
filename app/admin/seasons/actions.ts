@@ -57,7 +57,7 @@ export async function createSeason(formData: FormData) {
   );
   const copyFrom = String(formData.get("copy_from_season_id") ?? "").trim();
 
-  if (!seasonType || isNaN(year) || !name || !startDate || !endDate) {
+  if (!seasonType || isNaN(year) || !name || !startDate) {
     back("error=invalid_input");
   }
 
@@ -69,7 +69,7 @@ export async function createSeason(formData: FormData) {
       year,
       name,
       start_date: startDate,
-      end_date: endDate,
+      end_date: endDate || null,
       period_length_minutes: periodLength,
       is_current: false,
     })
@@ -103,6 +103,25 @@ export async function createSeason(formData: FormData) {
 
   revalidatePath("/admin/seasons");
   redirect("/admin/seasons?saved=created");
+}
+
+export async function updateSeasonDates(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const id = String(formData.get("id") ?? "").trim();
+  const startDate = String(formData.get("start_date") ?? "").trim();
+  const endDate = String(formData.get("end_date") ?? "").trim();
+  if (!id || !startDate) back("error=invalid_input");
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("seasons")
+    .update({ start_date: startDate, end_date: endDate || null })
+    .eq("id", id);
+  if (error) back(`error=${encodeURIComponent(error.message)}`);
+
+  revalidatePublicSeasonPaths();
+  redirect("/admin/seasons?saved=dates");
 }
 
 export async function activateSeason(formData: FormData) {

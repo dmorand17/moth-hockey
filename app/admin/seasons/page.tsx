@@ -8,6 +8,7 @@ import {
   deleteSeason,
   generateSchedule,
   seedPlayoffs,
+  updateSeasonDates,
 } from "./actions";
 
 type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
@@ -31,7 +32,7 @@ type SeasonRow = {
   year: number;
   name: string;
   start_date: string;
-  end_date: string;
+  end_date: string | null;
   is_current: boolean;
   period_length_minutes: number;
 };
@@ -110,13 +111,15 @@ export default async function AdminSeasonsPage({
       ? `Generated ${params.n ?? "?"} games.`
       : params.saved === "seeded"
         ? `Bracket seeded — ${params.n ?? "0"} round(s) updated.`
-        : params.saved === "created"
-          ? "Season created."
-          : params.saved === "activated"
-            ? "Season activated."
-            : params.saved === "deleted"
-              ? "Season deleted."
-              : null;
+        : params.saved === "dates"
+          ? "Dates updated."
+          : params.saved === "created"
+            ? "Season created."
+            : params.saved === "activated"
+              ? "Season activated."
+              : params.saved === "deleted"
+                ? "Season deleted."
+                : null;
   const error = params.error
     ? (ERROR_MESSAGES[params.error] ?? params.error)
     : null;
@@ -190,11 +193,10 @@ export default async function AdminSeasonsPage({
               />
             </label>
             <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-              <span className="eyebrow">End date</span>
+              <span className="eyebrow">End date (optional)</span>
               <input
                 type="date"
                 name="end_date"
-                required
                 className={`mt-1 ${inputCls}`}
               />
             </label>
@@ -300,7 +302,9 @@ export default async function AdminSeasonsPage({
                       {season.start_date}
                     </dd>
                     <dt className="eyebrow">End</dt>
-                    <dd className="font-mono text-ink-dim">{season.end_date}</dd>
+                    <dd className="font-mono text-ink-dim">
+                      {season.end_date ?? "—"}
+                    </dd>
                     <dt className="eyebrow">Period</dt>
                     <dd className="font-mono text-ink-dim">
                       {season.period_length_minutes} min
@@ -310,6 +314,47 @@ export default async function AdminSeasonsPage({
                       {finalCount} of {gameTotal}
                     </dd>
                   </dl>
+
+                  {/* Edit dates */}
+                  <form
+                    action={updateSeasonDates}
+                    className="border-t border-rule/50 pt-3 space-y-3"
+                  >
+                    <input type="hidden" name="id" value={season.id} />
+                    <div className="flex flex-wrap gap-3">
+                      <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
+                        <span className="eyebrow">Start date</span>
+                        <input
+                          type="date"
+                          name="start_date"
+                          required
+                          defaultValue={season.start_date}
+                          className={`mt-1 ${inputCls}`}
+                        />
+                      </label>
+                      <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
+                        <span className="eyebrow">End date (optional)</span>
+                        <input
+                          type="date"
+                          name="end_date"
+                          defaultValue={season.end_date ?? ""}
+                          className={`mt-1 ${inputCls}`}
+                        />
+                      </label>
+                    </div>
+                    <button
+                      type="submit"
+                      className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+                    >
+                      SAVE DATES
+                    </button>
+                    {gameTotal > 0 && (
+                      <p className="text-ink-faint text-[11px]">
+                        Editing dates here does not move the {gameTotal} existing
+                        games — regenerate the schedule to reschedule them.
+                      </p>
+                    )}
+                  </form>
 
                   {/* Activate */}
                   {!season.is_current && (

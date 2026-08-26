@@ -307,3 +307,79 @@ export async function linkUserToPlayer(formData: FormData) {
   revalidatePath("/admin/players");
   redirect("/admin/players?saved=link");
 }
+
+// Parse pasted player names, one per line. A line containing a comma is
+// "Last, First"; otherwise "First Last..." (first token = first name, the
+// rest = last name). Lines that don't yield both a first and last name are
+// counted as invalid, not imported.
+export function parsePlayerNames(text: string): {
+  valid: { first: string; last: string }[];
+  invalidCount: number;
+} {
+  const valid: { first: string; last: string }[] = [];
+  let invalidCount = 0;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue; // skip blank lines
+    let first = "";
+    let last = "";
+    if (line.includes(",")) {
+      const idx = line.indexOf(",");
+      last = line.slice(0, idx).trim();
+      first = line.slice(idx + 1).trim();
+    } else {
+      const m = line.match(/^(\S+)\s+(.+)$/);
+      if (m) {
+        first = m[1].trim();
+        last = m[2].trim();
+      }
+    }
+    if (first && last) valid.push({ first, last });
+    else invalidCount++;
+  }
+  return { valid, invalidCount };
+}
+
+// Bulk-create players from pasted names. Skips names that already exist
+// (case-insensitive first+last) and repeats within the paste. Redirects back
+// with a summary (added / duplicates skipped / invalid lines).
+export async function importPlayers(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const { valid, invalidCount } = parsePlayerNames(
+    String(formData.get("names") ?? ""),
+  );
+  if (valid.length === 0 && invalidCount === 0) back("error=invalid_input");
+
+  const supabase = await createSupabaseServerClient();
+  const { data: existing, error: fetchErr } = await supabase
+    .from("players")
+    .select("first_name, last_name");
+  if (fetchErr) back(`error=${encodeURIComponent(fetchErr.message)}`);
+
+  const key = (f: string, l: string) => `${f.toLowerCase()} ${l.toLowerCase()}`;
+  const seen = new Set<string>();
+  for (const p of existing ?? []) seen.add(key(p.first_name, p.last_name));
+
+  const rows: { first_name: string; last_name: string }[] = [];
+  let dup = 0;
+  for (const { first, last } of valid) {
+    const k = key(first, last);
+    if (seen.has(k)) {
+      dup++;
+      continue;
+    }
+    seen.add(k);
+    rows.push({ first_name: first, last_name: last });
+  }
+
+  if (rows.length > 0) {
+    const { error: insErr } = await supabase.from("players").insert(rows);
+    if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
+  }
+
+  revalidatePath("/admin/players");
+  redirect(
+    `/admin/players?saved=imported&added=${rows.length}&dup=${dup}&bad=${invalidCount}`,
+  );
+}

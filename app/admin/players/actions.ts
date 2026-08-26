@@ -349,15 +349,19 @@ export async function importPlayers(formData: FormData) {
   const { valid, invalidCount } = parsePlayerNames(
     String(formData.get("names") ?? ""),
   );
-  if (valid.length === 0 && invalidCount === 0) back("error=invalid_input");
+  if (valid.length === 0) back("error=invalid_input");
 
   const supabase = await createSupabaseServerClient();
+  // High limit so dedup sees the whole pool (PostgREST defaults to 1000 rows).
   const { data: existing, error: fetchErr } = await supabase
     .from("players")
-    .select("first_name, last_name");
+    .select("first_name, last_name")
+    .limit(10000);
   if (fetchErr) back(`error=${encodeURIComponent(fetchErr.message)}`);
 
-  const key = (f: string, l: string) => `${f.toLowerCase()} ${l.toLowerCase()}`;
+  // NUL separator so a multi-word first name can't collide with another split.
+  const key = (f: string, l: string) =>
+    `${f.toLowerCase()}\u0000${l.toLowerCase()}`;
   const seen = new Set<string>();
   for (const p of existing ?? []) seen.add(key(p.first_name, p.last_name));
 

@@ -157,7 +157,9 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
           className="group border-t border-rule pt-4"
         >
           <summary className="flex items-center justify-between gap-3 cursor-pointer list-none select-none">
-            <span className="eyebrow text-ice">Edit profile</span>
+            <span className="font-display text-[15px] tracking-[0.12em] text-ice">
+              EDIT PROFILE
+            </span>
             <span
               aria-hidden
               className="eyebrow text-ice text-[10px] transition-transform group-open:rotate-90"

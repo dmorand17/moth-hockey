@@ -112,10 +112,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
     <div className="mx-auto max-w-md rise">
       <header className="mb-6">
         <h1 className="font-display text-3xl tracking-[0.06em] text-ink">ACCOUNT</h1>
-        <p className="eyebrow mt-2">Your profile + contact info</p>
+        <p className="eyebrow mt-2">Your Profile</p>
       </header>
 
-      <section className="panel p-5 space-y-4">
+      <section
+        className="panel p-5 space-y-4"
+        style={{ borderLeftWidth: 3, borderLeftColor: "var(--ice)" }}
+      >
         <div>
           <div className="eyebrow">Email</div>
           <div className="font-mono text-ink mt-1">{profile?.email ?? userData.user.email}</div>
@@ -137,7 +140,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
                 href={`/players/${linkedPlayer.id}`}
                 className="eyebrow text-ice hover:text-ink shrink-0"
               >
-                View your profile →
+                View your player page →
               </Link>
             </div>
           ) : (
@@ -148,12 +151,69 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
             </div>
           )}
         </div>
+
+        <details
+          open={saved || !!error}
+          className="group border-t border-rule pt-4"
+        >
+          <summary className="flex items-center justify-between gap-3 cursor-pointer list-none select-none">
+            <span className="eyebrow text-ice">Edit profile</span>
+            <span
+              aria-hidden
+              className="eyebrow text-ice text-[10px] transition-transform group-open:rotate-90"
+            >
+              ▶
+            </span>
+          </summary>
+          <form action={updateProfile} className="space-y-4 mt-4" noValidate>
+            {saved && (
+              <p role="status" className="text-ice text-sm">
+                Saved.
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="text-goal text-sm">
+                {error}
+              </p>
+            )}
+            <label className="block">
+              <span className="eyebrow">Full name</span>
+              <input
+                type="text"
+                name="full_name"
+                defaultValue={profile?.full_name ?? ""}
+                autoComplete="name"
+                className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
+              />
+            </label>
+            <label className="block">
+              <span className="eyebrow">Phone</span>
+              <PhoneInput
+                name="phone"
+                defaultValue={profile?.phone ?? ""}
+                className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
+              />
+            </label>
+            <button
+              type="submit"
+              className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-display tracking-[0.14em] text-[15px] rounded transition-colors"
+            >
+              SAVE
+            </button>
+          </form>
+        </details>
       </section>
 
       {roster?.team && (
-        <section className="panel p-5 space-y-4 mt-5">
+        <section
+          className="panel p-5 space-y-4 mt-5"
+          style={{ borderLeftWidth: 3, borderLeftColor: roster.team!.color }}
+        >
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-xl tracking-[0.06em] text-ink">
+            <h2
+              className="font-display text-xl tracking-[0.06em]"
+              style={{ color: roster.team!.color }}
+            >
               YOUR NEXT GAME
             </h2>
             <span className="flex items-center gap-2 shrink-0">
@@ -198,47 +258,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
         </section>
       )}
 
-      <form action={updateProfile} className="panel p-5 space-y-4 mt-5" noValidate>
-        <h2 className="font-display text-xl tracking-[0.06em] text-ink">EDIT</h2>
-
-        {saved && (
-          <p role="status" className="text-ice text-sm">
-            Saved.
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="text-goal text-sm">
-            {error}
-          </p>
-        )}
-
-        <label className="block">
-          <span className="eyebrow">Full name</span>
-          <input
-            type="text"
-            name="full_name"
-            defaultValue={profile?.full_name ?? ""}
-            autoComplete="name"
-            className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
-          />
-        </label>
-
-        <label className="block">
-          <span className="eyebrow">Phone</span>
-          <PhoneInput
-            name="phone"
-            defaultValue={profile?.phone ?? ""}
-            className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
-          />
-        </label>
-
-        <button
-          type="submit"
-          className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-display tracking-[0.14em] text-[15px] rounded transition-colors"
-        >
-          SAVE
-        </button>
-      </form>
 
       <form action={signOut} className="mt-5">
         <button

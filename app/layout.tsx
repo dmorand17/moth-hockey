@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Inter, JetBrains_Mono } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { getAuthSession } from "@/lib/auth";
@@ -73,13 +74,14 @@ export default async function RootLayout({
           <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-goal via-rule-strong to-ice opacity-50" />
           <div className="mx-auto max-w-6xl px-4 sm:px-5 py-2.5 md:py-4 flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group tap min-w-0">
-              <div className="relative h-8 w-8 sm:h-10 sm:w-10 shrink-0">
-                <div className="absolute inset-0 rounded-sm bg-board-2 border border-rule-strong" />
-                <div className="absolute inset-1 rounded-[2px] bg-gradient-to-br from-goal to-goal-glow opacity-90" />
-                <div className="absolute inset-0 flex items-center justify-center font-display text-board text-[12px] sm:text-[15px] tracking-[0.05em]">
-                  M
-                </div>
-              </div>
+              <Image
+                src="/moth-logo.png"
+                alt="M.O.T.H Hockey League logo"
+                width={40}
+                height={40}
+                priority
+                className="h-9 w-9 sm:h-11 sm:w-11 shrink-0"
+              />
               <div className="leading-none min-w-0">
                 <div className="font-display text-[20px] sm:text-[26px] tracking-[0.06em] text-ink truncate">
                   M.O.T.H <span className="text-goal">HOCKEY</span>

@@ -152,6 +152,23 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
           )}
         </div>
 
+        {roster?.team && (
+          <div>
+            <div className="eyebrow">Current team</div>
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <TeamBadge
+                name={roster.team.name}
+                slug={roster.team.slug}
+                color={roster.team.color}
+                size="sm"
+              />
+              <span className="eyebrow text-ink-faint shrink-0">
+                #{roster.jersey_number ?? "—"} · {POSITION_LABELS[roster.position]}
+              </span>
+            </div>
+          </div>
+        )}
+
         <details
           open={saved || !!error}
           className="group border-t border-rule pt-4"
@@ -218,17 +235,14 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
             >
               YOUR NEXT GAME
             </h2>
-            <span className="flex items-center gap-2 shrink-0">
-              <TeamBadge
-                name={roster.team.name}
-                slug={roster.team.slug}
-                color={roster.team.color}
-                size="sm"
-              />
-              <span className="eyebrow text-ink-faint">
-                #{roster.jersey_number ?? "—"} · {POSITION_LABELS[roster.position]}
-              </span>
-            </span>
+            {nextGame && (
+              <Link
+                href={`/games/${nextGame.id}`}
+                className="eyebrow text-ice hover:text-ink shrink-0"
+              >
+                View game →
+              </Link>
+            )}
           </div>
 
           {nextGame ? (

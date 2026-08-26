@@ -27,7 +27,7 @@ export default function AboutPage() {
     <div className="space-y-5 sm:space-y-8">
       <div className="rise">
         <SectionHeader
-          eyebrow="The Beer League"
+          eyebrow="The MOTH League"
           title="About M.O.T.H"
           subtitle="Mostly Over The Hill — hockey for the rest of us."
           size="lg"

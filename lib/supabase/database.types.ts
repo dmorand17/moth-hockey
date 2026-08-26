@@ -470,7 +470,7 @@ export type Database = {
       seasons: {
         Row: {
           created_at: string
-          end_date: string
+          end_date: string | null
           id: string
           is_current: boolean
           name: string
@@ -481,7 +481,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          end_date: string
+          end_date?: string | null
           id?: string
           is_current?: boolean
           name: string
@@ -492,7 +492,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          end_date?: string
+          end_date?: string | null
           id?: string
           is_current?: boolean
           name?: string

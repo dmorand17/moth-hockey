@@ -55,6 +55,32 @@ export async function setAvailability(input: {
     .maybeSingle();
   if (!player) return { ok: false, error: "No player linked to your account." };
 
+  // Only allow availability for a game the player's team is actually in.
+  const { data: gameRow } = await supabase
+    .from("games")
+    .select("season_id, home_team_id, away_team_id")
+    .eq("id", gameId)
+    .maybeSingle();
+  if (!gameRow) return { ok: false, error: "Game not found." };
+
+  const teamIds = [gameRow.home_team_id, gameRow.away_team_id].filter(
+    (t): t is string => t != null,
+  );
+  if (teamIds.length === 0) {
+    return { ok: false, error: "This game has no teams set yet." };
+  }
+
+  const { data: rosterRow } = await supabase
+    .from("team_players")
+    .select("team_id")
+    .eq("player_id", player.id)
+    .eq("season_id", gameRow.season_id)
+    .in("team_id", teamIds)
+    .maybeSingle();
+  if (!rosterRow) {
+    return { ok: false, error: "You're not on a team in this game." };
+  }
+
   if (input.status === null) {
     const { error } = await supabase
       .from("game_availability")

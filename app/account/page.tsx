@@ -274,7 +274,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
         </section>
       )}
 
-
       <form action={signOut} className="mt-5">
         <button
           type="submit"

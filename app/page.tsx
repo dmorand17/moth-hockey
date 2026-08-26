@@ -29,12 +29,12 @@ export default async function Home() {
       {/* BRAND BANNER */}
       <div className="rise w-full rounded-lg overflow-hidden border border-rule">
         <Image
-          src="/moth-banner-dark.png"
+          src="/moth-banner-strip.png"
           alt="M.O.T.H Hockey League — Mostly Over the Hill"
           width={1200}
-          height={675}
+          height={432}
           priority
-          className="w-full h-[130px] sm:h-[170px] object-cover object-center"
+          className="w-full h-auto"
         />
       </div>
 

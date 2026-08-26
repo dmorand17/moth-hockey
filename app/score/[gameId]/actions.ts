@@ -640,7 +640,9 @@ export async function editEvent(
     return { ok: false, error: "Event type can't be changed." };
   }
 
-  const period = Math.max(1, Math.min(5, Math.floor(input.period)));
+  // Clamp to the current period — an event can't belong to a period the game
+  // hasn't reached (mirrors the client picker's 1..current bound).
+  const period = Math.max(1, Math.min(game.period, Math.floor(input.period)));
   const clock = Math.max(0, Math.min(60 * 99, Math.floor(input.clockSeconds)));
 
   if (input.type === "goal") {

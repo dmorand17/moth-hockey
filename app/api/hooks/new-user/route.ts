@@ -55,8 +55,10 @@ export async function POST(request: NextRequest) {
   });
 
   const name = record.full_name?.trim() || record.email;
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const playersUrl = `${site}/admin/players`;
+  // Derive the origin from the request rather than NEXT_PUBLIC_SITE_URL — that
+  // var isn't reliably set in the server runtime, and the webhook always POSTs
+  // to our own public deployment, so request origin is the correct host.
+  const playersUrl = new URL("/admin/players", request.nextUrl.origin).toString();
 
   try {
     await transporter.sendMail({

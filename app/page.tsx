@@ -81,8 +81,15 @@ export default async function Home() {
       </section>
 
       {/* UPCOMING */}
-      <section className="rise delay-1">
-        <SectionHeader eyebrow="01" title="Upcoming" linkHref="/schedule" linkLabel="All games" />
+      <section
+        className="rise delay-1 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
+        style={{
+          borderColor: "var(--ice)",
+          background:
+            "linear-gradient(90deg, color-mix(in srgb, var(--ice) 9%, transparent), transparent 34%)",
+        }}
+      >
+        <SectionHeader eyebrow="01" title="Upcoming" linkHref="/schedule" linkLabel="All games" accent="ice" />
         {upcoming.length === 0 ? (
           <p className="eyebrow">No games on the schedule</p>
         ) : (
@@ -104,8 +111,15 @@ export default async function Home() {
       </section>
 
       {/* RECENT RESULTS */}
-      <section className="rise delay-2">
-        <SectionHeader eyebrow="02" title="Recent Results" />
+      <section
+        className="rise delay-2 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
+        style={{
+          borderColor: "#fbbf24",
+          background:
+            "linear-gradient(90deg, color-mix(in srgb, #fbbf24 9%, transparent), transparent 34%)",
+        }}
+      >
+        <SectionHeader eyebrow="02" title="Recent Results" accent="gold" />
         {recent.length === 0 ? (
           <p className="eyebrow">No results yet — first puck drops soon.</p>
         ) : (
@@ -130,7 +144,14 @@ export default async function Home() {
       </section>
 
       {/* STANDINGS PREVIEW */}
-      <section className="rise delay-3">
+      <section
+        className="rise delay-3 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
+        style={{
+          borderColor: "var(--goal)",
+          background:
+            "linear-gradient(90deg, color-mix(in srgb, var(--goal) 9%, transparent), transparent 34%)",
+        }}
+      >
         <SectionHeader eyebrow="03" title="The Table" linkHref="/standings" linkLabel="Full standings" />
         <div className="panel overflow-hidden">
           <table className="board-table">

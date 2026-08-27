@@ -72,6 +72,13 @@ function arrow(active: boolean, dir: Direction) {
   return <span className="text-ice ml-1">{dir === "desc" ? "↓" : "↑"}</span>;
 }
 
+// Gold / silver / bronze for the top three rows — but only when the table is
+// sorted by a stat (a leaderboard), not alphabetically by name/team.
+const MEDAL = ["#fbbf24", "#c9d2de", "#cd7f52"];
+function medalColor(rankIdx: number, isLeaderboard: boolean): string | null {
+  return isLeaderboard && rankIdx < 3 ? MEDAL[rankIdx] : null;
+}
+
 export function SkaterTable({ rows }: { rows: Skater[] }) {
   const [sortKey, setSortKey] = useState<SkaterKey>("points");
   const [dir, setDir] = useState<Direction>("desc");
@@ -97,6 +104,8 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
     }
   };
 
+  const isLeaderboard = sortKey !== "name" && sortKey !== "team";
+
   return (
     <>
       {/* Mobile: stacked rows, sort via dropdown */}
@@ -114,13 +123,21 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
           {sorted.length === 0 ? (
             <div className="panel px-5 py-4 eyebrow">No stats yet</div>
           ) : (
-            (expanded ? sorted : sorted.slice(0, MOBILE_TOP_N)).map((s, i) => (
+            (expanded ? sorted : sorted.slice(0, MOBILE_TOP_N)).map((s, i) => {
+              const medal = medalColor(i, isLeaderboard);
+              return (
               <Link
                 key={s.id}
                 href={`/players/${s.id}`}
                 className="panel px-3 py-2 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
+                style={medal ? { borderColor: `${medal}66` } : undefined}
               >
-                <span className="digit text-ink-faint w-7 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                <span
+                  className={`digit w-7 shrink-0 ${medal ? "font-bold" : "text-ink-faint"}`}
+                  style={medal ? { color: medal } : undefined}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">{s.name}</span>
                   <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
@@ -137,7 +154,8 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
                     : (s[sortKey as keyof Skater] as number)}
                 </span>
               </Link>
-            ))
+              );
+            })
           )}
         </div>
         {sorted.length > MOBILE_TOP_N && (
@@ -153,7 +171,7 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
 
       {/* Desktop sortable table */}
       <div className="panel hidden sm:block overflow-x-auto">
-        <table className="board-table">
+        <table className="board-table stats-table">
           <thead>
             <tr>
               <th className="text-left pl-5 w-12">#</th>
@@ -177,9 +195,16 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
                 <td colSpan={skaterCols.length + 1} className="pl-5 py-6 eyebrow">No stats yet</td>
               </tr>
             ) : (
-              sorted.map((s, i) => (
+              sorted.map((s, i) => {
+                const medal = medalColor(i, isLeaderboard);
+                return (
                 <tr key={s.id}>
-                  <td className="pl-5 digit text-ink-faint">{String(i + 1).padStart(2, "0")}</td>
+                  <td
+                    className={`pl-5 digit ${medal ? "font-bold" : "text-ink-faint"}`}
+                    style={medal ? { color: medal } : undefined}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </td>
                   <td className="!p-0">
                     <Link
                       href={`/players/${s.id}`}
@@ -204,7 +229,8 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
                   <td className="text-right tnum text-ink-dim">{s.ps_taken}</td>
                   <td className="text-right pr-5 tnum text-ink-dim">{s.ps_made}</td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
@@ -237,6 +263,8 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
     }
   };
 
+  const isLeaderboard = sortKey !== "name" && sortKey !== "team";
+
   return (
     <>
       <div className="sm:hidden">
@@ -253,13 +281,21 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
           {sorted.length === 0 ? (
             <div className="panel px-5 py-4 eyebrow">No goalies on file</div>
           ) : (
-            sorted.map((g, i) => (
+            sorted.map((g, i) => {
+              const medal = medalColor(i, isLeaderboard);
+              return (
               <Link
                 key={g.id}
                 href={`/players/${g.id}`}
                 className="panel px-3 py-2 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
+                style={medal ? { borderColor: `${medal}66` } : undefined}
               >
-                <span className="digit text-ink-faint w-7 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                <span
+                  className={`digit w-7 shrink-0 ${medal ? "font-bold" : "text-ink-faint"}`}
+                  style={medal ? { color: medal } : undefined}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">{g.name}</span>
                   <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
@@ -272,13 +308,14 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
                   {(g[sortKey as keyof Goalie] as number) ?? 0}
                 </span>
               </Link>
-            ))
+              );
+            })
           )}
         </div>
       </div>
 
       <div className="panel hidden sm:block overflow-x-auto">
-        <table className="board-table">
+        <table className="board-table stats-table">
           <thead>
             <tr>
               <th className="text-left pl-5 w-12">#</th>
@@ -302,9 +339,16 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
                 <td colSpan={goalieCols.length + 1} className="pl-5 py-6 eyebrow">No goalies on file</td>
               </tr>
             ) : (
-              sorted.map((g, i) => (
+              sorted.map((g, i) => {
+                const medal = medalColor(i, isLeaderboard);
+                return (
                 <tr key={g.id}>
-                  <td className="pl-5 digit text-ink-faint">{String(i + 1).padStart(2, "0")}</td>
+                  <td
+                    className={`pl-5 digit ${medal ? "font-bold" : "text-ink-faint"}`}
+                    style={medal ? { color: medal } : undefined}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </td>
                   <td className="!p-0">
                     <Link
                       href={`/players/${g.id}`}
@@ -326,7 +370,8 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
                   <td className="text-right tnum text-ink-dim">{g.ps_faced}</td>
                   <td className="text-right pr-5 tnum digit text-lg text-ink">{g.ps_saved}</td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

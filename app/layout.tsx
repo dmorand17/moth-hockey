@@ -96,7 +96,10 @@ export default async function RootLayout({
       lang="en"
       className={`${bebas.variable} ${inter.variable} ${jetbrains.variable} antialiased`}
     >
-      <body className="min-h-screen flex flex-col">
+      {/* suppressHydrationWarning: browser extensions (e.g. ColorZilla's
+          cz-shortcut-listen) inject attributes on <body> before hydration,
+          causing a benign attribute mismatch. Scoped to this element only. */}
+      <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         <header className="sticky top-0 z-10 border-b border-rule-strong bg-board/80 backdrop-blur-md">
           <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-goal via-rule-strong to-ice opacity-50" />
           <div className="mx-auto max-w-6xl px-4 sm:px-5 py-2.5 md:py-4 flex items-center justify-between gap-4">

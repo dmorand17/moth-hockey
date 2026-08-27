@@ -185,7 +185,10 @@ export async function generateSchedule(formData: FormData) {
   const weekday = parseWeekday(String(formData.get("weekday") ?? ""));
   const rounds = parseInt0(String(formData.get("rounds") ?? "1"), 1);
   const location = String(formData.get("location") ?? "").trim() || null;
-  const times = formData.getAll("times").map((v) => String(v));
+  const times = formData
+    .getAll("times")
+    .map((v) => String(v).trim())
+    .filter((v) => v !== "");
   const withPlayoffs = String(formData.get("with_playoffs") ?? "") === "on";
 
   if (!seasonId || weekday === null || rounds < 1 || times.length === 0) {

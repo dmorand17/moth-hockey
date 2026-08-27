@@ -46,7 +46,11 @@ export async function addToRoster(formData: FormData) {
     jersey_number: jerseyNumber,
   });
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) {
+    // Unique (player_id, season_id) violation — already on a team this season.
+    if (error.code === "23505") back("error=already_rostered");
+    back(`error=${encodeURIComponent(error.message)}`);
+  }
 
   revalidatePath("/admin/teams");
   redirect("/admin/teams?saved=added");
@@ -108,7 +112,15 @@ export async function saveRosterChanges(input: {
         jersey_number: r.jersey_number,
       })),
     );
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      if (error.code === "23505") {
+        return {
+          ok: false,
+          error: "One or more of those players are already on another team this season.",
+        };
+      }
+      return { ok: false, error: error.message };
+    }
   }
 
   for (const u of input.toUpdate) {

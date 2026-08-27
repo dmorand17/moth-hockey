@@ -20,6 +20,7 @@ const FLASH_MESSAGES: Record<string, string> = {
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Name and slug are required.",
   invalid_color: "Color must be a hex value like #ef4444.",
+  already_rostered: "That player is already on a team this season.",
 };
 
 type RosterPlayer = {

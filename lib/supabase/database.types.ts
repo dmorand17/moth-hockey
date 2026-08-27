@@ -140,6 +140,42 @@ export type Database = {
           },
         ]
       }
+      game_availability: {
+        Row: {
+          game_id: string
+          player_id: string
+          status: Database["public"]["Enums"]["availability_status"]
+          updated_at: string
+        }
+        Insert: {
+          game_id: string
+          player_id: string
+          status: Database["public"]["Enums"]["availability_status"]
+          updated_at?: string
+        }
+        Update: {
+          game_id?: string
+          player_id?: string
+          status?: Database["public"]["Enums"]["availability_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_availability_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_availability_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_events: {
         Row: {
           assist1_player_id: string | null
@@ -470,7 +506,7 @@ export type Database = {
       seasons: {
         Row: {
           created_at: string
-          end_date: string
+          end_date: string | null
           id: string
           is_current: boolean
           name: string
@@ -481,7 +517,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          end_date: string
+          end_date?: string | null
           id?: string
           is_current?: boolean
           name: string
@@ -492,7 +528,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          end_date?: string
+          end_date?: string | null
           id?: string
           is_current?: boolean
           name?: string
@@ -683,6 +719,7 @@ export type Database = {
     }
     Enums: {
       account_request_status: "pending" | "approved" | "denied"
+      availability_status: "in" | "out"
       content_section: "rules" | "faq" | "league"
       game_decided_in: "regulation" | "ot" | "shootout"
       game_event_type: "goal" | "penalty"
@@ -824,6 +861,7 @@ export const Constants = {
   public: {
     Enums: {
       account_request_status: ["pending", "approved", "denied"],
+      availability_status: ["in", "out"],
       content_section: ["rules", "faq", "league"],
       game_decided_in: ["regulation", "ot", "shootout"],
       game_event_type: ["goal", "penalty"],

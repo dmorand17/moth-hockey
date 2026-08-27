@@ -18,7 +18,7 @@ bun install
 bun dev             # Next.js dev server
 ```
 
-Then open the app at **http://127.0.0.1:3000**. Use `127.0.0.1`, not `localhost` —
+Then open the app at **http://127.0.0.1:3001**. Use `127.0.0.1`, not `localhost` —
 the auth callback sets its cookie on the host you came in on, and mixing the two
 strands the session (see `app/auth/callback/route.ts`).
 
@@ -28,7 +28,7 @@ strands the session (see `app/auth/callback/route.ts`).
 
 | Service          | URL                                                      |
 | ---------------- | -------------------------------------------------------- |
-| App (Next.js)    | http://127.0.0.1:3000                                    |
+| App (Next.js)    | http://127.0.0.1:3001                                    |
 | Supabase API     | http://127.0.0.1:54321                                   |
 | Studio (DB UI)   | http://127.0.0.1:54323                                   |
 | Mailpit (emails) | http://127.0.0.1:54324                                   |
@@ -51,12 +51,22 @@ and the contact info on player profiles.
 
 ## Signing in
 
-1. Start the stack and open **http://127.0.0.1:3000/login**.
-2. Enter one of the emails above and submit. (The login form uses
-   `shouldCreateUser: false`, so only emails that already exist receive a link —
-   the seeded accounts qualify.)
-3. Open **Mailpit** at http://127.0.0.1:54324, open the newest email, and click
-   the magic link. It redirects back to the app, now signed in.
+Auth is passwordless — there is nothing to type but the email. The link arrives
+in **Mailpit**, the local mail catcher that intercepts every outgoing email, so
+no real mail is ever sent and you never need a real inbox.
+
+1. Start the stack and open **http://127.0.0.1:3001/login** (use `127.0.0.1`,
+   not `localhost` — see the note at the top).
+2. Enter one of the seeded emails above (e.g. `admin@moth.test`) and submit. The
+   form uses `shouldCreateUser: false`, so only emails that already exist get a
+   link — the seeded accounts qualify; a typo'd address silently gets nothing.
+3. Open **Mailpit** at http://127.0.0.1:54324. The newest message at the top is
+   your login email — open it and click **"Log In"** (the magic link).
+4. It redirects back to the app, now signed in as that user. To switch users,
+   sign out and repeat with a different seeded email.
+
+Links are single-use and expire, so always click the newest message. If a link
+seems dead, request a fresh one from `/login`.
 
 ## Resetting & reseeding data
 
@@ -87,7 +97,7 @@ The publishable/anon key is safe to expose. Never commit the secret/service-role
 ## Troubleshooting
 
 - **Magic link does nothing / logs me out** — make sure you opened the app at
-  `127.0.0.1:3000`, not `localhost:3000`. The two are different cookie hosts.
+  `127.0.0.1:3001`, not `localhost:3001`. The two are different cookie hosts.
 - **"link if it exists" but no email** — the address must already be a user.
   Use a seeded email, or have an admin create one under `/admin/users`.
 - **Test users disappeared** — they only live in `seed.sql`; re-run

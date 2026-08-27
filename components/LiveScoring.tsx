@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   adjustShootoutTally,
   advancePeriod,
+  editEvent,
   finalizeGame,
   recordGoal,
   recordPenalty,
   revertPeriod,
   setClock,
   undoEvent,
+  type EditPayload,
 } from "@/app/score/[gameId]/actions";
 import { PENALTY_TYPES, type PenaltyType } from "@/app/score/[gameId]/penalty-types";
 import { formatClock, formatPeriod } from "@/lib/format";
@@ -27,12 +29,16 @@ type EventRow = {
   team_id: string;
   period: number;
   clock_seconds: number;
+  scorer_id: string | null;
   scorer_name: string | null;
+  assist1_id: string | null;
   assist1_name: string | null;
+  assist2_id: string | null;
   assist2_name: string | null;
   penalty_type: string | null;
   penalty_type_other: string | null;
   penalty_shot_result: "goal" | "saved" | null;
+  shooter_id: string | null;
   shooter_name: string | null;
 };
 
@@ -66,6 +72,8 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     | { kind: "penalty"; teamId: string }
     | { kind: "advance" }
     | { kind: "finalize" }
+    | { kind: "eventMenu"; event: EventRow }
+    | { kind: "editEvent"; event: EventRow }
   >(null);
 
   // Local clock that ticks while running. Source of truth for display only;
@@ -178,7 +186,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   };
 
   const onUndoSpecific = (eventId: string) => {
-    if (!confirm("Undo this event? Score will be adjusted if needed.")) return;
+    if (!confirm("Delete this event? Score will be adjusted if needed.")) return;
     run(() => undoEvent({ gameId: game.id, eventId }));
   };
 
@@ -338,7 +346,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         events={events}
         homeTeam={game.homeTeam}
         awayTeam={game.awayTeam}
-        onUndo={onUndoSpecific}
+        onSelect={(event) => setSheet({ kind: "eventMenu", event })}
         disabled={pending}
       />
 
@@ -388,6 +396,47 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           onConfirm={() => {
             setSheet(null);
             run(() => finalizeGame({ gameId: game.id }));
+          }}
+        />
+      )}
+
+      {sheet?.kind === "eventMenu" && (
+        <Sheet
+          title={`${sheet.event.type === "goal" ? "Goal" : "Penalty"} · ${sheet.event.scorer_name ?? ""}`}
+          onCancel={() => setSheet(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setSheet({ kind: "editEvent", event: sheet.event })}
+            className="w-full min-h-[52px] font-display text-[16px] tracking-[0.12em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice"
+          >
+            EDIT
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const id = sheet.event.id;
+              setSheet(null);
+              onUndoSpecific(id);
+            }}
+            className="w-full min-h-[52px] font-display text-[16px] tracking-[0.12em] rounded-[2px] border bg-board-3 text-goal border-goal/40 hover:border-goal"
+          >
+            DELETE
+          </button>
+        </Sheet>
+      )}
+
+      {sheet?.kind === "editEvent" && (
+        <EditEventSheet
+          game={game}
+          event={sheet.event}
+          homeRoster={homeRoster}
+          awayRoster={awayRoster}
+          onCancel={() => setSheet(null)}
+          onSubmit={(payload) => {
+            const eventId = sheet.event.id;
+            setSheet(null);
+            run(() => editEvent({ gameId: game.id, eventId, ...payload }));
           }}
         />
       )}
@@ -621,13 +670,13 @@ function EventsList({
   events,
   homeTeam,
   awayTeam,
-  onUndo,
+  onSelect,
   disabled,
 }: {
   events: EventRow[];
   homeTeam: Team;
   awayTeam: Team;
-  onUndo: (id: string) => void;
+  onSelect: (event: EventRow) => void;
   disabled: boolean;
 }) {
   if (events.length === 0) {
@@ -635,7 +684,7 @@ function EventsList({
       <div className="border-t border-rule pt-3">
         <div className="flex items-center justify-between">
           <span className="eyebrow text-[10px] text-ink-faint">Events</span>
-          <span className="eyebrow text-[10px] text-ink-faint">tap to undo</span>
+          <span className="eyebrow text-[10px] text-ink-faint">tap to edit</span>
         </div>
         <p className="eyebrow text-[10px] text-ink-faint text-center py-4">
           No events yet
@@ -649,7 +698,7 @@ function EventsList({
         <span className="eyebrow text-[10px] text-ink-faint">
           Events · {events.length}
         </span>
-        <span className="eyebrow text-[10px] text-ink-faint">tap to undo</span>
+        <span className="eyebrow text-[10px] text-ink-faint">tap to edit</span>
       </div>
       <ol className="divide-y divide-rule">
         {events.map((e) => {
@@ -659,7 +708,7 @@ function EventsList({
             <li key={e.id}>
               <button
                 type="button"
-                onClick={() => onUndo(e.id)}
+                onClick={() => onSelect(e)}
                 disabled={disabled}
                 className="w-full py-2 px-2 flex items-start gap-3 text-left border-l-[3px] hover:bg-board-2 transition-colors disabled:opacity-50"
                 style={{ borderLeftColor: team.color }}
@@ -1162,6 +1211,330 @@ function FinalizeSheet({
         className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] bg-ice text-board border border-ice hover:opacity-90"
       >
         CONFIRM FINALIZE
+      </button>
+    </Sheet>
+  );
+}
+
+const CLOCK_RE = /^(\d{1,2}):([0-5]?\d)$/;
+
+function FieldRow({
+  label,
+  value,
+  onTap,
+}: {
+  label: string;
+  value: string;
+  onTap: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      className="w-full min-h-[48px] px-3 py-2 flex items-center gap-3 text-left rounded-[2px] border border-rule hover:border-rule-strong hover:text-ink"
+    >
+      <span className="eyebrow text-[10px] text-ink-faint w-20 shrink-0">{label}</span>
+      <span className="text-[14px] text-ink flex-1 truncate">{value}</span>
+      <span className="eyebrow text-[10px] text-ink-faint shrink-0" aria-hidden>▸</span>
+    </button>
+  );
+}
+
+function EditEventSheet({
+  game,
+  event,
+  homeRoster,
+  awayRoster,
+  onCancel,
+  onSubmit,
+}: {
+  game: Game;
+  event: EventRow;
+  homeRoster: RosterPlayer[];
+  awayRoster: RosterPlayer[];
+  onCancel: () => void;
+  onSubmit: (payload: EditPayload) => void;
+}) {
+  const isGoal = event.type === "goal";
+  const eventTeamRoster = event.team_id === game.homeTeam.id ? homeRoster : awayRoster;
+  const opposingRoster = event.team_id === game.homeTeam.id ? awayRoster : homeRoster;
+  const teamLabel = event.team_id === game.homeTeam.id ? game.homeTeam.name : game.awayTeam.name;
+
+  // Shared field state, seeded from the event.
+  const [scorerId, setScorerId] = useState<string | null>(event.scorer_id);
+  const [a1, setA1] = useState<string | null>(event.assist1_id);
+  const [a2, setA2] = useState<string | null>(event.assist2_id);
+  const [penaltyType, setPenaltyType] = useState<PenaltyType | null>(
+    (event.penalty_type as PenaltyType | null) ?? null,
+  );
+  const [otherText, setOtherText] = useState(event.penalty_type_other ?? "");
+  const [shotTakerId, setShotTakerId] = useState<string | null>(event.shooter_id);
+  const [shotResult, setShotResult] = useState<"goal" | "saved" | null>(
+    event.penalty_shot_result,
+  );
+  const [period, setPeriod] = useState<number>(event.period);
+  const [clock, setClock] = useState<number>(event.clock_seconds);
+
+  // Which field's picker is open; null = the field list.
+  const [field, setField] = useState<
+    null | "scorer" | "a1" | "a2" | "offender" | "type" | "shotTaker" | "period" | "time"
+  >(null);
+  const [clockText, setClockText] = useState(formatClock(event.clock_seconds));
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const nameOf = (roster: RosterPlayer[], id: string | null) =>
+    (id && roster.find((p) => p.id === id)?.name) || "—";
+
+  const canSave = isGoal
+    ? !!scorerId
+    : !!scorerId &&
+      !!penaltyType &&
+      (penaltyType !== "other" || otherText.trim().length > 0) &&
+      !!shotTakerId &&
+      !!shotResult;
+  // Note: for a penalty the offender is stored/edited via `scorerId`.
+
+  const commit = () => {
+    if (isGoal) {
+      onSubmit({
+        type: "goal",
+        scorerId: scorerId!,
+        assist1Id: a1,
+        assist2Id: a2,
+        period,
+        clockSeconds: clock,
+      });
+    } else {
+      onSubmit({
+        type: "penalty",
+        offenderId: scorerId!,
+        penaltyType: penaltyType!,
+        penaltyTypeOther: penaltyType === "other" ? otherText.trim() : null,
+        shotTakerId: shotTakerId!,
+        shotResult: shotResult!,
+        period,
+        clockSeconds: clock,
+      });
+    }
+  };
+
+  const title = `Edit ${isGoal ? "Goal" : "Penalty"} · ${teamLabel}`;
+
+  // Picker sub-views ---------------------------------------------------------
+  if (field === "scorer" || field === "offender") {
+    return (
+      <Sheet title={title} onCancel={onCancel}>
+        <StepBack onBack={() => setField(null)} label="Back" />
+        <p className="eyebrow text-[10px]">{isGoal ? "Scorer" : "Offender"}</p>
+        <PlayerGrid
+          roster={eventTeamRoster}
+          selectedId={scorerId}
+          onPick={(id) => {
+            setScorerId(id);
+            setField(null);
+          }}
+        />
+      </Sheet>
+    );
+  }
+  if (field === "a1" || field === "a2") {
+    const isA1 = field === "a1";
+    return (
+      <Sheet title={title} onCancel={onCancel}>
+        <StepBack onBack={() => setField(null)} label="Back" />
+        <p className="eyebrow text-[10px]">{isA1 ? "Assist 1" : "Assist 2"}</p>
+        <PlayerGrid
+          roster={eventTeamRoster.filter(
+            (p) => p.id !== scorerId && p.id !== (isA1 ? a2 : a1),
+          )}
+          selectedId={isA1 ? a1 : a2}
+          allowDeselect
+          onPick={(id) => {
+            const cur = isA1 ? a1 : a2;
+            const next = cur === id ? null : id;
+            if (isA1) setA1(next);
+            else setA2(next);
+            setField(null);
+          }}
+        />
+      </Sheet>
+    );
+  }
+  if (field === "shotTaker") {
+    return (
+      <Sheet title={title} onCancel={onCancel}>
+        <StepBack onBack={() => setField(null)} label="Back" />
+        <p className="eyebrow text-[10px]">Shot taker</p>
+        <PlayerGrid
+          roster={opposingRoster}
+          selectedId={shotTakerId}
+          onPick={(id) => {
+            setShotTakerId(id);
+            setField(null);
+          }}
+        />
+      </Sheet>
+    );
+  }
+  if (field === "type") {
+    return (
+      <Sheet title={title} onCancel={onCancel}>
+        <StepBack onBack={() => setField(null)} label="Back" />
+        <p className="eyebrow text-[10px]">Penalty</p>
+        <div className="grid grid-cols-2 gap-2">
+          {PENALTY_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => {
+                setPenaltyType(t);
+                setField(null);
+              }}
+              aria-pressed={penaltyType === t}
+              className={`min-h-[48px] eyebrow text-[11px] border rounded-[2px] ${
+                penaltyType === t
+                  ? "bg-board-3 border-ice text-ink"
+                  : "border-rule text-ink-dim hover:border-rule-strong hover:text-ink"
+              }`}
+            >
+              {prettyPenalty(t)}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    );
+  }
+  if (field === "period") {
+    return (
+      <Sheet title={title} onCancel={onCancel}>
+        <StepBack onBack={() => setField(null)} label="Back" />
+        <p className="eyebrow text-[10px]">Period</p>
+        <div className="grid grid-cols-3 gap-2">
+          {Array.from({ length: game.period }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => {
+                setPeriod(p);
+                setField(null);
+              }}
+              aria-pressed={period === p}
+              className={`min-h-[48px] font-display text-[13px] tracking-[0.12em] border rounded-[2px] ${
+                period === p
+                  ? "bg-board-3 border-ice text-ink"
+                  : "border-rule text-ink-dim hover:border-rule-strong hover:text-ink"
+              }`}
+            >
+              {formatPeriod(p)}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    );
+  }
+  if (field === "time") {
+    return (
+      <Sheet title={title} onCancel={onCancel}>
+        <StepBack onBack={() => setField(null)} label="Back" />
+        <p className="eyebrow text-[10px]">Time (MM:SS)</p>
+        <input
+          type="text"
+          autoFocus
+          inputMode="numeric"
+          value={clockText}
+          onChange={(e) => setClockText(e.target.value)}
+          className="w-full min-h-[44px] bg-board-2 border border-rule-strong rounded-[2px] px-2 text-[16px] text-ink tabular-nums"
+        />
+        {localError && <p className="text-goal text-[12px]">{localError}</p>}
+        <button
+          type="button"
+          onClick={() => {
+            const m = clockText.match(CLOCK_RE);
+            if (!m) {
+              setLocalError("Use MM:SS format, e.g. 14:30");
+              return;
+            }
+            const secs = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+            if (secs > 99 * 60) {
+              setLocalError("Clock must be between 0:00 and 99:00");
+              return;
+            }
+            setLocalError(null);
+            setClock(secs);
+            setField(null);
+          }}
+          className="w-full min-h-[48px] font-display text-[14px] tracking-[0.12em] rounded-[2px] bg-board-3 text-ink border border-rule-strong hover:border-ice"
+        >
+          Set time
+        </button>
+      </Sheet>
+    );
+  }
+
+  // Field list ---------------------------------------------------------------
+  return (
+    <Sheet title={title} onCancel={onCancel}>
+      <div className="space-y-1.5">
+        {isGoal ? (
+          <>
+            <FieldRow label="Scorer" value={nameOf(eventTeamRoster, scorerId)} onTap={() => setField("scorer")} />
+            <FieldRow label="Assist 1" value={nameOf(eventTeamRoster, a1)} onTap={() => setField("a1")} />
+            <FieldRow label="Assist 2" value={nameOf(eventTeamRoster, a2)} onTap={() => setField("a2")} />
+          </>
+        ) : (
+          <>
+            <FieldRow label="Offender" value={nameOf(eventTeamRoster, scorerId)} onTap={() => setField("offender")} />
+            <FieldRow
+              label="Penalty"
+              value={penaltyType ? (penaltyType === "other" ? otherText || "Other" : prettyPenalty(penaltyType)) : "—"}
+              onTap={() => setField("type")}
+            />
+            {penaltyType === "other" && (
+              <input
+                type="text"
+                placeholder="Describe penalty"
+                value={otherText}
+                onChange={(e) => setOtherText(e.target.value)}
+                className="w-full min-h-[44px] bg-board-2 border border-rule-strong rounded-[2px] px-2 text-[14px] text-ink placeholder:text-ink-faint"
+              />
+            )}
+            <FieldRow label="Shot taker" value={nameOf(opposingRoster, shotTakerId)} onTap={() => setField("shotTaker")} />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShotResult("goal")}
+                aria-pressed={shotResult === "goal"}
+                className={`min-h-[48px] font-display text-[14px] tracking-[0.14em] rounded-[2px] border ${
+                  shotResult === "goal" ? "bg-goal text-board border-goal" : "border-rule text-ink-dim"
+                }`}
+              >
+                GOAL
+              </button>
+              <button
+                type="button"
+                onClick={() => setShotResult("saved")}
+                aria-pressed={shotResult === "saved"}
+                className={`min-h-[48px] font-display text-[14px] tracking-[0.14em] rounded-[2px] border ${
+                  shotResult === "saved" ? "bg-ice text-board border-ice" : "border-rule text-ink-dim"
+                }`}
+              >
+                SAVED
+              </button>
+            </div>
+          </>
+        )}
+        <FieldRow label="Period" value={formatPeriod(period)} onTap={() => setField("period")} />
+        <FieldRow label="Time" value={formatClock(clock)} onTap={() => { setClockText(formatClock(clock)); setLocalError(null); setField("time"); }} />
+      </div>
+      <button
+        type="button"
+        disabled={!canSave}
+        onClick={commit}
+        className={`w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] border ${
+          canSave ? "bg-ice text-board border-ice" : "bg-board-3 text-ink-faint border-rule cursor-not-allowed"
+        }`}
+      >
+        SAVE CHANGES
       </button>
     </Sheet>
   );

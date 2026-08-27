@@ -234,3 +234,81 @@ export async function getRecentResults(seasonId: string, limit = 5): Promise<Res
   if (error) throw error;
   return (data ?? []) as unknown as ResultGame[];
 }
+
+export type ScoringLeader = {
+  player_id: string;
+  name: string;
+  goals: number;
+  assists: number;
+  points: number;
+  team: { name: string; slug: string; color: string } | null;
+};
+
+// Current-season scoring leaders, computed from goal events across the season's
+// games (a scorer gets +1 goal, each assister +1 assist; points = goals +
+// assists). Penalty-shot goals are tracked separately and excluded here.
+// Returns players with ≥1 point, sorted by points desc.
+export async function getScoringLeaders(seasonId: string): Promise<ScoringLeader[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: games } = await supabase
+    .from("games")
+    .select("id")
+    .eq("season_id", seasonId);
+  const gameIds = (games ?? []).map((g) => g.id);
+  if (gameIds.length === 0) return [];
+
+  const { data: events } = await supabase
+    .from("game_events")
+    .select(
+      "scorer:player_id(id, first_name, last_name), " +
+        "assist1:assist1_player_id(id, first_name, last_name), " +
+        "assist2:assist2_player_id(id, first_name, last_name)",
+    )
+    .in("game_id", gameIds)
+    .eq("type", "goal");
+
+  type Ref = { id: string; first_name: string; last_name: string } | null;
+  const acc = new Map<string, ScoringLeader>();
+  const bump = (p: Ref, g: number, a: number) => {
+    if (!p) return;
+    const cur =
+      acc.get(p.id) ??
+      { player_id: p.id, name: `${p.first_name} ${p.last_name}`, goals: 0, assists: 0, points: 0, team: null };
+    cur.goals += g;
+    cur.assists += a;
+    cur.points = cur.goals + cur.assists;
+    acc.set(p.id, cur);
+  };
+  for (const e of (events ?? []) as unknown as {
+    scorer: Ref;
+    assist1: Ref;
+    assist2: Ref;
+  }[]) {
+    bump(e.scorer, 1, 0);
+    bump(e.assist1, 0, 1);
+    bump(e.assist2, 0, 1);
+  }
+
+  // Attach each leader's team for this season (players link to teams via
+  // team_players). Done in one query rather than per-player.
+  const playerIds = [...acc.keys()];
+  if (playerIds.length > 0) {
+    const { data: rosters } = await supabase
+      .from("team_players")
+      .select("player_id, team:team_id(name, slug, color)")
+      .eq("season_id", seasonId)
+      .in("player_id", playerIds);
+    for (const r of (rosters ?? []) as unknown as {
+      player_id: string;
+      team: { name: string; slug: string; color: string } | null;
+    }[]) {
+      const cur = acc.get(r.player_id);
+      if (cur && r.team) cur.team = r.team;
+    }
+  }
+
+  return [...acc.values()].sort(
+    (a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name),
+  );
+}

@@ -3,6 +3,20 @@
 -- a mix of scheduled and completed games with realistic events
 -- (regulation, OT, and shootout coverage).
 
+-- ---------- local API grants ----------
+-- The bundled Supabase CLI bootstraps the `postgres` role's default privileges
+-- for the public schema WITHOUT select/insert/update/delete for anon/
+-- authenticated/service_role (only supabase_admin's defaults are correct).
+-- Tables here are owned by `postgres`, so without this the PostgREST layer hits
+-- "permission denied for table ..." and every page 500s. RLS still gates the
+-- actual rows. Local only — seed.sql never runs against prod.
+alter default privileges for role postgres in schema public
+  grant all on tables to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on sequences to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
+
 -- ---------- dev auth users ----------
 -- Deterministic local accounts recreated on every `supabase db reset`, so the
 -- same logins always work. Magic-link only: email is pre-confirmed and password

@@ -5,6 +5,7 @@ import { NoSeason } from "@/components/NoSeason";
 import { assignTeamCaptain, createTeam, updateTeam } from "./actions";
 import { ColorSwatches } from "./color-swatches";
 import { RosterEditor } from "./RosterEditor";
+import { PlayerCombobox } from "@/components/PlayerCombobox";
 
 type SearchParams = Promise<{ saved?: string; error?: string }>;
 
@@ -188,19 +189,19 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
                       <input type="hidden" name="team_id" value={team.id} />
                       <input type="hidden" name="season_id" value={season.id} />
                       <span className="eyebrow shrink-0">Captain</span>
-                      <select
-                        name="player_id"
-                        defaultValue={captainPlayerByTeam.get(team.id) ?? ""}
-                        disabled={players.length === 0}
-                        className="flex-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice disabled:opacity-50"
-                      >
-                        <option value="">— No captain —</option>
-                        {players.map((p) => (
-                          <option key={p.player_id} value={p.player_id}>
-                            {p.last_name}, {p.first_name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex-1">
+                        <PlayerCombobox
+                          name="player_id"
+                          defaultValue={captainPlayerByTeam.get(team.id) ?? ""}
+                          disabled={players.length === 0}
+                          allowClear
+                          placeholder={players.length === 0 ? "No players yet" : "— No captain —"}
+                          options={players.map((p) => ({
+                            value: p.player_id,
+                            label: `${p.last_name}, ${p.first_name}`,
+                          }))}
+                        />
+                      </div>
                       <button
                         type="submit"
                         disabled={players.length === 0}

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { createPlayer, importPlayers, updateUserRole, linkUserToPlayer } from "./actions";
+import { PlayerCombobox } from "@/components/PlayerCombobox";
 import {
   PlayerFilters,
   type PlayerRow,
@@ -300,21 +301,13 @@ export default async function AdminPlayersPage({
                       <input type="hidden" name="user_id" value={acct.user_id} />
                       <label className="block flex-1">
                         <span className="eyebrow">Link to player</span>
-                        <select
-                          name="player_id"
-                          defaultValue=""
-                          required
-                          className="mt-1 w-full bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
-                        >
-                          <option value="" disabled>
-                            — select player —
-                          </option>
-                          {unlinkedPlayers.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="mt-1">
+                          <PlayerCombobox
+                            name="player_id"
+                            placeholder="Search players…"
+                            options={unlinkedPlayers.map((p) => ({ value: p.id, label: p.name }))}
+                          />
+                        </div>
                       </label>
                       <button
                         type="submit"

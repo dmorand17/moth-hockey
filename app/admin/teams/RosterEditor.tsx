@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { PlayerCombobox } from "@/components/PlayerCombobox";
 import { saveRosterChanges } from "../rosters/actions";
 
 type Position = "forward" | "defense" | "goalie";
@@ -222,17 +223,17 @@ export function RosterEditor({
 
       {available.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 pt-1">
-          <select
-            value={addPlayerId}
-            onChange={(e) => setAddPlayerId(e.target.value)}
-            className="flex-1 min-w-[160px] bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
-          >
-            {available.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.last_name}, {p.first_name}
-              </option>
-            ))}
-          </select>
+          <div className="flex-1 min-w-[160px]">
+            <PlayerCombobox
+              options={available.map((p) => ({
+                value: p.id,
+                label: `${p.last_name}, ${p.first_name}`,
+              }))}
+              value={addPlayerId}
+              onChange={setAddPlayerId}
+              placeholder="Search players…"
+            />
+          </div>
           <select
             value={addPosition}
             onChange={(e) => setAddPosition(e.target.value)}

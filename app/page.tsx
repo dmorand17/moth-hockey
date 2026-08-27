@@ -73,6 +73,7 @@ export default async function Home() {
               <LeaderTile
                 label="Points leader"
                 name={pointsLeader.name}
+                team={pointsLeader.team}
                 stat={`${pointsLeader.points} PTS`}
                 sub={`${pointsLeader.goals}G · ${pointsLeader.assists}A`}
                 accent="ice"
@@ -84,6 +85,7 @@ export default async function Home() {
               <LeaderTile
                 label="Top scorer"
                 name={goalLeader.name}
+                team={goalLeader.team}
                 stat={`${goalLeader.goals} G`}
                 accent="goal"
               />
@@ -206,12 +208,14 @@ export default async function Home() {
 function LeaderTile({
   label,
   name,
+  team,
   stat,
   sub,
   accent,
 }: {
   label: string;
   name: string;
+  team?: { name: string; slug: string; color: string } | null;
   stat: string;
   sub?: string;
   accent: "ice" | "goal";
@@ -223,6 +227,18 @@ function LeaderTile({
         <div className="font-display text-[18px] sm:text-[22px] leading-none tracking-[0.04em] text-ink truncate">
           {name}
         </div>
+        {team && (
+          <div className="mt-1 flex items-center gap-1.5 min-w-0">
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-[1px]"
+              style={{ background: team.color }}
+            />
+            <span className="eyebrow text-ink-dim normal-case tracking-[0.06em] truncate">
+              {team.name}
+            </span>
+          </div>
+        )}
         <div className="mt-1.5 flex items-baseline gap-2">
           <span
             className={`digit text-xl sm:text-2xl ${accent === "goal" ? "text-goal" : "text-ice"}`}

@@ -27,7 +27,7 @@ export default async function Home() {
   return (
     <div className="space-y-6 sm:space-y-10">
       {/* BRAND BANNER */}
-      <div className="rise mx-auto w-full max-w-xl rounded-lg overflow-hidden border border-rule">
+      <div className="rise mx-auto w-full max-w-3xl rounded-lg overflow-hidden border border-rule">
         <Image
           src="/moth-banner-strip.png"
           alt="M.O.T.H Hockey League — Mostly Over the Hill"

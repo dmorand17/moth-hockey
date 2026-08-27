@@ -577,6 +577,7 @@ export type Database = {
       }
       team_players: {
         Row: {
+          is_captain: boolean
           jersey_number: number | null
           player_id: string
           position: Database["public"]["Enums"]["player_position"]
@@ -584,6 +585,7 @@ export type Database = {
           team_id: string
         }
         Insert: {
+          is_captain?: boolean
           jersey_number?: number | null
           player_id: string
           position?: Database["public"]["Enums"]["player_position"]
@@ -591,6 +593,7 @@ export type Database = {
           team_id: string
         }
         Update: {
+          is_captain?: boolean
           jersey_number?: number | null
           player_id?: string
           position?: Database["public"]["Enums"]["player_position"]
@@ -716,6 +719,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_scorekeeper_or_admin: { Args: never; Returns: boolean }
       is_team_captain_or_admin: { Args: never; Returns: boolean }
+      reconcile_team_captain: {
+        Args: { p_season: string; p_team: string }
+        Returns: undefined
+      }
     }
     Enums: {
       account_request_status: "pending" | "approved" | "denied"

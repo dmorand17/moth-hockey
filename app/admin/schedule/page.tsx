@@ -3,7 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
-import { createGame, updateGame, deleteGame } from "./actions";
+import { createGame, updateGame, deleteGame, skipWeek, removeScheduleSkip } from "./actions";
+import { localDateKey, byeTeamNamesByDate } from "@/lib/season-schedule";
 import { TimeSelect } from "./TimeSelect";
 
 type SearchParams = Promise<{ saved?: string; error?: string }>;
@@ -12,6 +13,8 @@ const FLASH_MESSAGES: Record<string, string> = {
   created: "Game created.",
   updated: "Game updated.",
   deleted: "Game deleted.",
+  skipped: "Week skipped — later games moved out a week.",
+  skip_removed: "Skip note removed.",
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -96,7 +99,7 @@ export default async function AdminSchedulePage({
 
   const params = await searchParams;
 
-  const [{ data: teams }, { data: gamesRaw }] = await Promise.all([
+  const [{ data: teams }, { data: gamesRaw }, { data: skips }] = await Promise.all([
     supabase
       .from("teams")
       .select("id, name, color")
@@ -109,10 +112,28 @@ export default async function AdminSchedulePage({
       )
       .eq("season_id", season.id)
       .order("scheduled_at"),
+    supabase
+      .from("schedule_skips")
+      .select("id, skip_date, reason")
+      .eq("season_id", season.id)
+      .order("skip_date"),
   ]);
 
   const games = (gamesRaw ?? []) as unknown as GameRow[];
   const teamList = (teams ?? []) as TeamRef[];
+
+  const byesByDate = byeTeamNamesByDate(
+    (teams ?? []).map((t) => ({ id: t.id, name: t.name })),
+    games
+      .filter((g) => g.kind === "regular")
+      .map((g) => ({
+        localDate: localDateKey(g.scheduled_at),
+        homeTeamId: g.home_team?.id ?? null,
+        awayTeamId: g.away_team?.id ?? null,
+      })),
+  );
+  const byeEntries = Object.entries(byesByDate).sort(([a], [b]) => a.localeCompare(b));
+  const skipList = skips ?? [];
 
   return (
     <div className="space-y-8">
@@ -199,6 +220,75 @@ export default async function AdminSchedulePage({
           </button>
         </form>
       </section>
+
+      {/* Skip a week */}
+      <section className="space-y-3">
+        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+          SKIP A WEEK
+        </h2>
+        <form action={skipWeek} className="panel p-4 space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block w-full sm:w-auto sm:min-w-[160px]">
+              <span className="eyebrow">Week of</span>
+              <input type="date" name="skip_date" required className={`mt-1 ${inputCls}`} />
+            </label>
+            <label className="block flex-1 min-w-[200px]">
+              <span className="eyebrow">Reason</span>
+              <input
+                type="text"
+                name="reason"
+                required
+                placeholder="Weather — rink closed"
+                className={`mt-1 ${inputCls}`}
+              />
+            </label>
+            <button
+              type="submit"
+              className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+            >
+              SKIP
+            </button>
+          </div>
+          <p className="text-ink-faint text-[12px]">
+            Pushes every scheduled game on or after that date out by one week.
+            Played (live/final) games are left in place.
+          </p>
+        </form>
+
+        {skipList.length > 0 && (
+          <ul className="border border-rule rounded divide-y divide-rule/50">
+            {skipList.map((s) => (
+              <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="text-[13px] text-ink">
+                  <span className="font-mono text-ink-dim">{s.skip_date}</span> — {s.reason}
+                </span>
+                <form action={removeScheduleSkip}>
+                  <input type="hidden" name="id" value={s.id} />
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                  >
+                    REMOVE
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {byeEntries.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-display text-xl tracking-[0.04em] text-ink">BYES</h2>
+          <ul className="border border-rule rounded divide-y divide-rule/50">
+            {byeEntries.map(([date, teamNames]) => (
+              <li key={date} className="px-3 py-2 text-[13px] text-ink">
+                <span className="font-mono text-ink-dim">{date}</span> — {teamNames.join(", ")}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Game list */}
       <section className="space-y-1">

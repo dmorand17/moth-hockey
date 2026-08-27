@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { SectionHeader } from "./SectionHeader";
 import { SeasonSelect } from "./SeasonSelect";
 import { AwardWinners, type AwardWinnerGroup } from "./AwardWinners";
@@ -69,6 +69,16 @@ type Props = {
 
 type PositionFilter = "all" | "forward" | "defense";
 type KindFilter = "all" | "regular" | "playoff";
+
+// Colored left "spine" + faint fading tint, matching the homepage sections.
+const SPINE_CLS = "border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5 rounded-r-lg";
+function spineStyle(color: string): CSSProperties {
+  return {
+    borderColor: color,
+    background: `linear-gradient(90deg, color-mix(in srgb, ${color} 9%, transparent), transparent 34%)`,
+  };
+}
+const GOLD = "#fbbf24";
 
 export function StatsExplorer({
   seasonName,
@@ -233,8 +243,8 @@ export function StatsExplorer({
       </div>
 
       {(awardWinners.length > 0 || awardsPending) && (
-        <section className="rise delay-1">
-          <SectionHeader eyebrow="The Hardware" title="Award Winners" />
+        <section className={`rise delay-1 ${SPINE_CLS}`} style={spineStyle(GOLD)}>
+          <SectionHeader eyebrow="The Hardware" title="Award Winners" accent="gold" />
           {awardWinners.length > 0 ? (
             <AwardWinners awards={awardWinners} />
           ) : (
@@ -256,9 +266,9 @@ export function StatsExplorer({
         showKind={!precomputed}
       />
 
-      <section className="rise delay-1 mt-2">
+      <section className={`rise delay-1 mt-2 ${SPINE_CLS}`} style={spineStyle("var(--ice)")}>
         <div className="flex items-end justify-between gap-3 mb-3 sm:mb-5">
-          <SectionHeader eyebrow="Skaters" title="Skater Stats" />
+          <SectionHeader eyebrow="Skaters" title="Skater Stats" accent="ice" />
           <a
             href="#goalies"
             className="sm:hidden eyebrow shrink-0 inline-flex items-center min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
@@ -272,8 +282,12 @@ export function StatsExplorer({
         </p>
       </section>
 
-      <section id="goalies" className="rise delay-2 mt-5 sm:mt-10 scroll-mt-28">
-        <SectionHeader eyebrow="Between The Pipes" title="Goalies" />
+      <section
+        id="goalies"
+        className={`rise delay-2 mt-5 sm:mt-10 scroll-mt-28 ${SPINE_CLS}`}
+        style={spineStyle("var(--goal)")}
+      >
+        <SectionHeader eyebrow="Between The Pipes" title="Goalies" accent="goal" />
         <GoalieTable rows={goalies} />
         <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
           GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
@@ -384,19 +398,31 @@ function LeaderTile({
 }) {
   const statColor = accent === "goal" ? "text-goal" : accent === "ice" ? "text-ice" : "text-ink";
   const labelColor = accent === "goal" ? "text-goal" : accent === "ice" ? "text-ice" : "text-ink-dim";
+  const ringColor = leader?.team?.color ?? "var(--rule-strong)";
 
   return (
-    <div className="scoreboard p-3 sm:p-4 flex flex-col justify-between min-h-[110px] sm:min-h-[140px] relative overflow-hidden">
-      <div className={`eyebrow ${labelColor}`}>{label}</div>
+    <div className="scoreboard p-3 sm:p-5 flex flex-col justify-between min-h-[128px] sm:min-h-[168px] relative overflow-hidden">
+      <div className="flex items-start justify-between gap-2">
+        <div className={`eyebrow ${labelColor}`}>{label}</div>
+        {leader && (
+          <span
+            aria-hidden
+            className="hidden sm:flex items-center justify-center h-9 w-9 rounded-full text-[12px] font-display tracking-[0.06em] text-ink shrink-0"
+            style={{ border: `1.5px solid ${ringColor}`, background: `color-mix(in srgb, ${ringColor} 14%, transparent)` }}
+          >
+            {initials(leader.name)}
+          </span>
+        )}
+      </div>
       {leader ? (
         <>
-          <div className={`digit text-[36px] sm:text-[52px] leading-none mt-1 ${statColor} tnum`}>
+          <div className={`digit text-[42px] sm:text-[64px] leading-none mt-1 ${statColor} tnum`}>
             {stat}
           </div>
           <div className="mt-2 min-w-0">
             <Link
               href={`/players/${leader.id}`}
-              className="block truncate text-[13px] sm:text-[14px] text-ink hover:text-ice transition-colors font-medium"
+              className="block truncate text-[14px] sm:text-[16px] text-ink hover:text-ice transition-colors font-medium"
             >
               {leader.name}
             </Link>
@@ -414,12 +440,21 @@ function LeaderTile({
         </>
       ) : (
         <>
-          <div className={`digit text-[36px] sm:text-[52px] leading-none mt-1 text-ink-faint tnum`}>—</div>
+          <div className={`digit text-[42px] sm:text-[64px] leading-none mt-1 text-ink-faint tnum`}>—</div>
           <div className="mt-2 text-[11px] text-ink-faint eyebrow normal-case tracking-[0.06em]">No leader yet</div>
         </>
       )}
     </div>
   );
+}
+
+// First initial of the first and last name parts (e.g. "Steve Yzerman" → "SY").
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "";
+  const first = parts[0][0] ?? "";
+  const last = parts.length > 1 ? (parts[parts.length - 1][0] ?? "") : "";
+  return (first + last).toUpperCase();
 }
 
 function SegmentedFilter<T extends string>({

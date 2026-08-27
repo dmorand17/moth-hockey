@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { PlayerCombobox } from "@/components/PlayerCombobox";
 import { saveRosterChanges } from "../rosters/actions";
 
 type Position = "forward" | "defense" | "goalie";
@@ -11,6 +12,7 @@ type RosterRow = {
   last_name: string;
   position: string;
   jersey_number: number | null;
+  is_captain?: boolean;
 };
 
 type UnrosteredPlayer = {
@@ -170,11 +172,19 @@ export function RosterEditor({
                 key={player.player_id}
                 className={`flex items-center gap-2 px-3 py-1.5 ${isNew ? "bg-ice/5" : ""}`}
               >
-                <span className="flex-1 text-ink text-[13px] truncate">
-                  {player.first_name} {player.last_name}
-                  {isNew && (
-                    <span className="eyebrow text-[9px] text-ice ml-1.5">NEW</span>
+                <span className="flex-1 text-ink text-[13px] truncate inline-flex items-center gap-1.5">
+                  {player.is_captain && (
+                    <span
+                      title="Team captain"
+                      className="inline-flex items-center justify-center h-4 w-4 rounded-full border border-[#fbbf24] text-[#fbbf24] text-[9px] font-bold shrink-0"
+                    >
+                      C
+                    </span>
                   )}
+                  <span className="truncate">
+                    {player.first_name} {player.last_name}
+                  </span>
+                  {isNew && <span className="eyebrow text-[9px] text-ice">NEW</span>}
                 </span>
                 <select
                   value={player.position}
@@ -213,17 +223,17 @@ export function RosterEditor({
 
       {available.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 pt-1">
-          <select
-            value={addPlayerId}
-            onChange={(e) => setAddPlayerId(e.target.value)}
-            className="flex-1 min-w-[160px] bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
-          >
-            {available.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.last_name}, {p.first_name}
-              </option>
-            ))}
-          </select>
+          <div className="flex-1 min-w-[160px]">
+            <PlayerCombobox
+              options={available.map((p) => ({
+                value: p.id,
+                label: `${p.last_name}, ${p.first_name}`,
+              }))}
+              value={addPlayerId}
+              onChange={setAddPlayerId}
+              placeholder="Search players…"
+            />
+          </div>
           <select
             value={addPosition}
             onChange={(e) => setAddPosition(e.target.value)}

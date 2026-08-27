@@ -4,13 +4,17 @@ set -euo pipefail
 # Link this repo to the staging or production Supabase project, non-interactively,
 # from environment variables. Wraps `supabase link` so you don't paste refs or
 # passwords by hand (and can't fat-finger the wrong project).
+#
+# Load the matching per-environment file first, e.g.:
+#   set -a; source .env.staging; set +a
+#   ./scripts/supabase-link.sh staging
 
 DEPENDENCIES=(bunx)
 SCRIPT_NAME=$(basename "$0")
 
-# Known project refs (see docs/SUPABASE.md). Overridable via env for forks/tests.
-STAGING_PROJECT_REF="${STAGING_PROJECT_REF:-ecvktaljsvrecozmfayj}"
-PROD_PROJECT_REF="${PROD_PROJECT_REF:-fpvqzzkauhifixnzppwh}"
+# Baked-in refs (see docs/SUPABASE.md); SUPABASE_PROJECT_REF overrides.
+STAGING_REF_DEFAULT="ecvktaljsvrecozmfayj"
+PROD_REF_DEFAULT="fpvqzzkauhifixnzppwh"
 
 log_info()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO  $*"; }
 log_warn()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARN  $*"; }
@@ -30,19 +34,19 @@ Options:
     -y, --yes               Skip the production confirmation prompt (for CI)
     -h, --help              Show this help message
 
-Environment:
+Environment (load the matching per-env file first: source .env.staging):
     SUPABASE_ACCESS_TOKEN   Personal access token (required)
                             Create one at https://supabase.com/dashboard/account/tokens
-    STAGING_DB_PASSWORD     Database password — required when linking staging
-    PROD_DB_PASSWORD        Database password — required when linking prod
-    STAGING_PROJECT_REF     Override the staging ref (default ${STAGING_PROJECT_REF})
-    PROD_PROJECT_REF        Override the prod ref (default ${PROD_PROJECT_REF})
+    SUPABASE_DB_PASSWORD    Database password for the target project (required)
+    SUPABASE_PROJECT_REF    Project ref (optional; defaults per target)
+    SUPABASE_ENV            staging|production (optional; cross-checked vs the
+                            target argument to catch a wrong sourced file)
 
 Dependencies: ${DEPENDENCIES[*]}
 
 Examples:
-    SUPABASE_ACCESS_TOKEN=sbp_… STAGING_DB_PASSWORD=… ${SCRIPT_NAME} staging
-    SUPABASE_ACCESS_TOKEN=sbp_… PROD_DB_PASSWORD=…    ${SCRIPT_NAME} prod --yes
+    set -a; source .env.staging; set +a && ${SCRIPT_NAME} staging
+    set -a; source .env.production; set +a && ${SCRIPT_NAME} prod --yes
 
 EOF
     exit "${1:-0}"
@@ -57,7 +61,7 @@ function main() {
         -y | --yes)  assume_yes=true; shift ;;
         -h | --help) usage 0 ;;
         staging | stage) target="staging"; shift ;;
-        prod | production) target="prod"; shift ;;
+        prod | production) target="production"; shift ;;
         *)
             log_error "Unknown argument: $1"
             usage 1
@@ -69,19 +73,28 @@ function main() {
 
     exit_on_missing_tools "${DEPENDENCIES[@]}"
 
-    : "${SUPABASE_ACCESS_TOKEN:?set SUPABASE_ACCESS_TOKEN (https://supabase.com/dashboard/account/tokens)}"
-
-    local ref db_password
-    if [[ "$target" == "prod" ]]; then
-        ref="$PROD_PROJECT_REF"
-        db_password="${PROD_DB_PASSWORD:?set PROD_DB_PASSWORD to the prod database password}"
-        confirm_production "$ref" "$assume_yes"
-    else
-        ref="$STAGING_PROJECT_REF"
-        db_password="${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD to the staging database password}"
+    # Guard against sourcing the wrong per-env file (e.g. .env.production loaded
+    # but you asked to link staging).
+    if [[ -n "${SUPABASE_ENV:-}" && "${SUPABASE_ENV}" != "$target" ]]; then
+        log_error "Loaded env is SUPABASE_ENV='${SUPABASE_ENV}' but target is '$target'."
+        log_error "Source the matching file (.env.${target}) or fix the target."
+        exit 1
     fi
 
-    link_project "$target" "$ref" "$db_password"
+    : "${SUPABASE_ACCESS_TOKEN:?set SUPABASE_ACCESS_TOKEN (https://supabase.com/dashboard/account/tokens)}"
+    : "${SUPABASE_DB_PASSWORD:?set SUPABASE_DB_PASSWORD (from .env.${target})}"
+
+    local default_ref ref
+    if [[ "$target" == "production" ]]; then
+        default_ref="$PROD_REF_DEFAULT"
+    else
+        default_ref="$STAGING_REF_DEFAULT"
+    fi
+    ref="${SUPABASE_PROJECT_REF:-$default_ref}"
+
+    [[ "$target" == "production" ]] && confirm_production "$ref" "$assume_yes"
+
+    link_project "$target" "$ref"
 }
 
 function confirm_production() {
@@ -98,12 +111,12 @@ function confirm_production() {
 }
 
 function link_project() {
-    local target="$1" ref="$2" db_password="$3"
+    local target="$1" ref="$2"
 
     log_info "Linking $target project ($ref)…"
     # SUPABASE_ACCESS_TOKEN is read from the environment by the CLI. Pass the
     # password via --password so linking is non-interactive; it is never logged.
-    if ! bunx supabase link --project-ref "$ref" --password "$db_password"; then
+    if ! bunx supabase link --project-ref "$ref" --password "$SUPABASE_DB_PASSWORD"; then
         log_error "supabase link failed for $target ($ref)."
         exit 1
     fi

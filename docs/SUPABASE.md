@@ -76,15 +76,21 @@ Use the ref from the [Projects](#projects) table. Linking is per-machine and
 persists in `supabase/.temp/`. **Re-link before pushing** if you're unsure which
 project is active — it's easy to be linked to prod when you meant staging.
 
-Or link non-interactively from environment variables — refs are baked in and
-prod requires confirmation:
+Or link non-interactively from a per-environment file — refs are baked in and
+prod requires confirmation. Copy `.env.staging.example` / `.env.production.example`,
+fill in the token + DB password, then:
 
 ```bash
-# Create a token at https://supabase.com/dashboard/account/tokens
-export SUPABASE_ACCESS_TOKEN=sbp_…
-STAGING_DB_PASSWORD=… ./scripts/supabase-link.sh staging
-PROD_DB_PASSWORD=…    ./scripts/supabase-link.sh prod        # prompts to confirm (--yes to skip in CI)
+set -a; source .env.staging; set +a
+./scripts/supabase-link.sh staging
+
+set -a; source .env.production; set +a
+./scripts/supabase-link.sh prod        # prompts to confirm (--yes to skip in CI)
 ```
+
+The script reads `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
+(optionally) `SUPABASE_PROJECT_REF` from the loaded env, and cross-checks
+`SUPABASE_ENV` against the target to catch a wrong sourced file.
 
 ## Pushing migrations to a cloud project
 

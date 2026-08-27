@@ -39,14 +39,16 @@ export function SectionHeader({
       style={{ "--accent": accentColor } as CSSProperties}
     >
       <div>
-        {eyebrow && (
-          <div className="eyebrow" style={{ color: accentColor }}>
-            {eyebrow}
-          </div>
-        )}
-        <h2 className={`font-display ${titleSize} leading-none tracking-[0.04em] mt-1`}>
-          {title.toUpperCase()}
-        </h2>
+        <div className="flex items-baseline gap-2.5 sm:gap-3">
+          {eyebrow && (
+            <span className="eyebrow shrink-0" style={{ color: accentColor }}>
+              {eyebrow}
+            </span>
+          )}
+          <h2 className={`font-display ${titleSize} leading-none tracking-[0.04em]`}>
+            {title.toUpperCase()}
+          </h2>
+        </div>
         {subtitle && <p className="eyebrow mt-2 normal-case tracking-[0.06em]">{subtitle}</p>}
       </div>
       {linkHref && linkLabel && (

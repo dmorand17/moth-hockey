@@ -47,12 +47,25 @@ export default async function Home() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
           {leader && (
-            <div className="scoreboard p-3 sm:p-5 col-span-2 md:col-span-1">
-              <div className="eyebrow mb-1.5 sm:mb-2">Atop the table</div>
-              <TeamBadge {...leader} size="lg" />
-              <div className="mt-2 sm:mt-3 flex items-baseline gap-2">
-                <span className="digit text-2xl sm:text-3xl text-ink">{leader.pts}</span>
-                <span className="eyebrow">PTS · {leader.w}-{leader.l}-{leader.otl}</span>
+            <div
+              className="scoreboard col-span-2 md:col-span-1 border-l-[3px] p-3 sm:p-4 flex items-center justify-between gap-3"
+              style={{
+                borderColor: leader.color,
+                background: `linear-gradient(90deg, ${leader.color}26, transparent 60%)`,
+              }}
+            >
+              <div className="min-w-0">
+                <div className="eyebrow flex items-center gap-1.5" style={{ color: leader.color }}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-3.5 w-3.5 shrink-0">
+                    <path d="M5 4h14v2a4 4 0 0 1-3 3.87A4 4 0 0 1 13 12.9V16h2a1 1 0 0 1 1 1v1H8v-1a1 1 0 0 1 1-1h2v-3.1A4 4 0 0 1 8 9.87 4 4 0 0 1 5 6Zm-2 2h1v0a5.98 5.98 0 0 0 1 3.32A3 3 0 0 1 3 8.83Zm18 0h-1a5.98 5.98 0 0 1-1 3.32A3 3 0 0 0 21 8.83Z" />
+                  </svg>
+                  Atop the table
+                </div>
+                <TeamBadge {...leader} size="lg" className="mt-1.5" />
+              </div>
+              <div className="text-right shrink-0">
+                <div className="digit text-2xl sm:text-3xl text-ink leading-none">{leader.pts}</div>
+                <div className="eyebrow mt-1">PTS · {leader.w}-{leader.l}-{leader.otl}</div>
               </div>
             </div>
           )}

@@ -37,23 +37,13 @@ export async function createTeam(formData: FormData) {
     back("error=invalid_color");
   }
 
-  const captainUserId = String(formData.get("captain_user_id") ?? "").trim() || null;
-
   const supabase = await createSupabaseServerClient();
-  const { data: team, error } = await supabase
+  const { error } = await supabase
     .from("teams")
-    .insert({ season_id: seasonId, name, slug, color })
-    .select("id")
-    .single();
+    .insert({ season_id: seasonId, name, slug, color });
 
   if (error) {
     back(`error=${encodeURIComponent(error.message)}`);
-  }
-
-  if (captainUserId && team) {
-    await supabase
-      .from("team_captains")
-      .insert({ team_id: team.id, season_id: seasonId, user_id: captainUserId });
   }
 
   revalidatePath("/admin/teams");
@@ -96,25 +86,32 @@ export async function assignTeamCaptain(formData: FormData) {
 
   const teamId = String(formData.get("team_id") ?? "");
   const seasonId = String(formData.get("season_id") ?? "");
-  const targetUserId = String(formData.get("user_id") ?? "") || null;
+  const targetPlayerId = String(formData.get("player_id") ?? "") || null;
 
   if (!teamId || !seasonId) back("error=invalid_input");
 
   const supabase = await createSupabaseServerClient();
 
+  // Captain is the is_captain roster label (one per team); team_captains and
+  // the team_captain role are derived from it by DB triggers. Clear the team's
+  // current captain, then mark the chosen roster row.
   const { error: clearErr } = await supabase
-    .from("team_captains")
-    .delete()
+    .from("team_players")
+    .update({ is_captain: false })
     .eq("team_id", teamId)
-    .eq("season_id", seasonId);
+    .eq("season_id", seasonId)
+    .eq("is_captain", true);
 
   if (clearErr) back(`error=${encodeURIComponent(clearErr.message)}`);
 
-  if (targetUserId) {
-    const { error: insertErr } = await supabase
-      .from("team_captains")
-      .insert({ team_id: teamId, season_id: seasonId, user_id: targetUserId });
-    if (insertErr) back(`error=${encodeURIComponent(insertErr.message)}`);
+  if (targetPlayerId) {
+    const { error: setErr } = await supabase
+      .from("team_players")
+      .update({ is_captain: true })
+      .eq("team_id", teamId)
+      .eq("season_id", seasonId)
+      .eq("player_id", targetPlayerId);
+    if (setErr) back(`error=${encodeURIComponent(setErr.message)}`);
   }
 
   revalidatePath("/admin/teams");

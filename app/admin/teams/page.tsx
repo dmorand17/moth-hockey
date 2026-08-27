@@ -28,6 +28,7 @@ type RosterPlayer = {
   last_name: string;
   position: string;
   jersey_number: number | null;
+  is_captain: boolean;
 };
 
 export default async function AdminTeamsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -38,28 +39,19 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
 
   const params = await searchParams;
 
-  const [
-    { data: teams },
-    { data: profiles },
-    { data: captains },
-    { data: rosterRows },
-    { data: allPlayers },
-  ] = await Promise.all([
+  const [{ data: teams }, { data: rosterRows }, { data: allPlayers }] = await Promise.all([
     supabase.from("teams").select("id, name, slug, color").eq("season_id", season.id).order("name"),
-    supabase.from("user_profiles").select("user_id, email, full_name").order("full_name", { ascending: true }),
-    supabase.from("team_captains").select("team_id, user_id").eq("season_id", season.id),
     supabase
       .from("team_players")
-      .select("team_id, player_id, position, jersey_number, player:player_id(id, first_name, last_name)")
+      .select("team_id, player_id, position, jersey_number, is_captain, player:player_id(id, first_name, last_name)")
       .eq("season_id", season.id),
     supabase.from("players").select("id, first_name, last_name").order("last_name").order("first_name"),
   ]);
 
-  const captainByTeam = new Map((captains ?? []).map((c) => [c.team_id, c.user_id]));
-  const userLabel = (id: string) => {
-    const p = (profiles ?? []).find((p) => p.user_id === id);
-    return p?.full_name || p?.email || id;
-  };
+  // Current captain per team = the rostered player flagged is_captain.
+  const captainPlayerByTeam = new Map(
+    (rosterRows ?? []).filter((r) => r.is_captain).map((r) => [r.team_id, r.player_id]),
+  );
 
   // Build per-team rosters
   const rosteredIds = new Set(rosterRows?.map((r) => r.player_id) ?? []);
@@ -78,6 +70,7 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
       last_name: p.last_name,
       position: row.position,
       jersey_number: row.jersey_number,
+      is_captain: row.is_captain,
     });
   }
   for (const players of teamRosters.values()) {
@@ -131,20 +124,9 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
             <span className="eyebrow">Color</span>
             <ColorSwatches name="color" defaultValue="#ef4444" idPrefix="new-team" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="eyebrow shrink-0">Captain</span>
-            <select
-              name="captain_user_id"
-              className="flex-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
-            >
-              <option value="">— No captain —</option>
-              {(profiles ?? []).map((p) => (
-                <option key={p.user_id} value={p.user_id}>
-                  {userLabel(p.user_id)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <p className="text-ink-faint text-[12px]">
+            Assign a captain from the team&apos;s roster after adding players.
+          </p>
         </form>
       </section>
 
@@ -198,31 +180,39 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
                     </div>
                   </form>
 
-                  {/* Captain */}
+                  {/* Captain — any rostered player; role is granted if they
+                      have a linked account. */}
                   <div className="border-t border-rule/50 pt-3">
                     <form action={assignTeamCaptain} className="flex items-center gap-2">
                       <input type="hidden" name="team_id" value={team.id} />
                       <input type="hidden" name="season_id" value={season.id} />
                       <span className="eyebrow shrink-0">Captain</span>
                       <select
-                        name="user_id"
-                        defaultValue={captainByTeam.get(team.id) ?? ""}
-                        className="flex-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
+                        name="player_id"
+                        defaultValue={captainPlayerByTeam.get(team.id) ?? ""}
+                        disabled={players.length === 0}
+                        className="flex-1 bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice disabled:opacity-50"
                       >
                         <option value="">— No captain —</option>
-                        {(profiles ?? []).map((p) => (
-                          <option key={p.user_id} value={p.user_id}>
-                            {userLabel(p.user_id)}
+                        {players.map((p) => (
+                          <option key={p.player_id} value={p.player_id}>
+                            {p.last_name}, {p.first_name}
                           </option>
                         ))}
                       </select>
                       <button
                         type="submit"
-                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
+                        disabled={players.length === 0}
+                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         SAVE
                       </button>
                     </form>
+                    {players.length === 0 && (
+                      <p className="text-ink-faint text-[11px] mt-1.5">
+                        Add players to the roster to pick a captain.
+                      </p>
+                    )}
                   </div>
 
                   {/* Roster */}

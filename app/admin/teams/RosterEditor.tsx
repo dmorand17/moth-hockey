@@ -11,6 +11,7 @@ type RosterRow = {
   last_name: string;
   position: string;
   jersey_number: number | null;
+  is_captain?: boolean;
 };
 
 type UnrosteredPlayer = {
@@ -170,11 +171,19 @@ export function RosterEditor({
                 key={player.player_id}
                 className={`flex items-center gap-2 px-3 py-1.5 ${isNew ? "bg-ice/5" : ""}`}
               >
-                <span className="flex-1 text-ink text-[13px] truncate">
-                  {player.first_name} {player.last_name}
-                  {isNew && (
-                    <span className="eyebrow text-[9px] text-ice ml-1.5">NEW</span>
+                <span className="flex-1 text-ink text-[13px] truncate inline-flex items-center gap-1.5">
+                  {player.is_captain && (
+                    <span
+                      title="Team captain"
+                      className="inline-flex items-center justify-center h-4 w-4 rounded-full border border-[#fbbf24] text-[#fbbf24] text-[9px] font-bold shrink-0"
+                    >
+                      C
+                    </span>
                   )}
+                  <span className="truncate">
+                    {player.first_name} {player.last_name}
+                  </span>
+                  {isNew && <span className="eyebrow text-[9px] text-ice">NEW</span>}
                 </span>
                 <select
                   value={player.position}

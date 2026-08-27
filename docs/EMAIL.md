@@ -123,7 +123,11 @@ These can reuse the same provider credentials as the custom Auth SMTP above.
 
 ### 2. Create the Database Webhook
 
-Dashboard → **Database → Webhooks → Create a new hook**:
+Dashboard → **Integrations → Webhooks → Create a new hook** (direct link:
+`https://supabase.com/dashboard/project/<project-ref>/integrations/webhooks/overview`).
+Webhooks are a wrapper around triggers using the **`pg_net`** extension — if the
+option is unavailable or the hook never fires, enable `pg_net` under **Database
+→ Extensions** first.
 
 - **Table** — `public.user_profiles`
 - **Events** — `INSERT` only

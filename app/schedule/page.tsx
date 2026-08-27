@@ -49,6 +49,7 @@ export default async function SchedulePage() {
           title="Schedule"
           subtitle={season.name}
           size="lg"
+          as="h1"
         />
       </div>
 
@@ -57,7 +58,9 @@ export default async function SchedulePage() {
           <div className="flex items-center gap-3 mb-3">
             <span className="eyebrow text-goal">{month}</span>
             <span className="flex-1 h-px bg-rule" />
-            <span className="eyebrow">{monthGames.length} games</span>
+            <span className="eyebrow">
+              {monthGames.length} {monthGames.length === 1 ? "game" : "games"}
+            </span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {monthGames.map((g) => (

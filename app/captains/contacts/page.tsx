@@ -72,6 +72,7 @@ export default async function CaptainContactsPage() {
           title="Contacts"
           subtitle={`${season.name} · email and phone for every linked player`}
           size="lg"
+          as="h1"
         />
       </div>
 

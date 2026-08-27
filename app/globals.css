@@ -318,6 +318,25 @@ table.board-table.stats-table :is(th, td):nth-child(4) {
   border-left: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
 }
 
+/* Zebra striping for dense tables that don't want the stats-table divider
+   (e.g. standings). */
+table.board-table.striped tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--board-2) 45%, transparent);
+}
+table.board-table.striped tbody tr:hover td {
+  background: color-mix(in srgb, var(--board-3) 60%, transparent);
+}
+
+/* Visible, on-brand keyboard focus. The browser default ring is a faint 1px
+   on the near-black board; this makes focus obvious and matches the palette.
+   Controls that set their own focus treatment (e.g. inputs with a focus
+   border) are unaffected — those keep their border cue. */
+:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Diagonal stripe for inactive/muted UI */
 .stripes {
   background-image: repeating-linear-gradient(

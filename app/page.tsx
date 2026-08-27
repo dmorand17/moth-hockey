@@ -26,6 +26,7 @@ export default async function Home() {
 
   return (
     <div className="space-y-6 sm:space-y-10">
+      <h1 className="sr-only">M.O.T.H Hockey — {season.name}</h1>
       {/* BRAND BANNER */}
       <div className="rise mx-auto w-full max-w-3xl rounded-lg overflow-hidden border border-rule">
         <Image

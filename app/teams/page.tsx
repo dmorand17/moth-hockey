@@ -29,6 +29,7 @@ export default async function TeamsPage() {
           title="Teams"
           subtitle={`${season.name} · ${(teams ?? []).length} teams in the league`}
           size="lg"
+          as="h1"
         />
       </div>
 

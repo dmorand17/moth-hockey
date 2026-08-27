@@ -106,3 +106,62 @@ export async function deleteGame(formData: FormData) {
   revalidatePath("/admin/schedule");
   redirect("/admin/schedule?saved=deleted");
 }
+
+export async function skipWeek(formData: FormData) {
+  await requireRole(["admin"]);
+  const supabase = await createSupabaseServerClient();
+  const season = await getCurrentSeason();
+  if (!season) back("error=no_season");
+
+  const skipDate = String(formData.get("skip_date") ?? "").trim(); // YYYY-MM-DD
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!skipDate || !reason) back("error=invalid_input");
+
+  // Local start-of-day for the picked date, as an ISO instant for comparison.
+  const [y, m, d] = skipDate.split("-").map(Number);
+  const fromIso = new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0).toISOString();
+
+  // Push every still-scheduled game on/after that date out by 7 days.
+  const { data: games, error: fetchErr } = await supabase
+    .from("games")
+    .select("id, scheduled_at")
+    .eq("season_id", season.id)
+    .eq("status", "scheduled")
+    .gte("scheduled_at", fromIso);
+  if (fetchErr) back(`error=${encodeURIComponent(fetchErr.message)}`);
+
+  for (const g of games ?? []) {
+    const next = new Date(
+      new Date(g.scheduled_at).getTime() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const { error: updErr } = await supabase
+      .from("games")
+      .update({ scheduled_at: next, updated_at: new Date().toISOString() })
+      .eq("id", g.id);
+    if (updErr) back(`error=${encodeURIComponent(updErr.message)}`);
+  }
+
+  const { error: insErr } = await supabase
+    .from("schedule_skips")
+    .insert({ season_id: season.id, skip_date: skipDate, reason });
+  if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
+
+  revalidatePath("/admin/schedule");
+  revalidatePath("/schedule");
+  redirect("/admin/schedule?saved=skipped");
+}
+
+export async function removeScheduleSkip(formData: FormData) {
+  await requireRole(["admin"]);
+  const supabase = await createSupabaseServerClient();
+
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) back("error=invalid_input");
+
+  const { error } = await supabase.from("schedule_skips").delete().eq("id", id);
+  if (error) back(`error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/admin/schedule");
+  revalidatePath("/schedule");
+  redirect("/admin/schedule?saved=skip_removed");
+}

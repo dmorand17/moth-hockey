@@ -306,6 +306,18 @@ table.board-table tbody tr:hover td {
   background: color-mix(in srgb, var(--board-3) 55%, transparent);
 }
 
+/* Stats tables — zebra striping and an identity|stats divider before the
+   first numeric column (4th cell). */
+table.board-table.stats-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--board-2) 45%, transparent);
+}
+table.board-table.stats-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--board-3) 60%, transparent);
+}
+table.board-table.stats-table :is(th, td):nth-child(4) {
+  border-left: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
+}
+
 /* Diagonal stripe for inactive/muted UI */
 .stripes {
   background-image: repeating-linear-gradient(

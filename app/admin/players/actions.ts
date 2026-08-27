@@ -74,6 +74,50 @@ export async function updateUserRole(formData: FormData) {
   redirect("/admin/players?saved=role");
 }
 
+// Batch: link accounts to players and/or set their role in one round-trip.
+// Used by the "Needs Linking" editor so an admin can process several accounts
+// without saving each individually. Returns without redirecting so the client
+// can refresh in place. team_captain is not settable here (it's derived from
+// team captaincy) — role updates are limited to the assignable set.
+const ASSIGNABLE_ROLES: Role[] = ["admin", "scorekeeper", "player"];
+
+export async function linkAccounts(
+  updates: { user_id: string; player_id: string | null; role: Role }[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireRole(["admin"]);
+  const supabase = await createSupabaseServerClient();
+
+  for (const u of updates) {
+    if (!u.user_id) continue;
+
+    if (ASSIGNABLE_ROLES.includes(u.role)) {
+      const { error } = await supabase
+        .from("user_roles")
+        .update({ role: u.role })
+        .eq("user_id", u.user_id);
+      if (error) return { ok: false, error: error.message };
+    }
+
+    if (u.player_id) {
+      // A user links to one player: clear any existing link, then set the new.
+      const { error: clearErr } = await supabase
+        .from("players")
+        .update({ user_id: null })
+        .eq("user_id", u.user_id);
+      if (clearErr) return { ok: false, error: clearErr.message };
+
+      const { error: linkErr } = await supabase
+        .from("players")
+        .update({ user_id: u.user_id })
+        .eq("id", u.player_id);
+      if (linkErr) return { ok: false, error: linkErr.message };
+    }
+  }
+
+  revalidatePath("/admin/players");
+  return { ok: true };
+}
+
 export async function deletePlayer(input: {
   playerId: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {

@@ -76,6 +76,16 @@ Use the ref from the [Projects](#projects) table. Linking is per-machine and
 persists in `supabase/.temp/`. **Re-link before pushing** if you're unsure which
 project is active — it's easy to be linked to prod when you meant staging.
 
+Or link non-interactively from environment variables — refs are baked in and
+prod requires confirmation:
+
+```bash
+# Create a token at https://supabase.com/dashboard/account/tokens
+export SUPABASE_ACCESS_TOKEN=sbp_…
+STAGING_DB_PASSWORD=… ./scripts/supabase-link.sh staging
+PROD_DB_PASSWORD=…    ./scripts/supabase-link.sh prod        # prompts to confirm (--yes to skip in CI)
+```
+
 ## Pushing migrations to a cloud project
 
 `db push` applies any local migrations not yet recorded on the linked remote,

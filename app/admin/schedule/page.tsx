@@ -19,6 +19,7 @@ const FLASH_MESSAGES: Record<string, string> = {
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Check all required fields (home team ≠ away team, valid date).",
+  already_skipped: "That week is already recorded as skipped.",
 };
 
 type TeamRef = { id: string; name: string; color: string };

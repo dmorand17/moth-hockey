@@ -121,6 +121,16 @@ export async function skipWeek(formData: FormData) {
   const [y, m, d] = skipDate.split("-").map(Number);
   const fromIso = new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0).toISOString();
 
+  // Guard against double-submit: if this week is already recorded as skipped,
+  // don't shift games again.
+  const { data: existingSkip } = await supabase
+    .from("schedule_skips")
+    .select("id")
+    .eq("season_id", season.id)
+    .eq("skip_date", skipDate)
+    .maybeSingle();
+  if (existingSkip) back("error=already_skipped");
+
   // Push every still-scheduled game on/after that date out by 7 days.
   const { data: games, error: fetchErr } = await supabase
     .from("games")

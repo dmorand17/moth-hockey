@@ -8,8 +8,6 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type Role = Database["public"]["Enums"]["user_role"];
 
-const ROLES: Role[] = ["admin", "scorekeeper", "team_captain", "player"];
-
 function back(qs: string): never {
   redirect(`/admin/players?${qs}`);
 }
@@ -52,26 +50,6 @@ export async function updatePlayer(formData: FormData) {
 
   revalidatePath("/admin/players");
   redirect("/admin/players?saved=updated");
-}
-
-export async function updateUserRole(formData: FormData) {
-  await requireRole(["admin"]);
-
-  const userId = String(formData.get("user_id") ?? "");
-  const role = String(formData.get("role") ?? "") as Role;
-
-  if (!userId || !ROLES.includes(role)) back("error=invalid_input");
-
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
-    .from("user_roles")
-    .update({ role })
-    .eq("user_id", userId);
-
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
-
-  revalidatePath("/admin/players");
-  redirect("/admin/players?saved=role");
 }
 
 // Batch: link accounts to players and/or set their role in one round-trip.

@@ -1,0 +1,73 @@
+name: CI
+
+# Gate for merges into staging and main. Pair with branch protection on `main`
+# (require this workflow's "build" check + a PR review) so nothing reaches the
+# production branch — and therefore the Vercel production deploy — unverified.
+# See docs/SUPABASE.md and docs/initial-build/DEPLOY.md for the deploy model.
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: [main, staging]
+
+jobs:
+  build:
+    name: typecheck · lint · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build
+        run: bun run build
+        env:
+          # NEXT_PUBLIC_* are read at build time. All routes are dynamic
+          # (server-rendered on demand), so placeholders are enough to build.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+
+  migrations:
+    name: flag new migrations (main PRs)
+    # Only on PRs targeting main — a reminder that the PROD DB must be migrated
+    # (supabase db push) BEFORE this PR is merged, since merging deploys prod.
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect added migrations
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          NEW=$(git diff --name-only --diff-filter=A "origin/${BASE_REF}"...HEAD -- supabase/migrations/ || true)
+          if [ -n "$NEW" ]; then
+            {
+              echo "### ⚠️ New migrations in this PR"
+              echo ""
+              echo "Apply these to the **prod** Supabase project (\`supabase db push\`) **before** merging — merging deploys production:"
+              echo ""
+              echo '```'
+              echo "$NEW"
+              echo '```'
+              echo ""
+              echo "See docs/SUPABASE.md → \"Pushing migrations to a cloud project\"."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::New migrations added — migrate the prod DB before merging (see the job summary)."
+          else
+            echo "No new migrations in this PR." >> "$GITHUB_STEP_SUMMARY"
+          fi

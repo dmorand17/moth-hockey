@@ -8,6 +8,7 @@
 - [SUPABASE.md](./SUPABASE.md) — Supabase command reference: local stack, migrations, linking to projects, pushing to cloud.
 - [LOCAL-TESTING.md](./LOCAL-TESTING.md) — run locally and sign in as the seeded test users (magic link via Mailpit).
 - [OPERATIONS.md](./OPERATIONS.md) — recurring ops runbook: refresh staging seed data (keep users), load a single season.
+- [EMAIL.md](./EMAIL.md) — auth email/SMTP: fixing "email rate limit exceeded" in prod via a custom SMTP provider.
 
 ## Decisions (`adr/`)
 

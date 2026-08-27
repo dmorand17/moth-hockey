@@ -255,6 +255,13 @@ otp_expiry = 3600
 subject = "Your M.O.T.H sign-in link"
 content_path = "./supabase/templates/magic_link.html"
 
+# New-user signup confirmation (branded). Same token_hash flow as the magic
+# link so it works cross-device. For cloud, paste into the dashboard
+# (Authentication → Emails → Confirm signup).
+[auth.email.template.confirmation]
+subject = "Confirm your M.O.T.H account"
+content_path = "./supabase/templates/confirm_signup.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

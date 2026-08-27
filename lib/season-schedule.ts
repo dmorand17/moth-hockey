@@ -177,3 +177,37 @@ export function buildPlayoffSlots(
     final: slots[regularPairCount + 2],
   };
 }
+
+/** "YYYY-MM-DD" in local time — a stable per-game-night key. */
+export function localDateKey(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Bye teams per game night: for each date that has regular-season games, the
+ * teams NOT playing that night. Derived, so it stays correct as weeks shift.
+ * Returns only dates that have at least one bye (even team counts → empty).
+ */
+export function byeTeamNamesByDate(
+  teams: { id: string; name: string }[],
+  regularGames: { localDate: string; homeTeamId: string | null; awayTeamId: string | null }[],
+): Record<string, string[]> {
+  const playingByDate = new Map<string, Set<string>>();
+  for (const g of regularGames) {
+    const set = playingByDate.get(g.localDate) ?? new Set<string>();
+    if (g.homeTeamId) set.add(g.homeTeamId);
+    if (g.awayTeamId) set.add(g.awayTeamId);
+    playingByDate.set(g.localDate, set);
+  }
+
+  const out: Record<string, string[]> = {};
+  for (const [date, playing] of playingByDate) {
+    const byes = teams.filter((t) => !playing.has(t.id)).map((t) => t.name);
+    if (byes.length > 0) out[date] = byes;
+  }
+  return out;
+}

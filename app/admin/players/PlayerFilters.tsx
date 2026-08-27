@@ -436,50 +436,60 @@ export function PlayerFilters({
                     <p className="text-goal text-[12px]">{playerErrors.get(player.id)}</p>
                   )}
 
-                  {/* Danger zone */}
-                  <div className="border-t border-rule/50 pt-3 space-y-3">
-                    <span className="eyebrow text-ink-faint">Danger Zone</span>
+                  {/* Danger zone — collapsed by default (rarely used) */}
+                  <details className="group/dz border-t border-rule/50 pt-3">
+                    <summary className="flex items-center gap-1.5 cursor-pointer list-none select-none eyebrow text-ink-faint hover:text-goal transition-colors min-h-9">
+                      <span className="text-[10px] transition-transform duration-150 group-open/dz:rotate-90 inline-block">
+                        ▶
+                      </span>
+                      Danger zone
+                      <span className="text-ink-faint/60 normal-case tracking-normal ml-1">
+                        — delete or merge
+                      </span>
+                    </summary>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(player)}
-                      disabled={actionPending}
-                      className="block px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
-                    >
-                      DELETE PLAYER
-                    </button>
-
-                    <div className="flex flex-wrap items-end gap-2">
-                      <label className="block flex-1 min-w-[200px]">
-                        <span className="eyebrow">Merge into</span>
-                        <select
-                          value={mergeTargets.get(player.id) ?? ""}
-                          onChange={(e) =>
-                            setMergeTargets((prev) => new Map(prev).set(player.id, e.target.value))
-                          }
-                          className={`mt-1 w-full ${rowInputCls}`}
-                        >
-                          <option value="">— select canonical player —</option>
-                          {players
-                            .filter((p) => p.id !== player.id)
-                            .sort((a, b) => a.last_name.localeCompare(b.last_name))
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.last_name}, {p.first_name}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
+                    <div className="mt-3 space-y-3">
                       <button
                         type="button"
-                        onClick={() => handleMerge(player)}
-                        disabled={actionPending || !mergeTargets.get(player.id)}
-                        className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
+                        onClick={() => handleDelete(player)}
+                        disabled={actionPending}
+                        className="block px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
                       >
-                        MERGE
+                        DELETE PLAYER
                       </button>
+
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="block flex-1 min-w-[200px]">
+                          <span className="eyebrow">Merge into</span>
+                          <select
+                            value={mergeTargets.get(player.id) ?? ""}
+                            onChange={(e) =>
+                              setMergeTargets((prev) => new Map(prev).set(player.id, e.target.value))
+                            }
+                            className={`mt-1 w-full ${rowInputCls}`}
+                          >
+                            <option value="">— select canonical player —</option>
+                            {players
+                              .filter((p) => p.id !== player.id)
+                              .sort((a, b) => a.last_name.localeCompare(b.last_name))
+                              .map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.last_name}, {p.first_name}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => handleMerge(player)}
+                          disabled={actionPending || !mergeTargets.get(player.id)}
+                          className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
+                        >
+                          MERGE
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  </details>
                 </div>
               </details>
             </li>

@@ -166,6 +166,9 @@ export default async function GamePage({
       <section className="rise scoreboard p-4 sm:p-5 md:p-6 relative overflow-hidden">
         <div className="absolute inset-0 stripes opacity-40 pointer-events-none" />
         <div className="relative">
+          <h1 className="sr-only">
+            {awayTeam?.name ?? "TBD"} vs {homeTeam?.name ?? "TBD"}
+          </h1>
           {/* Status row */}
           <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
             <div className="eyebrow flex items-center gap-2 flex-wrap">

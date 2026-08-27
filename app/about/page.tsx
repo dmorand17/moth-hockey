@@ -31,6 +31,7 @@ export default function AboutPage() {
           title="About M.O.T.H"
           subtitle="Mostly Over The Hill — hockey for the rest of us."
           size="lg"
+          as="h1"
         />
       </div>
 

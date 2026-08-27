@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PhoneInput from "@/components/PhoneInput";
-import { TeamBadge } from "@/components/TeamBadge";
 import { CheckInToggle } from "@/components/CheckInToggle";
 import { getCurrentSeason } from "@/lib/queries";
 import { formatDate, formatTime } from "@/lib/format";
@@ -35,6 +34,21 @@ const ROLE_LABELS: Record<string, string> = {
   team_captain: "Team Captain",
   player: "Player",
 };
+
+const ROLE_COLOR: Record<string, string> = {
+  admin: "var(--goal)",
+  scorekeeper: "var(--ice)",
+  team_captain: "#fbbf24",
+  player: "var(--ink-dim)",
+};
+
+// First initials for the team monogram, e.g. "Ice Holes" → "IH".
+function teamInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default async function AccountPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createSupabaseServerClient();
@@ -107,6 +121,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
   const saved = params.saved === "1";
   const error = params.error;
   const roleLabel = roleRow?.role ? ROLE_LABELS[roleRow.role] ?? roleRow.role : "—";
+  const roleColor = ROLE_COLOR[roleRow?.role ?? "player"] ?? "var(--ink-dim)";
 
   return (
     <div className="mx-auto max-w-md rise">
@@ -119,54 +134,82 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
         className="panel p-5 space-y-4"
         style={{ borderLeftWidth: 3, borderLeftColor: "var(--ice)" }}
       >
-        <div>
-          <div className="eyebrow">Email</div>
-          <div className="font-mono text-ink mt-1">{profile?.email ?? userData.user.email}</div>
+        {/* Read-only identity — compact */}
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <span className="font-mono text-[12px] text-ink-dim truncate">
+            {profile?.email ?? userData.user.email}
+          </span>
+          <span className="text-rule-strong text-[12px]">·</span>
+          <span
+            className="inline-flex items-center px-1.5 py-0.5 rounded-[2px] border font-mono text-[10px] uppercase tracking-[0.14em]"
+            style={{
+              color: roleColor,
+              borderColor: `color-mix(in srgb, ${roleColor} 45%, transparent)`,
+              background: `color-mix(in srgb, ${roleColor} 12%, transparent)`,
+            }}
+          >
+            {roleLabel}
+          </span>
         </div>
 
-        <div>
-          <div className="eyebrow">Role</div>
-          <div className="text-ink mt-1">{roleLabel}</div>
-        </div>
-
-        <div>
-          <div className="eyebrow">Linked player</div>
-          {linkedPlayer ? (
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <span className="text-ink">
-                {linkedPlayer.first_name} {linkedPlayer.last_name}
-              </span>
-              <Link
-                href={`/players/${linkedPlayer.id}`}
-                className="eyebrow text-ice hover:text-ink shrink-0"
-              >
-                View your player page →
-              </Link>
+        {/* Linked player */}
+        <div className="flex items-center justify-between gap-3 border-t border-rule/60 pt-4">
+          <div className="min-w-0">
+            <div className="eyebrow">Linked player</div>
+            <div className="text-ink mt-0.5 truncate">
+              {linkedPlayer ? (
+                `${linkedPlayer.first_name} ${linkedPlayer.last_name}`
+              ) : (
+                <span className="text-ink-faint text-[13px]">
+                  Not linked yet — an admin will connect you to your roster row.
+                </span>
+              )}
             </div>
-          ) : (
-            <div className="text-ink mt-1">
-              <span className="text-ink-faint">
-                Not linked yet — an admin will connect you to your roster row.
-              </span>
-            </div>
+          </div>
+          {linkedPlayer && (
+            <Link
+              href={`/players/${linkedPlayer.id}`}
+              className="eyebrow text-ice hover:text-ink shrink-0 min-h-11 inline-flex items-center"
+            >
+              View player page →
+            </Link>
           )}
         </div>
 
+        {/* Current team — the headline of this card */}
         {roster?.team && (
-          <div>
-            <div className="eyebrow">Current team</div>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <TeamBadge
-                name={roster.team.name}
-                slug={roster.team.slug}
-                color={roster.team.color}
-                size="sm"
-              />
-              <span className="eyebrow text-ink-faint shrink-0">
-                #{roster.jersey_number ?? "—"} · {POSITION_LABELS[roster.position]}
-              </span>
+          <Link
+            href={`/teams/${roster.team.slug}`}
+            className="block rounded-lg border-l-[3px] p-4 tap transition-[filter] hover:brightness-125"
+            style={{
+              borderColor: roster.team.color,
+              background: `linear-gradient(90deg, ${roster.team.color}2e, transparent 72%)`,
+            }}
+          >
+            <div className="eyebrow" style={{ color: roster.team.color }}>
+              Current team
             </div>
-          </div>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  aria-hidden
+                  className="inline-flex items-center justify-center h-11 w-11 rounded-md font-display text-[17px] tracking-tight text-board shrink-0"
+                  style={{ background: roster.team.color }}
+                >
+                  {teamInitials(roster.team.name)}
+                </span>
+                <span className="font-display text-[22px] sm:text-[26px] leading-none tracking-[0.04em] text-ink truncate">
+                  {roster.team.name.toUpperCase()}
+                </span>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="digit text-2xl text-ink leading-none">
+                  #{roster.jersey_number ?? "—"}
+                </div>
+                <div className="eyebrow mt-1">{POSITION_LABELS[roster.position]}</div>
+              </div>
+            </div>
+          </Link>
         )}
 
         <details

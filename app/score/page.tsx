@@ -51,6 +51,7 @@ export default async function ScoreHomePage() {
           title="Score a Game"
           subtitle={`${season.name} · pick a game to score`}
           size="lg"
+          as="h1"
         />
       </div>
 

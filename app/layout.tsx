@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
 import { getAuthSession } from "@/lib/auth";
+import { getCurrentSeason } from "@/lib/queries";
 import "./globals.css";
 
 const bebas = Bebas_Neue({
@@ -71,7 +72,11 @@ const navLinks = [
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await getAuthSession();
+  const [session, currentSeason] = await Promise.all([
+    getAuthSession(),
+    getCurrentSeason(),
+  ]);
+  const seasonLabel = (currentSeason?.name ?? "Off Season").toUpperCase();
   const authLinks: { href: string; label: string; match?: string }[] = session
     ? [
         ...(session.role === "admin"
@@ -165,7 +170,7 @@ export default async function RootLayout({
           <div className="mx-auto max-w-6xl px-4 sm:px-5 py-4 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
             <div className="font-display text-[15px] tracking-[0.14em] text-ink-dim">
               M.O.T.H HOCKEY <span className="text-rule-strong mx-2">/</span>{" "}
-              <span className="text-ink-faint">SPRING 2026</span>
+              <span className="text-ink-faint">{seasonLabel}</span>
             </div>
             <div className="eyebrow inline-flex items-center gap-1.5">
               <svg

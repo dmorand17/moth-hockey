@@ -241,6 +241,7 @@ export type ScoringLeader = {
   goals: number;
   assists: number;
   points: number;
+  team: { name: string; slug: string; color: string } | null;
 };
 
 // Current-season scoring leaders, computed from goal events across the season's
@@ -273,7 +274,7 @@ export async function getScoringLeaders(seasonId: string): Promise<ScoringLeader
     if (!p) return;
     const cur =
       acc.get(p.id) ??
-      { player_id: p.id, name: `${p.first_name} ${p.last_name}`, goals: 0, assists: 0, points: 0 };
+      { player_id: p.id, name: `${p.first_name} ${p.last_name}`, goals: 0, assists: 0, points: 0, team: null };
     cur.goals += g;
     cur.assists += a;
     cur.points = cur.goals + cur.assists;
@@ -287,6 +288,24 @@ export async function getScoringLeaders(seasonId: string): Promise<ScoringLeader
     bump(e.scorer, 1, 0);
     bump(e.assist1, 0, 1);
     bump(e.assist2, 0, 1);
+  }
+
+  // Attach each leader's team for this season (players link to teams via
+  // team_players). Done in one query rather than per-player.
+  const playerIds = [...acc.keys()];
+  if (playerIds.length > 0) {
+    const { data: rosters } = await supabase
+      .from("team_players")
+      .select("player_id, team:team_id(name, slug, color)")
+      .eq("season_id", seasonId)
+      .in("player_id", playerIds);
+    for (const r of (rosters ?? []) as unknown as {
+      player_id: string;
+      team: { name: string; slug: string; color: string } | null;
+    }[]) {
+      const cur = acc.get(r.player_id);
+      if (cur && r.team) cur.team = r.team;
+    }
   }
 
   return [...acc.values()].sort(

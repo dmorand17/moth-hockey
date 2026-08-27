@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updatePlayer, updateUserRole, linkUserToPlayer, deletePlayer, mergePlayer } from "./actions";
+import { updatePlayer, linkUserToPlayer, deletePlayer, mergePlayer } from "./actions";
 
 export type Team = { id: string; name: string; color: string };
 
@@ -47,13 +47,9 @@ type LinkFilter = "all" | "linked" | "unlinked";
 export function PlayerFilters({
   players,
   teams,
-  unlinkedAccounts,
-  roleOptions,
 }: {
   players: PlayerRow[];
   teams: Team[];
-  unlinkedAccounts: UnlinkedAccount[];
-  roleOptions: RoleOption[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -290,7 +286,9 @@ export function PlayerFilters({
                     </button>
                   </form>
 
-                  {/* Account */}
+                  {/* Account — link/role assignment lives in the Needs Linking
+                      section (link + role) and on the Users page (role). Here we
+                      only surface the current link and an unlink escape hatch. */}
                   <div className="space-y-2">
                     <span className="eyebrow text-ink-faint">Account</span>
                     {player.account ? (
@@ -298,44 +296,7 @@ export function PlayerFilters({
                         <div className="font-mono text-[11px] text-ink-dim truncate">
                           {player.account.email}
                         </div>
-                        <div className="flex flex-wrap items-end gap-2">
-                          <form
-                            action={updateUserRole}
-                            onSubmit={submit}
-                            className="flex items-end gap-2"
-                          >
-                            <input
-                              type="hidden"
-                              name="user_id"
-                              value={player.account.user_id}
-                            />
-                            <label className="block">
-                              <span className="eyebrow">Role</span>
-                              <select
-                                name="role"
-                                defaultValue={player.account.role ?? "player"}
-                                className={`mt-1 ${rowInputCls}`}
-                              >
-                                {player.account.role === "team_captain" && (
-                                  <option value="team_captain" disabled>
-                                    Team Captain (via Teams)
-                                  </option>
-                                )}
-                                {roleOptions.map((r) => (
-                                  <option key={r.value} value={r.value}>
-                                    {r.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <button
-                              type="submit"
-                              className="px-2.5 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors"
-                            >
-                              SAVE
-                            </button>
-                          </form>
-
+                        <div className="flex flex-wrap items-center gap-3">
                           <form action={linkUserToPlayer} onSubmit={submit}>
                             <input
                               type="hidden"
@@ -350,44 +311,17 @@ export function PlayerFilters({
                               UNLINK
                             </button>
                           </form>
+                          <a
+                            href={`/admin/users#user-${player.account.user_id}`}
+                            className="eyebrow hover:text-ink transition-colors"
+                          >
+                            Manage role on Users →
+                          </a>
                         </div>
                       </div>
-                    ) : unlinkedAccounts.length > 0 ? (
-                      <form
-                        action={linkUserToPlayer}
-                        onSubmit={submit}
-                        className="flex flex-wrap items-end gap-2"
-                      >
-                        <input type="hidden" name="player_id" value={player.id} />
-                        <label className="block flex-1 min-w-[180px]">
-                          <span className="eyebrow">Link account</span>
-                          <select
-                            name="user_id"
-                            defaultValue=""
-                            required
-                            className={`mt-1 w-full ${rowInputCls}`}
-                          >
-                            <option value="" disabled>
-                              — select signup —
-                            </option>
-                            {unlinkedAccounts.map((a) => (
-                              <option key={a.user_id} value={a.user_id}>
-                                {a.full_name ? `${a.full_name} · ` : ""}
-                                {a.email}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button
-                          type="submit"
-                          className="px-2.5 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
-                        >
-                          LINK
-                        </button>
-                      </form>
                     ) : (
                       <p className="text-ink-faint text-[12px]">
-                        No unlinked signups available.
+                        Not linked — link accounts in the Needs Linking section above.
                       </p>
                     )}
                   </div>

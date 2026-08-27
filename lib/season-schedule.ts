@@ -50,6 +50,35 @@ export function roundRobinPairs(
   return out;
 }
 
+/**
+ * Round-robin pairings filled to exactly `count` games. Cycles through the base
+ * round-robin sequence, alternating home/away on each full pass so repeated
+ * matchups stay balanced. Used to fill an exact number of weekly game slots
+ * (e.g. weeks × slots-per-night) regardless of how many games a single
+ * round-robin covers.
+ */
+export function roundRobinGames(
+  teamIds: string[],
+  count: number,
+): Array<[string, string]> {
+  if (teamIds.length < 2 || count <= 0) return [];
+  const base = roundRobinPairs(teamIds, 1);
+  if (base.length === 0) return [];
+
+  const out: Array<[string, string]> = [];
+  let idx = 0;
+  let pass = 0;
+  while (out.length < count) {
+    if (idx >= base.length) {
+      idx = 0;
+      pass++;
+    }
+    const [a, b] = base[idx++];
+    out.push(pass % 2 === 0 ? [a, b] : [b, a]);
+  }
+  return out;
+}
+
 const WEEKDAY_NAMES = [
   "Sunday",
   "Monday",

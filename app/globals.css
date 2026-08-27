@@ -89,7 +89,13 @@ body::before {
   display: block;
   height: 2px;
   margin-top: 0.5rem;
-  background: linear-gradient(90deg, var(--goal) 0%, var(--goal) 56px, var(--rule) 56px, var(--rule) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--accent, var(--goal)) 0%,
+    var(--accent, var(--goal)) 56px,
+    var(--rule) 56px,
+    var(--rule) 100%
+  );
 }
 
 /* Eyebrow tag — small monospace label */

@@ -47,12 +47,25 @@ export default async function Home() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
           {leader && (
-            <div className="scoreboard p-3 sm:p-5 col-span-2 md:col-span-1">
-              <div className="eyebrow mb-1.5 sm:mb-2">Atop the table</div>
-              <TeamBadge {...leader} size="lg" />
-              <div className="mt-2 sm:mt-3 flex items-baseline gap-2">
-                <span className="digit text-2xl sm:text-3xl text-ink">{leader.pts}</span>
-                <span className="eyebrow">PTS · {leader.w}-{leader.l}-{leader.otl}</span>
+            <div
+              className="scoreboard col-span-2 md:col-span-1 border-l-[3px] p-3 sm:p-4 flex items-center justify-between gap-3"
+              style={{
+                borderColor: leader.color,
+                background: `linear-gradient(90deg, ${leader.color}26, transparent 60%)`,
+              }}
+            >
+              <div className="min-w-0">
+                <div className="eyebrow flex items-center gap-1.5" style={{ color: leader.color }}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-3.5 w-3.5 shrink-0">
+                    <path d="M5 4h14v2a4 4 0 0 1-3 3.87A4 4 0 0 1 13 12.9V16h2a1 1 0 0 1 1 1v1H8v-1a1 1 0 0 1 1-1h2v-3.1A4 4 0 0 1 8 9.87 4 4 0 0 1 5 6Zm-2 2h1v0a5.98 5.98 0 0 0 1 3.32A3 3 0 0 1 3 8.83Zm18 0h-1a5.98 5.98 0 0 1-1 3.32A3 3 0 0 0 21 8.83Z" />
+                  </svg>
+                  Atop the table
+                </div>
+                <TeamBadge {...leader} size="lg" className="mt-1.5" />
+              </div>
+              <div className="text-right shrink-0">
+                <div className="digit text-2xl sm:text-3xl text-ink leading-none">{leader.pts}</div>
+                <div className="eyebrow mt-1">PTS · {leader.w}-{leader.l}-{leader.otl}</div>
               </div>
             </div>
           )}
@@ -60,6 +73,7 @@ export default async function Home() {
               <LeaderTile
                 label="Points leader"
                 name={pointsLeader.name}
+                team={pointsLeader.team}
                 stat={`${pointsLeader.points} PTS`}
                 sub={`${pointsLeader.goals}G · ${pointsLeader.assists}A`}
                 accent="ice"
@@ -71,6 +85,7 @@ export default async function Home() {
               <LeaderTile
                 label="Top scorer"
                 name={goalLeader.name}
+                team={goalLeader.team}
                 stat={`${goalLeader.goals} G`}
                 accent="goal"
               />
@@ -81,8 +96,15 @@ export default async function Home() {
       </section>
 
       {/* UPCOMING */}
-      <section className="rise delay-1">
-        <SectionHeader eyebrow="01" title="Upcoming" linkHref="/schedule" linkLabel="All games" />
+      <section
+        className="rise delay-1 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
+        style={{
+          borderColor: "var(--ice)",
+          background:
+            "linear-gradient(90deg, color-mix(in srgb, var(--ice) 9%, transparent), transparent 34%)",
+        }}
+      >
+        <SectionHeader eyebrow="01" title="Upcoming" linkHref="/schedule" linkLabel="All games" accent="ice" />
         {upcoming.length === 0 ? (
           <p className="eyebrow">No games on the schedule</p>
         ) : (
@@ -104,8 +126,15 @@ export default async function Home() {
       </section>
 
       {/* RECENT RESULTS */}
-      <section className="rise delay-2">
-        <SectionHeader eyebrow="02" title="Recent Results" />
+      <section
+        className="rise delay-2 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
+        style={{
+          borderColor: "#fbbf24",
+          background:
+            "linear-gradient(90deg, color-mix(in srgb, #fbbf24 9%, transparent), transparent 34%)",
+        }}
+      >
+        <SectionHeader eyebrow="02" title="Recent Results" accent="gold" />
         {recent.length === 0 ? (
           <p className="eyebrow">No results yet — first puck drops soon.</p>
         ) : (
@@ -130,7 +159,14 @@ export default async function Home() {
       </section>
 
       {/* STANDINGS PREVIEW */}
-      <section className="rise delay-3">
+      <section
+        className="rise delay-3 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
+        style={{
+          borderColor: "var(--goal)",
+          background:
+            "linear-gradient(90deg, color-mix(in srgb, var(--goal) 9%, transparent), transparent 34%)",
+        }}
+      >
         <SectionHeader eyebrow="03" title="The Table" linkHref="/standings" linkLabel="Full standings" />
         <div className="panel overflow-hidden">
           <table className="board-table">
@@ -172,12 +208,14 @@ export default async function Home() {
 function LeaderTile({
   label,
   name,
+  team,
   stat,
   sub,
   accent,
 }: {
   label: string;
   name: string;
+  team?: { name: string; slug: string; color: string } | null;
   stat: string;
   sub?: string;
   accent: "ice" | "goal";
@@ -189,6 +227,18 @@ function LeaderTile({
         <div className="font-display text-[18px] sm:text-[22px] leading-none tracking-[0.04em] text-ink truncate">
           {name}
         </div>
+        {team && (
+          <div className="mt-1 flex items-center gap-1.5 min-w-0">
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-[1px]"
+              style={{ background: team.color }}
+            />
+            <span className="eyebrow text-ink-dim normal-case tracking-[0.06em] truncate">
+              {team.name}
+            </span>
+          </div>
+        )}
         <div className="mt-1.5 flex items-baseline gap-2">
           <span
             className={`digit text-xl sm:text-2xl ${accent === "goal" ? "text-goal" : "text-ice"}`}

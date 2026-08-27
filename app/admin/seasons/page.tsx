@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
 import { weekdayLabel, type WeekdayIdx } from "@/lib/season-schedule";
+import { TimeSlotsField } from "./TimeSlotsField";
 import {
   activateSeason,
   createSeason,
@@ -479,28 +480,10 @@ export default async function AdminSeasonsPage({
                         </label>
                       </div>
 
-                      <fieldset className="space-y-1">
-                        <legend className="eyebrow">Time slots</legend>
-                        <div className="flex flex-wrap gap-3">
-                          {COMMON_GAME_TIMES.map((t) => (
-                            <label
-                              key={t.value}
-                              className="inline-flex items-center gap-2 min-h-11"
-                            >
-                              <input
-                                type="checkbox"
-                                name="times"
-                                value={t.value}
-                                defaultChecked
-                                className="size-4 accent-ice"
-                              />
-                              <span className="font-mono text-[13px] text-ink">
-                                {t.label}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </fieldset>
+                      <TimeSlotsField
+                        teamCount={teamCount}
+                        defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
+                      />
 
                       <label className="inline-flex items-center gap-2 min-h-11">
                         <input

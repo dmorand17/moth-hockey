@@ -32,7 +32,6 @@ type SearchParams = Promise<{
 const FLASH_MESSAGES: Record<string, string> = {
   created: "Player created.",
   updated: "Player updated.",
-  role: "Role updated.",
   link: "Player link updated.",
 };
 const ERROR_MESSAGES: Record<string, string> = {
@@ -203,12 +202,18 @@ export default async function AdminPlayersPage({
         </form>
       </section>
 
-      {/* Bulk import */}
-      <section className="space-y-3">
-        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-          IMPORT PLAYERS
-        </h2>
-        <form action={importPlayers} className="panel p-4 space-y-3">
+      {/* Bulk import — collapsed by default; used infrequently */}
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              IMPORT PLAYERS
+            </h2>
+          </summary>
+          <form action={importPlayers} className="panel p-4 space-y-3 mt-3">
           <label className="block">
             <span className="eyebrow">Paste names — one per line</span>
             <textarea
@@ -229,7 +234,8 @@ export default async function AdminPlayersPage({
           >
             IMPORT
           </button>
-        </form>
+          </form>
+        </details>
       </section>
 
       {/* Accounts awaiting a player link */}
@@ -255,12 +261,7 @@ export default async function AdminPlayersPage({
         <h2 className="font-display text-xl tracking-[0.04em] text-ink">
           PLAYERS
         </h2>
-        <PlayerFilters
-          players={players}
-          teams={teams}
-          unlinkedAccounts={unlinkedAccounts}
-          roleOptions={ROLE_OPTIONS}
-        />
+        <PlayerFilters players={players} teams={teams} />
       </section>
     </div>
   );

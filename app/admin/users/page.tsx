@@ -1,11 +1,26 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { updateUserRole } from "./actions";
 
-// Read-only roster of signed-up accounts with created/updated timestamps.
-// Role changes and player linking are managed on /admin/players.
+// Roster of signed-up accounts with created/updated timestamps. Roles are
+// changed here; player linking is managed on /admin/players.
 
 type Role = "admin" | "scorekeeper" | "team_captain" | "player";
+
+// team_captain is derived from team captaincy (managed on Teams), so it isn't
+// an option here — captains show as read-only.
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "scorekeeper", label: "Scorekeeper" },
+  { value: "player", label: "Player" },
+];
+
+type SearchParams = Promise<{ saved?: string; error?: string }>;
+
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_input: "Pick a valid role.",
+};
 
 function fmt(ts: string | null): string {
   if (!ts) return "—";
@@ -22,8 +37,13 @@ const ROLE_CLASS: Record<Role, string> = {
   player: "text-ink-dim border-rule bg-board-3",
 };
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   await requireRole(["admin"]);
+  const { saved, error } = await searchParams;
   const supabase = await createSupabaseServerClient();
 
   const [{ data: profiles }, { data: roles }, { data: players }] = await Promise.all([
@@ -59,12 +79,24 @@ export default async function AdminUsersPage() {
         <span className="eyebrow">{users.length} total</span>
       </header>
       <p className="text-ink-dim text-[12px]">
-        Signed-up accounts, newest first. Manage roles and player links on{" "}
+        Signed-up accounts, newest first. Change roles here; link accounts to
+        players on{" "}
         <Link href="/admin/players" className="text-ice hover:underline">
           Players
         </Link>
         .
       </p>
+
+      {saved === "role" && (
+        <p role="status" className="text-ice text-sm">
+          Role updated.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-goal text-sm">
+          {ERROR_MESSAGES[error] ?? error}
+        </p>
+      )}
 
       {users.length === 0 ? (
         <p className="text-ink-dim text-sm panel-bare p-4">No accounts yet.</p>
@@ -82,7 +114,7 @@ export default async function AdminUsersPage() {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.user_id}>
+                <tr key={u.user_id} id={`user-${u.user_id}`} className="scroll-mt-24 target:bg-ice/5">
                   <td className="pl-5">
                     <span className="block text-ink">{u.full_name || u.email}</span>
                     {u.full_name && (
@@ -90,11 +122,35 @@ export default async function AdminUsersPage() {
                     )}
                   </td>
                   <td>
-                    <span
-                      className={`inline-flex items-center px-1.5 py-0.5 rounded-[2px] border font-mono text-[10.5px] uppercase tracking-[0.12em] ${ROLE_CLASS[u.role]}`}
-                    >
-                      {u.role === "team_captain" ? "captain" : u.role}
-                    </span>
+                    {u.role === "team_captain" ? (
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.5 rounded-[2px] border font-mono text-[10.5px] uppercase tracking-[0.12em] ${ROLE_CLASS.team_captain}`}
+                        title="Captaincy is set on Teams"
+                      >
+                        captain
+                      </span>
+                    ) : (
+                      <form action={updateUserRole} className="flex items-center gap-1.5">
+                        <input type="hidden" name="user_id" value={u.user_id} />
+                        <select
+                          name="role"
+                          defaultValue={u.role}
+                          className="bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice"
+                        >
+                          {ROLE_OPTIONS.map((r) => (
+                            <option key={r.value} value={r.value}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="submit"
+                          className="px-2 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                        >
+                          SAVE
+                        </button>
+                      </form>
+                    )}
                   </td>
                   <td>
                     {u.player ? (

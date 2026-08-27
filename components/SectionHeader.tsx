@@ -11,6 +11,8 @@ type Props = {
   linkLabel?: string;
   size?: "md" | "lg";
   accent?: Accent;
+  /** Heading level for the title. Use "h1" for the page's primary heading. */
+  as?: "h1" | "h2";
 };
 
 const ACCENT: Record<Accent, string> = {
@@ -27,6 +29,7 @@ export function SectionHeader({
   linkLabel,
   size = "md",
   accent = "goal",
+  as: Heading = "h2",
 }: Props) {
   const titleSize =
     size === "lg"
@@ -38,17 +41,32 @@ export function SectionHeader({
       className="goal-line mb-3 sm:mb-5 flex items-end justify-between gap-3 flex-wrap"
       style={{ "--accent": accentColor } as CSSProperties}
     >
-      <div>
-        <div className="flex items-baseline gap-2.5 sm:gap-3">
-          {eyebrow && (
-            <span className="eyebrow shrink-0" style={{ color: accentColor }}>
-              {eyebrow}
-            </span>
-          )}
-          <h2 className={`font-display ${titleSize} leading-none tracking-[0.04em]`}>
-            {title.toUpperCase()}
-          </h2>
-        </div>
+      <div className="min-w-0">
+        {/* Big page titles (lg) stack the eyebrow above; compact section
+            headers (md) keep it inline (e.g. "01 UPCOMING"). */}
+        {size === "lg" ? (
+          <>
+            {eyebrow && (
+              <div className="eyebrow mb-1.5" style={{ color: accentColor }}>
+                {eyebrow}
+              </div>
+            )}
+            <Heading className={`font-display ${titleSize} leading-none tracking-[0.04em]`}>
+              {title.toUpperCase()}
+            </Heading>
+          </>
+        ) : (
+          <div className="flex items-baseline gap-2.5 sm:gap-3">
+            {eyebrow && (
+              <span className="eyebrow shrink-0" style={{ color: accentColor }}>
+                {eyebrow}
+              </span>
+            )}
+            <Heading className={`font-display ${titleSize} leading-none tracking-[0.04em]`}>
+              {title.toUpperCase()}
+            </Heading>
+          </div>
+        )}
         {subtitle && <p className="eyebrow mt-2 normal-case tracking-[0.06em]">{subtitle}</p>}
       </div>
       {linkHref && linkLabel && (

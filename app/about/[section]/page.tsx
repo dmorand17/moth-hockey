@@ -34,7 +34,7 @@ export default async function AboutSectionPage({
         ← About
       </Link>
       <div className="rise delay-1">
-        <SectionHeader eyebrow={meta.eyebrow} title={meta.title} size="lg" />
+        <SectionHeader eyebrow={meta.eyebrow} title={meta.title} size="lg" as="h1" />
       </div>
 
       {(pages ?? []).length === 0 ? (

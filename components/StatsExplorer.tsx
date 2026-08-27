@@ -229,6 +229,7 @@ export function StatsExplorer({
               title="Stats"
               subtitle={`${seasonName} · league leaders`}
               size="lg"
+              as="h1"
             />
           </div>
           <div className="mt-1 shrink-0">
@@ -277,9 +278,9 @@ export function StatsExplorer({
           </a>
         </div>
         <SkaterTable rows={skaters} />
-        <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
+        <Legend>
           Tap any column header to sort. PEN = penalties committed; PS = penalty shots taken; PSG = penalty shots scored.
-        </p>
+        </Legend>
       </section>
 
       <section
@@ -289,11 +290,26 @@ export function StatsExplorer({
       >
         <SectionHeader eyebrow="Between The Pipes" title="Goalies" accent="goal" />
         <GoalieTable rows={goalies} />
-        <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
+        <Legend>
           GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
-        </p>
+        </Legend>
       </section>
     </>
+  );
+}
+
+// Collapsed-by-default abbreviations key, so the tables sit higher on the page.
+function Legend({ children }: { children: ReactNode }) {
+  return (
+    <details className="mt-3 group">
+      <summary className="eyebrow inline-flex items-center gap-1.5 cursor-pointer list-none select-none min-h-11 text-ink-dim hover:text-ink transition-colors">
+        <span className="text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block">
+          ▶
+        </span>
+        Legend
+      </summary>
+      <p className="eyebrow mt-1.5 normal-case tracking-[0.06em] text-ink-faint">{children}</p>
+    </details>
   );
 }
 

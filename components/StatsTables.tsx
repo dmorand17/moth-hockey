@@ -37,6 +37,7 @@ type GoalieKey = "name" | "team" | "gp" | "ga" | "ps_faced" | "ps_saved";
 type Direction = "asc" | "desc";
 
 const MOBILE_TOP_N = 10;
+const DESKTOP_TOP_N = 20;
 
 const skaterCols: { key: SkaterKey; label: string; align: "left" | "right"; defaultDir: Direction; numeric: boolean }[] = [
   { key: "name", label: "Player", align: "left", defaultDir: "asc", numeric: false },
@@ -195,7 +196,7 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
                 <td colSpan={skaterCols.length + 1} className="pl-5 py-6 eyebrow">No stats yet</td>
               </tr>
             ) : (
-              sorted.map((s, i) => {
+              (expanded ? sorted : sorted.slice(0, DESKTOP_TOP_N)).map((s, i) => {
                 const medal = medalColor(i, isLeaderboard);
                 return (
                 <tr key={s.id}>
@@ -235,6 +236,15 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
           </tbody>
         </table>
       </div>
+      {sorted.length > DESKTOP_TOP_N && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="hidden sm:flex mt-3 eyebrow items-center justify-center w-full min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
+        >
+          {expanded ? "Show fewer" : `Show all ${sorted.length} skaters`}
+        </button>
+      )}
     </>
   );
 }

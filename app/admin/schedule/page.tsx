@@ -202,6 +202,7 @@ export default async function AdminSchedulePage() {
               <input
                 type="text"
                 name="location"
+                defaultValue={season.default_location ?? ""}
                 placeholder="Ice Plex Rink 1"
                 className={`mt-1 ${inputCls}`}
               />

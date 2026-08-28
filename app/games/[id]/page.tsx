@@ -41,12 +41,16 @@ export default async function GamePage({
   const { data: game } = await supabase
     .from("games")
     .select(
-      "id, scheduled_at, location, status, kind, playoff_round, season_id, home_team_id, away_team_id, home_score, away_score, period, clock_seconds, decided_in, shootout_home_goals, shootout_away_goals, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color)",
+      "id, scheduled_at, location, status, kind, playoff_round, season_id, home_team_id, away_team_id, home_score, away_score, period, clock_seconds, decided_in, shootout_home_goals, shootout_away_goals, home_team:home_team_id(id, name, slug, color), away_team:away_team_id(id, name, slug, color), season:season_id(default_location)",
     )
     .eq("id", id)
     .single();
 
   if (!game) notFound();
+
+  // Fall back to the season's default rink when the game has no location.
+  const seasonRef = game.season as { default_location: string | null } | null;
+  const displayLocation = game.location ?? seasonRef?.default_location ?? null;
 
   const { data: eventsRaw } = await supabase
     .from("game_events")
@@ -175,10 +179,10 @@ export default async function GamePage({
               <span>{formatDate(game.scheduled_at)}</span>
               <span className="text-rule-strong">·</span>
               <span>{formatTime(game.scheduled_at)}</span>
-              {game.location && (
+              {displayLocation && (
                 <>
                   <span className="text-rule-strong">·</span>
-                  <span>{game.location}</span>
+                  <span>{displayLocation}</span>
                 </>
               )}
             </div>

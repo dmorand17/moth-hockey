@@ -55,6 +55,7 @@ type SeasonRow = {
   start_date: string;
   end_date: string | null;
   regular_weeks: number | null;
+  default_location: string | null;
   is_current: boolean;
   period_length_minutes: number;
   point_system: string;
@@ -70,7 +71,7 @@ export default async function AdminSeasonsPage() {
   const { data: seasonsRaw } = await supabase
     .from("seasons")
     .select(
-      "id, season_type, year, name, start_date, end_date, regular_weeks, is_current, period_length_minutes, point_system, tiebreakers",
+      "id, season_type, year, name, start_date, end_date, regular_weeks, default_location, is_current, period_length_minutes, point_system, tiebreakers",
     )
     .order("start_date", { ascending: false });
 
@@ -213,6 +214,15 @@ export default async function AdminSeasonsPage() {
                   className={`mt-1 ${inputCls}`}
                 />
               </label>
+              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[180px]">
+                <span className="eyebrow">Default rink (optional)</span>
+                <input
+                  type="text"
+                  name="default_location"
+                  placeholder="Ice Plex Rink 1"
+                  className={`mt-1 ${inputCls}`}
+                />
+              </label>
             </div>
           </FieldGroup>
 
@@ -292,6 +302,7 @@ export default async function AdminSeasonsPage() {
                         label="Period"
                         value={`${season.period_length_minutes} min`}
                       />
+                      <StatTile label="Rink" value={season.default_location ?? "—"} />
                       <StatTile label="Teams" value={teamCount} />
                     </div>
 
@@ -332,6 +343,16 @@ export default async function AdminSeasonsPage() {
                               : weeksBetween(season.start_date, season.end_date)
                           }
                         />
+                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[180px]">
+                          <span className="eyebrow">Default rink</span>
+                          <input
+                            type="text"
+                            name="default_location"
+                            defaultValue={season.default_location ?? ""}
+                            placeholder="Ice Plex Rink 1"
+                            className={`mt-1 ${inputCls}`}
+                          />
+                        </label>
                         <SubmitButton className={primaryBtn}>
                           SAVE DATES
                         </SubmitButton>
@@ -644,6 +665,7 @@ export default async function AdminSeasonsPage() {
                             <input
                               type="text"
                               name="location"
+                              defaultValue={season.default_location ?? ""}
                               placeholder="Ice Plex Rink 1"
                               className={`mt-1 ${inputCls}`}
                             />

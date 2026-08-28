@@ -78,6 +78,8 @@ export async function createSeason(formData: FormData) {
     String(formData.get("period_length_minutes") ?? "17"),
     17,
   );
+  const pointSystemRaw = String(formData.get("point_system") ?? "").trim();
+  const point_system = pointSystemRaw === "2-1-0" ? "2-1-0" : "3-2-1";
   const copyFrom = String(formData.get("copy_from_season_id") ?? "").trim();
 
   if (!seasonType || isNaN(year) || !name || !startDate) {
@@ -96,6 +98,7 @@ export async function createSeason(formData: FormData) {
       start_date: startDate,
       end_date: resolvedEnd,
       period_length_minutes: periodLength,
+      point_system,
       is_current: false,
     })
     .select("id")
@@ -321,20 +324,17 @@ export async function updateStandingsRules(formData: FormData) {
   await requireRole(["admin"]);
 
   const id = String(formData.get("id") ?? "").trim();
-  const pointSystem = String(formData.get("point_system") ?? "").trim();
   const tiebreakers = formData
     .getAll("tiebreakers")
     .map(String)
     .filter((k) => ["wins", "diff", "gf", "ga", "h2h"].includes(k));
 
-  if (!id || (pointSystem !== "2-1-0" && pointSystem !== "3-2-1")) {
-    back("error=invalid_input");
-  }
+  if (!id) back("error=invalid_input");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("seasons")
-    .update({ point_system: pointSystem, tiebreakers })
+    .update({ tiebreakers })
     .eq("id", id);
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 

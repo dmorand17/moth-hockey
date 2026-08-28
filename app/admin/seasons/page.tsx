@@ -31,7 +31,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   not_enough_teams: "Need at least 2 teams in this season to generate a schedule.",
   cannot_delete_current: "Cannot delete the current season. Activate another first.",
   has_games: "Delete or move games before deleting the season.",
-  no_playoff_stubs: "Generate the schedule with playoffs first to seed the bracket.",
   regular_incomplete: "Finish all regular-season games before generating playoffs.",
   playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
 };
@@ -90,19 +89,17 @@ export default async function AdminSeasonsPage({
   for (const t of teamRows ?? []) {
     teamCounts.set(t.season_id, (teamCounts.get(t.season_id) ?? 0) + 1);
   }
-  type GameAgg = AggRow & { final: number; regular_final: number };
+  type GameAgg = AggRow & { final: number };
   const gameCounts = new Map<string, GameAgg>();
   for (const g of gameRows ?? []) {
     const cur = gameCounts.get(g.season_id) ?? {
       season_id: g.season_id,
       n: 0,
       final: 0,
-      regular_final: 0,
     };
     cur.n += 1;
     if (g.status === "final") {
       cur.final += 1;
-      if (g.kind === "regular") cur.regular_final += 1;
     }
     gameCounts.set(g.season_id, cur);
   }
@@ -216,6 +213,37 @@ export default async function AdminSeasonsPage({
                 />
               </label>
             </div>
+          </FieldGroup>
+
+          <FieldGroup label="Scoring">
+            <fieldset className="space-y-1.5">
+              <legend className="eyebrow text-ink-dim mb-1">Point system</legend>
+              <label className="flex items-start gap-2 text-[13px] text-ink">
+                <input
+                  type="radio"
+                  name="point_system"
+                  value="3-2-1"
+                  defaultChecked
+                  className="mt-0.5 size-4 accent-ice"
+                />
+                <span>
+                  <strong>3-2-1</strong>
+                  <span className="text-ink-faint"> — reg win 3 · OT win 2 · OT loss 1</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-[13px] text-ink">
+                <input
+                  type="radio"
+                  name="point_system"
+                  value="2-1-0"
+                  className="mt-0.5 size-4 accent-ice"
+                />
+                <span>
+                  <strong>2-1-0</strong>
+                  <span className="text-ink-faint"> — win 2 · OT loss 1</span>
+                </span>
+              </label>
+            </fieldset>
           </FieldGroup>
 
           <FieldGroup
@@ -373,12 +401,12 @@ export default async function AdminSeasonsPage({
                       </form>
                     </FieldGroup>
 
-                    {/* Standings rules */}
-                    <FieldGroup label="Standings rules">
+                    {/* Tie-breakers */}
+                    <FieldGroup label="Tie-breakers">
+                      <p className="text-ink-faint text-[12px]">Point system: <span className="font-mono text-ink-dim">{season.point_system}</span> — set at creation.</p>
                       <StandingsRulesEditor
                         action={updateStandingsRules}
                         seasonId={season.id}
-                        pointSystem={season.point_system}
                         tiebreakers={season.tiebreakers}
                       />
                     </FieldGroup>

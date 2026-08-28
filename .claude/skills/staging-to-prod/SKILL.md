@@ -14,9 +14,11 @@ following the repo convention.
 
 - **Title:** `Staging to Prod` (exactly — every prior release PR uses this)
 - **Base:** `main`  **Head:** `staging`
-- **Body:** a bulleted list of the feature PRs being promoted (`- #N — <title>`)
-  plus a short post-merge checklist. Historically the body was empty; include
-  the summary so the release is self-documenting.
+- **Body:** a bulleted list of the feature PRs being promoted (`- #N — <title>`),
+  a **Migrations** section calling out any new Supabase migrations to apply to
+  prod (Vercel does NOT run them), plus a short post-merge checklist.
+  Historically the body was empty; include the summary so the release is
+  self-documenting.
 
 ## Quick start
 
@@ -37,7 +39,10 @@ or an already-open PR, relay that instead of creating a duplicate.
 2. If a `staging → main` PR is already open, prints its URL and exits.
 3. Parses the merged feature PRs from `staging`'s first-parent merge commits and
    looks up each title via `gh` to build the **Included** list.
-4. Creates the PR with the conventional title/base/head and the generated body.
+4. Detects new `supabase/migrations/` files on `staging` not in `main` and, if
+   any, adds a **Migrations to apply to prod** section + a post-merge checklist
+   item (Vercel doesn't run migrations — they need `supabase db push` to prod).
+5. Creates the PR with the conventional title/base/head and the generated body.
 
 ## Manual fallback
 
@@ -46,7 +51,9 @@ If the script can't run, do it by hand:
 ```bash
 git fetch origin
 git log --first-parent --oneline origin/main..origin/staging   # what's being promoted
-gh pr create --base main --head staging --title "Staging to Prod" --body "<summary + checklist>"
+# new migrations to apply to prod (Vercel won't run them):
+git diff --name-only --diff-filter=A origin/main..origin/staging -- supabase/migrations/
+gh pr create --base main --head staging --title "Staging to Prod" --body "<summary + migrations + checklist>"
 ```
 
 ## Notes

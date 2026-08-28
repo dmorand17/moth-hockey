@@ -178,6 +178,53 @@ export function buildPlayoffSlots(
   };
 }
 
+export type PlayoffRound = "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final";
+
+/** Playoff games in bracket order (round 1 first … Final last) for R rounds. */
+export function playoffRoundsFor(rounds: number): PlayoffRound[] {
+  if (rounds === 1) return ["final"];
+  if (rounds === 2) return ["sf1", "sf2", "final"];
+  if (rounds === 3) return ["qf1", "qf2", "qf3", "qf4", "sf1", "sf2", "final"];
+  return [];
+}
+
+/** Round-1 seed pairings (1-indexed) for R rounds, in the same order as the
+ *  first N entries of playoffRoundsFor(rounds). */
+export function firstRoundSeeds(rounds: number): [number, number][] {
+  if (rounds === 1) return [[1, 2]];
+  if (rounds === 2) return [[1, 4], [2, 3]];
+  if (rounds === 3) return [[1, 8], [4, 5], [3, 6], [2, 7]];
+  return [];
+}
+
+/** Which two earlier games feed each later game. */
+export function playoffFeeders(
+  rounds: number,
+): Partial<Record<PlayoffRound, [PlayoffRound, PlayoffRound]>> {
+  if (rounds === 2) return { final: ["sf1", "sf2"] };
+  if (rounds === 3)
+    return { sf1: ["qf1", "qf2"], sf2: ["qf3", "qf4"], final: ["sf1", "sf2"] };
+  return {};
+}
+
+export function playoffLabel(r: PlayoffRound): string {
+  return r === "final" ? "Final" : r.toUpperCase();
+}
+
+/** ISO timestamps for `playoffCount` playoff games, laid into the weekly grid
+ *  right after the regular season (bracket order). */
+export function playoffSlots(
+  startDate: string,
+  weekday: WeekdayIdx,
+  times: string[],
+  regularCount: number,
+  playoffCount: number,
+): string[] {
+  if (times.length === 0 || playoffCount <= 0) return [];
+  const slots = buildGameSlots(startDate, weekday, times, regularCount + playoffCount);
+  return slots.slice(regularCount);
+}
+
 /** "YYYY-MM-DD" in local time — a stable per-game-night key. */
 export function localDateKey(iso: string): string {
   const d = new Date(iso);

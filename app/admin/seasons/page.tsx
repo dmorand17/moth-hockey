@@ -68,6 +68,7 @@ type SeasonRow = {
   name: string;
   start_date: string;
   end_date: string | null;
+  regular_weeks: number | null;
   is_current: boolean;
   period_length_minutes: number;
   point_system: string;
@@ -88,7 +89,7 @@ export default async function AdminSeasonsPage({
   const { data: seasonsRaw } = await supabase
     .from("seasons")
     .select(
-      "id, season_type, year, name, start_date, end_date, is_current, period_length_minutes, point_system, tiebreakers",
+      "id, season_type, year, name, start_date, end_date, regular_weeks, is_current, period_length_minutes, point_system, tiebreakers",
     )
     .order("start_date", { ascending: false });
 
@@ -348,7 +349,10 @@ export default async function AdminSeasonsPage({
                       <StatTile label="End" value={season.end_date ?? "—"} />
                       <StatTile
                         label="Weeks"
-                        value={weeksBetween(season.start_date, season.end_date) || "—"}
+                        value={
+                          season.regular_weeks ??
+                          (weeksBetween(season.start_date, season.end_date) || "—")
+                        }
                       />
                       <StatTile
                         label="Period"
@@ -388,10 +392,11 @@ export default async function AdminSeasonsPage({
                         <input type="hidden" name="id" value={season.id} />
                         <SeasonDurationFields
                           defaultStartDate={season.start_date}
-                          defaultWeeks={weeksBetween(
-                            season.start_date,
-                            season.end_date,
-                          )}
+                          defaultWeeks={
+                            season.regular_weeks != null
+                              ? String(season.regular_weeks)
+                              : weeksBetween(season.start_date, season.end_date)
+                          }
                         />
                         <button type="submit" className={primaryBtn}>
                           SAVE DATES
@@ -701,7 +706,7 @@ export default async function AdminSeasonsPage({
                             <input
                               type="number"
                               name="weeks"
-                              defaultValue={10}
+                              defaultValue={season.regular_weeks ?? 10}
                               min={1}
                               max={52}
                               className={`mt-1 ${inputCls}`}

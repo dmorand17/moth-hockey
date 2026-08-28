@@ -93,6 +93,7 @@ export async function createSeason(formData: FormData) {
       name,
       start_date: startDate,
       end_date: resolvedEnd,
+      regular_weeks: parseInt(weeks, 10),
       period_length_minutes: periodLength,
       point_system,
       is_current: false,
@@ -159,7 +160,11 @@ export async function updateSeasonDates(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("seasons")
-    .update({ start_date: startDate, end_date: resolvedEnd })
+    .update({
+      start_date: startDate,
+      end_date: resolvedEnd,
+      regular_weeks: parseInt(weeks, 10),
+    })
     .eq("id", id);
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 
@@ -345,6 +350,19 @@ export async function generateSchedule(formData: FormData) {
     const { error: insErr } = await supabase.from("games").insert(rows);
     if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
   }
+
+  // Sync the season's length to what we just scheduled: regular_weeks from the
+  // form, and end_date extended to cover the playoff nights (each week holds
+  // times.length slots, so playoffs span ceil(games / slots) extra weeks).
+  const playoffWeeks =
+    bracket.length > 0 ? Math.ceil(bracket.length / times.length) : 0;
+  await supabase
+    .from("seasons")
+    .update({
+      regular_weeks: weeks,
+      end_date: resolveEndDate(season.start_date, String(weeks + playoffWeeks)),
+    })
+    .eq("id", seasonId);
 
   revalidatePath("/admin/seasons");
   revalidatePath("/admin/schedule");

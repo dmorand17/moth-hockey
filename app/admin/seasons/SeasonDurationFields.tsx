@@ -60,13 +60,13 @@ export function SeasonDurationFields({
         />
       </label>
       <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-        <span className="eyebrow">End date (calculated)</span>
+        <span className="eyebrow">Regular season ends</span>
         <input
           type="text"
           readOnly
           tabIndex={-1}
           value={end || "—"}
-          aria-label="End date, calculated from weeks"
+          aria-label="Regular season end date, calculated from weeks"
           className={`mt-1 ${inputCls} text-ink-faint cursor-default`}
         />
       </label>

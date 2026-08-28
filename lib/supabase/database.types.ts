@@ -544,6 +544,7 @@ export type Database = {
           name: string
           period_length_minutes: number
           point_system: string
+          regular_weeks: number | null
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
           tiebreakers: string[]
@@ -557,6 +558,7 @@ export type Database = {
           name: string
           period_length_minutes?: number
           point_system?: string
+          regular_weeks?: number | null
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
           tiebreakers?: string[]
@@ -570,6 +572,7 @@ export type Database = {
           name?: string
           period_length_minutes?: number
           point_system?: string
+          regular_weeks?: number | null
           season_type?: Database["public"]["Enums"]["season_type"]
           start_date?: string
           tiebreakers?: string[]

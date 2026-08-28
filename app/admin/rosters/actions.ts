@@ -4,12 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentSeason } from "@/lib/queries";
 
 type Position = "forward" | "defense" | "goalie";
 
 function back(qs: string): never {
-  redirect(`/admin/teams?${qs}`);
+  redirect(`/admin/seasons?${qs}`);
 }
 
 function parseJersey(raw: string): number | null {
@@ -28,8 +27,6 @@ function parsePosition(raw: string): Position {
 export async function addToRoster(formData: FormData) {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
-  const season = await getCurrentSeason();
-  if (!season) back("error=no_season");
 
   const teamId = String(formData.get("team_id") ?? "").trim();
   const playerId = String(formData.get("player_id") ?? "").trim();
@@ -38,10 +35,17 @@ export async function addToRoster(formData: FormData) {
 
   if (!teamId || !playerId) back("error=invalid_input");
 
+  const { data: team } = await supabase
+    .from("teams")
+    .select("season_id")
+    .eq("id", teamId)
+    .single();
+  if (!team) back("error=no_team");
+
   const { error } = await supabase.from("team_players").insert({
     team_id: teamId,
     player_id: playerId,
-    season_id: season.id,
+    season_id: team.season_id,
     position,
     jersey_number: jerseyNumber,
   });
@@ -52,8 +56,8 @@ export async function addToRoster(formData: FormData) {
     back(`error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/admin/teams");
-  redirect("/admin/teams?saved=added");
+  revalidatePath("/admin/seasons");
+  redirect("/admin/seasons?saved=added");
 }
 
 export async function updateRosterEntry(formData: FormData) {
@@ -75,8 +79,8 @@ export async function updateRosterEntry(formData: FormData) {
 
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 
-  revalidatePath("/admin/teams");
-  redirect("/admin/teams?saved=roster_updated");
+  revalidatePath("/admin/seasons");
+  redirect("/admin/seasons?saved=roster_updated");
 }
 
 // Batch roster save: applies additions, removals, and position/jersey updates
@@ -90,8 +94,12 @@ export async function saveRosterChanges(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
-  const season = await getCurrentSeason();
-  if (!season) return { ok: false, error: "no_season" };
+  const { data: team } = await supabase
+    .from("teams")
+    .select("season_id")
+    .eq("id", input.teamId)
+    .single();
+  if (!team) return { ok: false, error: "no_team" };
 
   for (const r of input.toRemove) {
     const { error } = await supabase
@@ -107,7 +115,7 @@ export async function saveRosterChanges(input: {
       input.toAdd.map((r) => ({
         team_id: input.teamId,
         player_id: r.player_id,
-        season_id: season.id,
+        season_id: team.season_id,
         position: r.position,
         jersey_number: r.jersey_number,
       })),
@@ -132,7 +140,7 @@ export async function saveRosterChanges(input: {
     if (error) return { ok: false, error: error.message };
   }
 
-  revalidatePath("/admin/teams");
+  revalidatePath("/admin/seasons");
   return { ok: true };
 }
 
@@ -153,6 +161,6 @@ export async function removeFromRoster(formData: FormData) {
 
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 
-  revalidatePath("/admin/teams");
-  redirect("/admin/teams?saved=removed");
+  revalidatePath("/admin/seasons");
+  redirect("/admin/seasons?saved=removed");
 }

@@ -1,10 +1,41 @@
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SeasonSelect } from "@/components/SeasonSelect";
-import { getSeasons, getStandings, getHistoricalStandings } from "@/lib/queries";
+import {
+  getSeasons,
+  getStandings,
+  getHistoricalStandings,
+  getSeasonRules,
+  type PointSystem,
+  type TieKey,
+} from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 
 type SearchParams = Promise<{ season?: string }>;
+
+// Lowercase labels for the House Rules chip (matches the page's inline style).
+const TIE_LABELS: Record<TieKey, string> = {
+  wins: "wins",
+  diff: "goal differential",
+  gf: "goals for",
+  ga: "goals against",
+  h2h: "head-to-head",
+};
+
+function pointsSummary(system: PointSystem): { label: string; value: string }[] {
+  return system === "3-2-1"
+    ? [
+        { label: "Reg. win:", value: "3 pts" },
+        { label: "OT/SO win:", value: "2 pts" },
+        { label: "OT/SO loss:", value: "1 pt" },
+        { label: "Regulation loss:", value: "0" },
+      ]
+    : [
+        { label: "Win:", value: "2 pts" },
+        { label: "OT/SO loss:", value: "1 pt" },
+        { label: "Regulation loss:", value: "0" },
+      ];
+}
 
 export default async function StandingsPage({ searchParams }: { searchParams: SearchParams }) {
   const { season: seasonParam } = await searchParams;
@@ -15,6 +46,10 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
     seasons.find((s) => s.id === seasonParam) ??
     seasons.find((s) => s.is_current) ??
     seasons[0];
+
+  const rules = await getSeasonRules(season.id);
+  const points = pointsSummary(rules.system);
+  const tieChain = ["points", ...rules.tiebreakers.map((k) => TIE_LABELS[k])].join(" → ");
 
   const header = (
     <div className="rise">
@@ -164,12 +199,15 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
         <div className="eyebrow mb-3 text-goal">House rules</div>
         <ul className="space-y-1.5 text-[13.5px] text-ink-dim">
           <li>
-            <span className="text-ink">Win:</span> 2 pts ·{" "}
-            <span className="text-ink">OT/SO loss:</span> 1 pt ·{" "}
-            <span className="text-ink">Regulation loss:</span> 0
+            {points.map((p, i) => (
+              <span key={p.label}>
+                {i > 0 && " · "}
+                <span className="text-ink">{p.label}</span> {p.value}
+              </span>
+            ))}
           </li>
           <li>
-            <span className="text-ink">Tiebreakers:</span> points → wins → goal differential → goals for
+            <span className="text-ink">Tiebreakers:</span> {tieChain}
           </li>
         </ul>
       </div>

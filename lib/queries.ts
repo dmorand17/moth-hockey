@@ -14,6 +14,24 @@ export function computeGamePoints(
   return otOrSo ? 1 : 0;
 }
 
+export type SeasonRules = { system: PointSystem; tiebreakers: TieKey[] };
+
+/** A season's configured point system + tiebreaker order, normalized the same
+ *  way getStandings applies them (defaults: 3-2-1, wins → diff → gf). */
+export async function getSeasonRules(seasonId: string): Promise<SeasonRules> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("seasons")
+    .select("point_system, tiebreakers")
+    .eq("id", seasonId)
+    .single();
+  const system: PointSystem = data?.point_system === "2-1-0" ? "2-1-0" : "3-2-1";
+  const tiebreakers = ((data?.tiebreakers ?? ["wins", "diff", "gf"]) as string[]).filter(
+    (k): k is TieKey => VALID_TIE_KEYS.includes(k as TieKey),
+  );
+  return { system, tiebreakers };
+}
+
 type TeamRef = { name: string; slug: string; color: string };
 export type PlayoffRound = "sf1" | "sf2" | "final";
 export type GameKind = "regular" | "playoff";

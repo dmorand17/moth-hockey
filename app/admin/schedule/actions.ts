@@ -35,7 +35,9 @@ export async function createGame(formData: FormData): Promise<ActionResult> {
   const awayTeamId = String(formData.get("away_team_id") ?? "").trim();
   const scheduledDate = String(formData.get("scheduled_date") ?? "").trim();
   const scheduledTime = String(formData.get("scheduled_time") ?? "").trim();
-  const location = String(formData.get("location") ?? "").trim() || null;
+  // Fall back to the season's default rink when no location was entered.
+  const location =
+    (String(formData.get("location") ?? "").trim() || season.default_location) ?? null;
 
   if (!homeTeamId || !awayTeamId || !scheduledDate || !scheduledTime || homeTeamId === awayTeamId)
     return fail("Check all required fields (home team ≠ away team, valid date).");

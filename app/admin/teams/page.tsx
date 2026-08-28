@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
-import { assignTeamCaptain, createTeam, updateTeam } from "./actions";
+import { assignTeamCaptain, createTeam, updateTeam } from "../seasons/actions";
 import { ColorSwatches } from "../seasons/color-swatches";
 import { RosterEditor } from "../seasons/RosterEditor";
 import { PlayerCombobox } from "@/components/PlayerCombobox";

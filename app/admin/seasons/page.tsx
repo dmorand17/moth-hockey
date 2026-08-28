@@ -16,6 +16,7 @@ import {
   deleteSeason,
   generatePlayoffs,
   generateSchedule,
+  reservePlayoffs,
   resetSeason,
   updateSeasonDates,
   updateStandingsRules,
@@ -259,6 +260,13 @@ export default async function AdminSeasonsPage() {
               const canDelete = !season.is_current && gameTotal === 0;
               const bracket = bracketBySeason.get(season.id) ?? [];
               const hasPlayoffStubs = bracket.length > 0;
+              const currentRounds = bracket.some((g) => g.playoff_round?.startsWith("qf"))
+                ? 3
+                : bracket.some((g) => g.playoff_round?.startsWith("sf"))
+                  ? 2
+                  : bracket.some((g) => g.playoff_round === "final")
+                    ? 1
+                    : 0;
 
               return (
                 <details
@@ -579,6 +587,32 @@ export default async function AdminSeasonsPage() {
 
                     {/* Playoffs */}
                     <Disclosure label="Playoffs" accent="ice">
+                      <ActionForm
+                        action={reservePlayoffs}
+                        className="flex flex-wrap items-end gap-3 mb-4"
+                      >
+                        <input type="hidden" name="season_id" value={season.id} />
+                        <label className="block w-full sm:w-auto sm:min-w-[220px]">
+                          <span className="eyebrow">Playoff rounds</span>
+                          <select
+                            name="playoff_rounds"
+                            defaultValue={String(currentRounds)}
+                            className={`mt-1 ${inputCls}`}
+                          >
+                            <option value="0">None</option>
+                            <option value="1">Final only (top 2)</option>
+                            <option value="2">Semis + Final (top 4)</option>
+                            <option value="3">Quarters + Semis + Final (top 8)</option>
+                          </select>
+                        </label>
+                        <SubmitButton className={primaryBtn}>SET UP PLAYOFFS</SubmitButton>
+                        <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
+                          Adds TBD-vs-TBD bracket stubs on the week(s) after your last
+                          regular game (works for a generated or hand-built schedule).
+                          Then seed them below.
+                        </p>
+                      </ActionForm>
+
                       {hasPlayoffStubs && (
                         <div className="space-y-1.5 mb-3">
                           {bracket
@@ -607,8 +641,8 @@ export default async function AdminSeasonsPage() {
                         </SubmitButton>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
                           Seeds each round from the current standings (top team is
-                          home) and advances winners as earlier rounds finish. Create the
-                          playoff dates with the &ldquo;Playoff rounds&rdquo; option when generating the schedule.
+                          home) and advances winners as earlier rounds finish. Set up the
+                          bracket above first.
                         </p>
                       </ActionForm>
                     </Disclosure>
@@ -677,24 +711,13 @@ export default async function AdminSeasonsPage() {
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
-                        <label className="block w-full sm:w-auto sm:min-w-[200px]">
-                          <span className="eyebrow">Playoff rounds</span>
-                          <select name="playoff_rounds" defaultValue="2" className={`mt-1 ${inputCls}`}>
-                            <option value="0">None</option>
-                            <option value="1">Final only (top 2)</option>
-                            <option value="2">Semis + Final (top 4)</option>
-                            <option value="3">Quarters + Semis + Final (top 8)</option>
-                          </select>
-                        </label>
-
                         <p className="text-ink-faint text-[12px]">
                           <strong>Regular season weeks</strong> = how many game
-                          nights to schedule (not counting playoffs). Each week
-                          fills the time slots (one night) and teams cycle through a
-                          balanced round-robin, repeating as needed. Playoffs add the
-                          chosen rounds as TBD-vs-TBD stubs after the final week (they
-                          show on the schedule right away; seed them from the Playoffs
-                          section).
+                          nights to schedule. Each week fills the time slots (one
+                          night) and teams cycle through a balanced round-robin,
+                          repeating as needed. Playoffs are set up separately in the
+                          Playoffs section (works for generated or hand-built
+                          schedules).
                         </p>
 
                         {teamCount % 2 === 1 && teamCount >= 3 && (

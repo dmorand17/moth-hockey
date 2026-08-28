@@ -46,19 +46,32 @@ revalidating, submit through a transition.**
 - **`<Toaster />`** (sonner) mounted once in the root layout
   (`app/layout.tsx`), top-right, dark theme to match the app.
 
-### 2. Result contract (new, in `lib/action-result.ts`)
+### 2. Result contract (`lib/action-result.ts`)
+
+An `ActionResult` type already exists locally in
+`app/score/[gameId]/actions.ts` (`{ ok: true } | { ok: false; error: string }`)
+and its shape is mirrored by the object-input actions in `account`, `players`,
+and `rosters`. To unify rather than fork, the shared type keeps the existing
+failure field (`error`) and **adds an optional success `message`** for toasts —
+backward-compatible with every existing return:
 
 ```ts
 export type ActionResult =
   | { ok: true; message?: string }
-  | { ok: false; message: string };
+  | { ok: false; error: string };
 
 export const ok = (message?: string): ActionResult => ({ ok: true, message });
-export const fail = (message: string): ActionResult => ({ ok: false, message });
+export const fail = (error: string): ActionResult => ({ ok: false, error });
 ```
 
-All server actions change their return type from `Promise<void>`/`never` to
+The local definition in `score/[gameId]/actions.ts` is removed and replaced
+with an import from `lib/action-result.ts`; existing `{ ok: true }` /
+`{ ok: false, error }` returns satisfy it unchanged. The FormData actions being
+converted change their return type from `Promise<void>`/`never` to
 `Promise<ActionResult>`.
+
+`ActionForm` toasts `result.message` on success (falling back to a generic
+"Saved") and `result.error` on failure.
 
 ### 3. Server-action refactor
 

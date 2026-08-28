@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Create the "Staging to Prod" release PR (staging -> main) for moth-hockey.
-# Lists the feature PRs being promoted, builds the body, and opens the PR.
+# Lists the feature PRs being promoted + any new Supabase migrations to apply,
+# builds the body, and opens the PR.
 set -euo pipefail
 
 BASE="main"
@@ -40,14 +41,41 @@ done < <(git log --first-parent --pretty=%s "origin/${BASE}..origin/${HEAD}" \
 
 [[ -z "${included}" ]] && included="- (no feature PRs detected on ${HEAD})"$'\n'
 
+# New Supabase migrations on staging not yet in main. Vercel does NOT run these,
+# so the release PR must call them out for manual application to prod.
+migrations=$(git diff --name-only --diff-filter=A \
+  "origin/${BASE}..origin/${HEAD}" -- supabase/migrations/ 2>/dev/null || true)
+
+mig_section=""
+mig_checklist=""
+if [[ -n "${migrations}" ]]; then
+  mig_list=""
+  while IFS= read -r f; do
+    [[ -n "${f}" ]] && mig_list+="- \`${f}\`"$'\n'
+  done <<< "${migrations}"
+  mig_section="## Migrations to apply to prod ⚠️
+
+Vercel deploys the app but does **not** run Supabase migrations. Apply these to
+the prod project (see \`docs/initial-build/DEPLOY.md\`) when releasing:
+
+${mig_list}
+\`\`\`bash
+bunx supabase db push   # with the prod project linked
+\`\`\`
+
+"
+  mig_checklist="- [ ] Apply the migrations above (\`supabase db push\` to prod)
+"
+fi
+
 body="Promotes the current \`${HEAD}\` to production.
 
 ## Included
 
 ${included}
-## Post-merge
+${mig_section}## Post-merge
 
-- [ ] Confirm the Vercel production deploy succeeds
+${mig_checklist}- [ ] Confirm the Vercel production deploy succeeds
 - [ ] Spot-check the changed areas in prod"
 
 gh pr create --base "${BASE}" --head "${HEAD}" --title "${TITLE}" --body "${body}"

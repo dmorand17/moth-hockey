@@ -8,15 +8,22 @@ import { ResetSeasonButton } from "./ResetSeasonButton";
 import { SeasonIdentityFields } from "./SeasonIdentityFields";
 import {
   activateSeason,
+  assignTeamCaptain,
+  copyTeamsInto,
   createSeason,
+  createTeam,
   deleteSeason,
   generatePlayoffs,
   generateSchedule,
   resetSeason,
   updateSeasonDates,
   updateStandingsRules,
+  updateTeam,
 } from "./actions";
+import { ColorSwatches } from "./color-swatches";
+import { RosterEditor } from "./RosterEditor";
 import { StandingsRulesEditor } from "./StandingsRulesEditor";
+import { PlayerCombobox } from "@/components/PlayerCombobox";
 
 type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
 
@@ -33,6 +40,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   has_games: "Delete or move games before deleting the season.",
   regular_incomplete: "Finish all regular-season games before generating playoffs.",
   playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
+  invalid_color: "Color must be a hex like #ef4444.",
+  already_rostered: "That player is already on a team this season.",
+  no_source_teams: "That season has no teams to copy.",
+  teams_exist: "Some of those team names already exist in this season.",
 };
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
@@ -73,17 +84,24 @@ export default async function AdminSeasonsPage({
   const seasons = (seasonsRaw ?? []) as SeasonRow[];
 
   // Aggregate counts per season for the summary chips + playoff bracket details.
-  const [{ data: teamRows }, { data: gameRows }, { data: playoffRows }] = await Promise.all([
-    supabase.from("teams").select("season_id"),
-    supabase.from("games").select("season_id, status, kind"),
-    supabase
-      .from("games")
-      .select(
-        "season_id, playoff_round, status, home_score, away_score, home_team:home_team_id(name, color), away_team:away_team_id(name, color)",
-      )
-      .eq("kind", "playoff")
-      .order("playoff_round"),
-  ]);
+  const [{ data: teamRows }, { data: gameRows }, { data: playoffRows }, { data: rosterRows }, { data: allPlayers }] =
+    await Promise.all([
+      supabase.from("teams").select("id, name, slug, color, season_id").order("name"),
+      supabase.from("games").select("season_id, status, kind"),
+      supabase
+        .from("games")
+        .select(
+          "season_id, playoff_round, status, home_score, away_score, home_team:home_team_id(name, color), away_team:away_team_id(name, color)",
+        )
+        .eq("kind", "playoff")
+        .order("playoff_round"),
+      supabase
+        .from("team_players")
+        .select(
+          "team_id, season_id, player_id, position, jersey_number, is_captain, player:player_id(id, first_name, last_name)",
+        ),
+      supabase.from("players").select("id, first_name, last_name").order("last_name").order("first_name"),
+    ]);
 
   const teamCounts = new Map<string, number>();
   for (const t of teamRows ?? []) {
@@ -119,6 +137,48 @@ export default async function AdminSeasonsPage({
     bracketBySeason.set(p.season_id, list);
   }
 
+  type RosterPlayer = {
+    player_id: string;
+    first_name: string;
+    last_name: string;
+    position: string;
+    jersey_number: number | null;
+    is_captain: boolean;
+  };
+  const teamsBySeason = new Map<string, { id: string; name: string; slug: string; color: string }[]>();
+  for (const t of teamRows ?? []) {
+    const arr = teamsBySeason.get(t.season_id) ?? [];
+    arr.push({ id: t.id, name: t.name, slug: t.slug, color: t.color });
+    teamsBySeason.set(t.season_id, arr);
+  }
+  const rosterByTeam = new Map<string, RosterPlayer[]>();
+  const rosteredBySeason = new Map<string, Set<string>>();
+  const captainByTeam = new Map<string, string>();
+  for (const r of rosterRows ?? []) {
+    const p = r.player as { id: string; first_name: string; last_name: string } | null;
+    if (!p) continue;
+    (rosterByTeam.get(r.team_id) ?? rosterByTeam.set(r.team_id, []).get(r.team_id)!).push({
+      player_id: p.id,
+      first_name: p.first_name,
+      last_name: p.last_name,
+      position: r.position,
+      jersey_number: r.jersey_number,
+      is_captain: r.is_captain,
+    });
+    const set = rosteredBySeason.get(r.season_id) ?? new Set<string>();
+    set.add(p.id);
+    rosteredBySeason.set(r.season_id, set);
+    if (r.is_captain) captainByTeam.set(r.team_id, p.id);
+  }
+  for (const players of rosterByTeam.values()) {
+    players.sort((a, b) => {
+      if (a.jersey_number != null && b.jersey_number != null) return a.jersey_number - b.jersey_number;
+      if (a.jersey_number != null) return -1;
+      if (b.jersey_number != null) return 1;
+      return a.last_name.localeCompare(b.last_name);
+    });
+  }
+
   const flash =
     params.saved === "generated"
       ? `Generated ${params.n ?? "?"} games.`
@@ -135,8 +195,22 @@ export default async function AdminSeasonsPage({
                 : params.saved === "activated"
                   ? "Season activated."
                   : params.saved === "deleted"
-                    ? "Season deleted."
-                    : null;
+                  ? "Season deleted."
+                  : params.saved === "team_created"
+                    ? "Team created."
+                    : params.saved === "team_updated"
+                      ? "Team updated."
+                      : params.saved === "captain"
+                        ? "Captain updated."
+                        : params.saved === "added"
+                          ? "Player added to roster."
+                          : params.saved === "roster_updated"
+                            ? "Roster entry updated."
+                            : params.saved === "removed"
+                              ? "Player removed from roster."
+                              : params.saved === "teams_copied"
+                                ? "Teams copied."
+                                : null;
   const error = params.error
     ? (ERROR_MESSAGES[params.error] ?? params.error)
     : null;
@@ -157,12 +231,18 @@ export default async function AdminSeasonsPage({
       )}
 
       {/* Create */}
-      <section className="space-y-3">
-        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-          NEW SEASON
-        </h2>
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              NEW SEASON
+            </h2>
+          </summary>
 
-        <form action={createSeason} className="panel p-4 sm:p-5 space-y-5">
+          <form action={createSeason} className="panel p-4 sm:p-5 space-y-5 mt-3">
           <FieldGroup
             label="Identity"
             hint="Name auto-fills from type + year until you edit it."
@@ -213,59 +293,17 @@ export default async function AdminSeasonsPage({
             </div>
           </FieldGroup>
 
-          <FieldGroup label="Scoring">
-            <fieldset className="space-y-1.5">
-              <legend className="eyebrow text-ink-dim mb-1">Point system</legend>
-              <label className="flex items-start gap-2 text-[13px] text-ink">
-                <input
-                  type="radio"
-                  name="point_system"
-                  value="3-2-1"
-                  defaultChecked
-                  className="mt-0.5 size-4 accent-ice"
-                />
-                <span>
-                  <strong>3-2-1</strong>
-                  <span className="text-ink-faint"> — reg win 3 · OT win 2 · OT loss 1</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 text-[13px] text-ink">
-                <input
-                  type="radio"
-                  name="point_system"
-                  value="2-1-0"
-                  className="mt-0.5 size-4 accent-ice"
-                />
-                <span>
-                  <strong>2-1-0</strong>
-                  <span className="text-ink-faint"> — win 2 · OT loss 1</span>
-                </span>
-              </label>
-            </fieldset>
-          </FieldGroup>
-
-          <FieldGroup
-            label="Teams"
-            hint="Carryover copies team rows (name, color, slug) only — rosters and captains are reassigned each season. New seasons start inactive; activate from the list below."
-          >
-            <label className="block">
-              <span className="eyebrow">Copy teams from (optional)</span>
-              <select name="copy_from_season_id" className={`mt-1 ${inputCls}`}>
-                <option value="">— No carryover —</option>
-                {seasons.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                    {s.is_current ? " (current)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </FieldGroup>
+          <p className="text-ink-faint text-[12px]">
+            New seasons start inactive and use the <strong>3-2-1</strong> point
+            system. Set the point system, tie-breakers, and teams after creating
+            it — expand the season below.
+          </p>
 
           <button type="submit" className={primaryBtn}>
             CREATE SEASON
           </button>
-        </form>
+          </form>
+        </details>
       </section>
 
       {/* Season list */}
@@ -285,7 +323,6 @@ export default async function AdminSeasonsPage({
               const teamCount = teamCounts.get(season.id) ?? 0;
               const gameAgg = gameCounts.get(season.id);
               const gameTotal = gameAgg?.n ?? 0;
-              const finalCount = gameAgg?.final ?? 0;
               const canDelete = !season.is_current && gameTotal === 0;
               const bracket = bracketBySeason.get(season.id) ?? [];
               const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
@@ -330,10 +367,6 @@ export default async function AdminSeasonsPage({
                         value={`${season.period_length_minutes} min`}
                       />
                       <StatTile label="Teams" value={teamCount} />
-                      <StatTile
-                        label="Games"
-                        value={`${finalCount}/${gameTotal} final`}
-                      />
                     </div>
 
                     {/* Activate — the primary action for an inactive season */}
@@ -353,11 +386,13 @@ export default async function AdminSeasonsPage({
                       </form>
                     )}
 
-                    {/* Dates */}
-                    <FieldGroup
-                      label="Dates"
-                      hint="Set an end date, or weeks to set it from the start. One is required. Editing dates does not move existing games — regenerate to reschedule."
-                    >
+                    {/* Dates — collapsed */}
+                    <Disclosure label="Dates" hint="start & end, or weeks">
+                      <p className="text-ink-faint text-[11px] mt-2 mb-2">
+                        End date or weeks (one required). Editing dates
+                        doesn&apos;t move existing games — regenerate to
+                        reschedule.
+                      </p>
                       <form
                         action={updateSeasonDates}
                         className="flex flex-wrap items-end gap-3"
@@ -389,7 +424,7 @@ export default async function AdminSeasonsPage({
                             name="weeks"
                             min={1}
                             max={52}
-                            placeholder="from start"
+                            placeholder="total"
                             className={`mt-1 ${inputCls}`}
                           />
                         </label>
@@ -397,20 +432,236 @@ export default async function AdminSeasonsPage({
                           SAVE DATES
                         </button>
                       </form>
-                    </FieldGroup>
+                    </Disclosure>
 
-                    {/* Tie-breakers */}
-                    <FieldGroup label="Tie-breakers">
-                      <p className="text-ink-faint text-[12px]">Point system: <span className="font-mono text-ink-dim">{season.point_system}</span> — set at creation.</p>
+                    {/* Standings rules — collapsed */}
+                    <Disclosure label="Standings rules" hint="points & tie-breakers">
+                      <p className="text-ink-faint text-[11px] mt-2 mb-2">
+                        Changing these recomputes this season&apos;s standings and
+                        playoff seeding.
+                      </p>
                       <StandingsRulesEditor
                         action={updateStandingsRules}
                         seasonId={season.id}
+                        pointSystem={season.point_system}
                         tiebreakers={season.tiebreakers}
                       />
-                    </FieldGroup>
+                    </Disclosure>
+
+                    {/* Teams — collapsed */}
+                    <Disclosure label="Teams" hint="rosters & captains">
+                      {/* Add-team form */}
+                      <form action={createTeam} className="panel p-3 space-y-3">
+                        <input type="hidden" name="season_id" value={season.id} />
+                        <div className="flex items-end gap-3">
+                          <label className="block flex-1">
+                            <span className="eyebrow">Name</span>
+                            <input
+                              type="text"
+                              name="name"
+                              required
+                              placeholder="Ice Holes"
+                              className={`mt-1 ${inputCls}`}
+                            />
+                          </label>
+                          <button
+                            type="submit"
+                            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+                          >
+                            ADD TEAM
+                          </button>
+                        </div>
+                        <div>
+                          <span className="eyebrow">Color</span>
+                          <ColorSwatches
+                            name="color"
+                            defaultValue="#ef4444"
+                            idPrefix={`new-team-${season.id}`}
+                          />
+                        </div>
+                      </form>
+
+                      {/* Copy teams from another season — rarely used, collapsed */}
+                      {seasons.length > 1 && (
+                        <details className="group/ct">
+                          <summary className="flex items-center gap-1.5 cursor-pointer list-none select-none eyebrow text-ink-faint hover:text-ink transition-colors min-h-9">
+                            <span className="text-[10px] transition-transform duration-150 group-open/ct:rotate-90 inline-block">
+                              ▶
+                            </span>
+                            Copy teams from another season
+                          </summary>
+                          <form
+                            action={copyTeamsInto}
+                            className="mt-2 flex flex-wrap items-end gap-3 panel-bare rounded p-3"
+                          >
+                            <input type="hidden" name="season_id" value={season.id} />
+                            <label className="block flex-1 min-w-[180px]">
+                              <span className="eyebrow">Source season</span>
+                              <select
+                                name="source_season_id"
+                                required
+                                defaultValue=""
+                                className={`mt-1 ${inputCls}`}
+                              >
+                                <option value="" disabled>
+                                  — select season —
+                                </option>
+                                {seasons
+                                  .filter((s) => s.id !== season.id)
+                                  .map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                            <button type="submit" className={primaryBtn}>
+                              COPY TEAMS
+                            </button>
+                            <p className="text-ink-faint text-[11px] w-full">
+                              Copies team names/colors only — rosters &amp;
+                              captains stay per-season.
+                            </p>
+                          </form>
+                        </details>
+                      )}
+
+                      {/* Team list */}
+                      {(teamsBySeason.get(season.id) ?? []).length === 0 ? (
+                        <p className="text-ink-dim text-[12px]">
+                          No teams yet — add one above.
+                        </p>
+                      ) : (
+                        <div className="space-y-1">
+                          {(teamsBySeason.get(season.id) ?? []).map((team) => {
+                            const teamPlayers = rosterByTeam.get(team.id) ?? [];
+                            const unrosteredForSeason = (allPlayers ?? []).filter(
+                              (p) => !(rosteredBySeason.get(season.id)?.has(p.id)),
+                            );
+                            return (
+                              <details
+                                key={team.id}
+                                className="group/t border border-rule rounded"
+                              >
+                                <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer list-none select-none hover:bg-board-3 transition-colors rounded">
+                                  <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open/t:rotate-90 inline-block">
+                                    ▶
+                                  </span>
+                                  <span
+                                    className="h-3 w-3 rounded-sm shrink-0"
+                                    style={{ background: team.color }}
+                                  />
+                                  <span className="font-display text-[14px] tracking-[0.04em] text-ink">
+                                    {team.name.toUpperCase()}
+                                  </span>
+                                  <span className="font-mono text-[11px] text-ink-faint">
+                                    /{team.slug}
+                                  </span>
+                                  <span className="eyebrow text-ink-faint ml-auto">
+                                    {teamPlayers.length} players
+                                  </span>
+                                </summary>
+
+                                <div className="border-t border-rule p-4 space-y-4">
+                                  {/* Name / Color */}
+                                  <form action={updateTeam} className="space-y-3">
+                                    <input type="hidden" name="id" value={team.id} />
+                                    <input type="hidden" name="slug" value={team.slug} />
+                                    <div className="flex items-end gap-3">
+                                      <label className="block flex-1">
+                                        <span className="eyebrow">Name</span>
+                                        <input
+                                          type="text"
+                                          name="name"
+                                          required
+                                          defaultValue={team.name}
+                                          className={`mt-1 ${inputCls}`}
+                                        />
+                                      </label>
+                                      <button
+                                        type="submit"
+                                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+                                      >
+                                        SAVE
+                                      </button>
+                                    </div>
+                                    <div>
+                                      <span className="eyebrow">Color</span>
+                                      <ColorSwatches
+                                        name="color"
+                                        defaultValue={team.color}
+                                        idPrefix={`team-${team.id}`}
+                                      />
+                                    </div>
+                                  </form>
+
+                                  {/* Captain */}
+                                  <div className="border-t border-rule/50 pt-3">
+                                    <form
+                                      action={assignTeamCaptain}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <input
+                                        type="hidden"
+                                        name="team_id"
+                                        value={team.id}
+                                      />
+                                      <input
+                                        type="hidden"
+                                        name="season_id"
+                                        value={season.id}
+                                      />
+                                      <span className="eyebrow shrink-0">Captain</span>
+                                      <div className="flex-1">
+                                        <PlayerCombobox
+                                          name="player_id"
+                                          defaultValue={captainByTeam.get(team.id) ?? ""}
+                                          disabled={teamPlayers.length === 0}
+                                          allowClear
+                                          placeholder={
+                                            teamPlayers.length === 0
+                                              ? "No players yet"
+                                              : "— No captain —"
+                                          }
+                                          options={teamPlayers.map((p) => ({
+                                            value: p.player_id,
+                                            label: `${p.last_name}, ${p.first_name}`,
+                                          }))}
+                                        />
+                                      </div>
+                                      <button
+                                        type="submit"
+                                        disabled={teamPlayers.length === 0}
+                                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        SAVE
+                                      </button>
+                                    </form>
+                                    {teamPlayers.length === 0 && (
+                                      <p className="text-ink-faint text-[11px] mt-1.5">
+                                        Add players to the roster to pick a captain.
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Roster */}
+                                  <div className="border-t border-rule/50 pt-3">
+                                    <RosterEditor
+                                      teamId={team.id}
+                                      initialRows={teamPlayers}
+                                      unrosteredAll={unrosteredForSeason}
+                                    />
+                                  </div>
+                                </div>
+                              </details>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Disclosure>
 
                     {/* Playoffs */}
-                    <FieldGroup label="Playoffs" accent="ice">
+                    <Disclosure label="Playoffs" accent="ice">
                       {hasPlayoffStubs && (
                         <div className="space-y-1.5 mb-3">
                           <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
@@ -421,17 +672,18 @@ export default async function AdminSeasonsPage({
                       <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
                         <input type="hidden" name="season_id" value={season.id} />
                         <button type="submit" className={primaryBtn}>
-                          {hasPlayoffStubs ? "ADVANCE / RE-SEED PLAYOFFS" : "GENERATE PLAYOFFS"}
+                          UPDATE PLAYOFF MATCHUPS
                         </button>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
-                          Seeds #1 v #4 and #2 v #3 from the standings once every regular-season game
-                          is final. Re-run after the semifinals to advance the Final.
+                          Fills the bracket (#1 v #4, #2 v #3) from the current standings,
+                          and advances the Final once both semifinals are decided. Create the
+                          playoff dates via &ldquo;reserve playoffs&rdquo; when generating the schedule.
                         </p>
                       </form>
-                    </FieldGroup>
+                    </Disclosure>
 
                     {/* Generate schedule — collapsed */}
-                    <Disclosure label="Generate schedule" accent="ice">
+                    <Disclosure label="Schedule Generator" accent="ice">
                       <form
                         action={generateSchedule}
                         className="mt-3 space-y-3 panel-bare rounded-lg p-3"
@@ -447,7 +699,7 @@ export default async function AdminSeasonsPage({
                         )}
                         {teamCount < 2 && (
                           <p className="text-goal/80 text-[12px]">
-                            Add at least 2 teams in /admin/teams before generating.
+                            Add at least 2 teams (in this season&apos;s Teams section) before generating.
                           </p>
                         )}
 
@@ -493,13 +745,36 @@ export default async function AdminSeasonsPage({
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
+                        <label className="inline-flex items-center gap-2 min-h-11">
+                          <input
+                            type="checkbox"
+                            name="with_playoffs"
+                            defaultChecked
+                            className="size-4 accent-ice"
+                          />
+                          <span className="font-mono text-[13px] text-ink">
+                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
+                          </span>
+                        </label>
+
                         <p className="text-ink-faint text-[12px]">
                           <strong>Weeks</strong> = how many game nights to schedule.
                           Each week fills the time slots (one night) and teams cycle
-                          through a balanced round-robin, repeating as needed.
-                          Use the Playoffs section to generate the bracket after all
-                          regular-season games are final.
+                          through a balanced round-robin, repeating as needed. With
+                          playoffs reserved, SF1, SF2 &amp; Final are added as TBD-vs-TBD
+                          stubs after the final week (they show on the schedule right
+                          away; seed them from the Playoffs section).
                         </p>
+
+                        {teamCount % 2 === 1 && teamCount >= 3 && (
+                          <p className="text-[12px] text-[#fbbf24]/90">
+                            <strong>Byes:</strong> with {teamCount} teams, one team
+                            sits out each week. For every team to get the same number
+                            of byes, use a multiple of {teamCount} weeks — e.g.{" "}
+                            {teamCount}, {teamCount * 2}, or {teamCount * 3} (1, 2, or 3
+                            byes each).
+                          </p>
+                        )}
 
                         <button
                           type="submit"

@@ -166,11 +166,17 @@ export default async function AdminPlayersPage({
       )}
 
       {/* Create */}
-      <section className="space-y-3">
-        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-          NEW PLAYER
-        </h2>
-        <form action={createPlayer} className="panel p-4">
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              NEW PLAYER
+            </h2>
+          </summary>
+          <form action={createPlayer} className="panel p-4 mt-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="block flex-1 min-w-[140px]">
               <span className="eyebrow">First name</span>
@@ -199,7 +205,8 @@ export default async function AdminPlayersPage({
               CREATE
             </button>
           </div>
-        </form>
+          </form>
+        </details>
       </section>
 
       {/* Bulk import — collapsed by default; used infrequently */}

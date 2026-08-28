@@ -80,7 +80,6 @@ export async function createSeason(formData: FormData) {
   );
   const pointSystemRaw = String(formData.get("point_system") ?? "").trim();
   const point_system = pointSystemRaw === "2-1-0" ? "2-1-0" : "3-2-1";
-  const copyFrom = String(formData.get("copy_from_season_id") ?? "").trim();
 
   if (!seasonType || isNaN(year) || !name || !startDate) {
     back("error=invalid_input");
@@ -108,29 +107,46 @@ export async function createSeason(formData: FormData) {
     back(`error=${encodeURIComponent(error?.message ?? "insert failed")}`);
   }
 
-  if (copyFrom) {
-    const { data: srcTeams } = await supabase
-      .from("teams")
-      .select("name, slug, color, logo_url")
-      .eq("season_id", copyFrom);
-
-    if (srcTeams && srcTeams.length > 0) {
-      const rows = srcTeams.map((t) => ({
-        season_id: created.id,
-        name: t.name,
-        slug: t.slug,
-        color: t.color,
-        logo_url: t.logo_url,
-      }));
-      const { error: teamErr } = await supabase.from("teams").insert(rows);
-      if (teamErr) {
-        back(`error=${encodeURIComponent(`teams copy: ${teamErr.message}`)}`);
-      }
-    }
-  }
-
   revalidatePath("/admin/seasons");
   redirect("/admin/seasons?saved=created");
+}
+
+// Copy team rows (name, slug, color, logo) from another season into this one.
+// Rosters/captains are per-season and are NOT copied. Used from the season's
+// Teams section instead of a create-time carryover.
+export async function copyTeamsInto(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const seasonId = String(formData.get("season_id") ?? "").trim();
+  const sourceId = String(formData.get("source_season_id") ?? "").trim();
+  if (!seasonId || !sourceId || seasonId === sourceId) {
+    back("error=invalid_input");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: srcTeams } = await supabase
+    .from("teams")
+    .select("name, slug, color, logo_url")
+    .eq("season_id", sourceId);
+
+  if (!srcTeams || srcTeams.length === 0) back("error=no_source_teams");
+
+  const { error } = await supabase.from("teams").insert(
+    srcTeams.map((t) => ({
+      season_id: seasonId,
+      name: t.name,
+      slug: t.slug,
+      color: t.color,
+      logo_url: t.logo_url,
+    })),
+  );
+  if (error) {
+    if (error.code === "23505") back("error=teams_exist");
+    back(`error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePublicSeasonPaths();
+  redirect("/admin/seasons?saved=teams_copied");
 }
 
 export async function updateSeasonDates(formData: FormData) {
@@ -255,6 +271,7 @@ export async function generateSchedule(formData: FormData) {
     .getAll("times")
     .map((v) => String(v).trim())
     .filter((v) => v !== "");
+  const withPlayoffs = String(formData.get("with_playoffs") ?? "") === "on";
   if (!seasonId || weekday === null || weeks < 1 || times.length === 0) {
     back("error=invalid_input");
   }
@@ -309,6 +326,28 @@ export async function generateSchedule(formData: FormData) {
     kind: "regular",
   }));
 
+  // Optionally reserve playoff nights after the regular season as TBD-vs-TBD
+  // stubs, so the bracket dates show on the schedule immediately. The
+  // "Update Playoff Matchups" action seeds the teams from standings later.
+  if (withPlayoffs) {
+    const ps = buildPlayoffSlots(season.start_date, weekday, times, pairs.length);
+    for (const [round, at] of [
+      ["sf1", ps.sf1],
+      ["sf2", ps.sf2],
+      ["final", ps.final],
+    ] as const) {
+      rows.push({
+        season_id: seasonId,
+        home_team_id: null,
+        away_team_id: null,
+        scheduled_at: at,
+        location,
+        kind: "playoff",
+        playoff_round: round,
+      });
+    }
+  }
+
   if (rows.length > 0) {
     const { error: insErr } = await supabase.from("games").insert(rows);
     if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
@@ -324,17 +363,20 @@ export async function updateStandingsRules(formData: FormData) {
   await requireRole(["admin"]);
 
   const id = String(formData.get("id") ?? "").trim();
+  const pointSystem = String(formData.get("point_system") ?? "").trim();
   const tiebreakers = formData
     .getAll("tiebreakers")
     .map(String)
     .filter((k) => ["wins", "diff", "gf", "ga", "h2h"].includes(k));
 
-  if (!id) back("error=invalid_input");
+  if (!id || (pointSystem !== "2-1-0" && pointSystem !== "3-2-1")) {
+    back("error=invalid_input");
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("seasons")
-    .update({ tiebreakers })
+    .update({ point_system: pointSystem, tiebreakers })
     .eq("id", id);
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 
@@ -456,4 +498,116 @@ export async function generatePlayoffs(formData: FormData) {
   revalidatePath("/admin/schedule");
   revalidatePath("/schedule");
   redirect(`/admin/seasons?saved=playoffs`);
+}
+
+// ── Team actions ─────────────────────────────────────────────
+
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/['']/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export async function createTeam(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const seasonId = String(formData.get("season_id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const slugRaw = String(formData.get("slug") ?? "").trim();
+  const color = String(formData.get("color") ?? "").trim();
+
+  const slug = slugify(slugRaw || name);
+
+  if (!seasonId || !name || !slug) {
+    back("error=invalid_input");
+  }
+  if (!HEX_COLOR.test(color)) {
+    back("error=invalid_color");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("teams")
+    .insert({ season_id: seasonId, name, slug, color });
+
+  if (error) {
+    back(`error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePublicSeasonPaths();
+  redirect("/admin/seasons?saved=team_created");
+}
+
+export async function updateTeam(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const slugRaw = String(formData.get("slug") ?? "").trim();
+  const color = String(formData.get("color") ?? "").trim();
+
+  const slug = slugify(slugRaw || name);
+
+  if (!id || !name || !slug) {
+    back("error=invalid_input");
+  }
+  if (!HEX_COLOR.test(color)) {
+    back("error=invalid_color");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("teams")
+    .update({ name, slug, color })
+    .eq("id", id);
+
+  if (error) {
+    back(`error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePublicSeasonPaths();
+  redirect("/admin/seasons?saved=team_updated");
+}
+
+export async function assignTeamCaptain(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const teamId = String(formData.get("team_id") ?? "");
+  const seasonId = String(formData.get("season_id") ?? "");
+  const targetPlayerId = String(formData.get("player_id") ?? "") || null;
+
+  if (!teamId || !seasonId) back("error=invalid_input");
+
+  const supabase = await createSupabaseServerClient();
+
+  // Captain is the is_captain roster label (one per team); team_captains and
+  // the team_captain role are derived from it by DB triggers. Clear the team's
+  // current captain, then mark the chosen roster row.
+  const { error: clearErr } = await supabase
+    .from("team_players")
+    .update({ is_captain: false })
+    .eq("team_id", teamId)
+    .eq("season_id", seasonId)
+    .eq("is_captain", true);
+
+  if (clearErr) back(`error=${encodeURIComponent(clearErr.message)}`);
+
+  if (targetPlayerId) {
+    const { error: setErr } = await supabase
+      .from("team_players")
+      .update({ is_captain: true })
+      .eq("team_id", teamId)
+      .eq("season_id", seasonId)
+      .eq("player_id", targetPlayerId);
+    if (setErr) back(`error=${encodeURIComponent(setErr.message)}`);
+  }
+
+  revalidatePublicSeasonPaths();
+  revalidatePath("/admin/players");
+  redirect("/admin/seasons?saved=captain");
 }

@@ -7,7 +7,6 @@ import { useState } from "react";
 const ADMIN_NAV = [
   { href: "/admin/players", label: "Players" },
   { href: "/admin/users", label: "Users" },
-  { href: "/admin/teams", label: "Teams" },
   { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/content", label: "Content" },
   { href: "/admin/seasons", label: "Seasons" },

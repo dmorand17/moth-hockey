@@ -172,15 +172,19 @@ export default async function AdminSchedulePage({
       )}
 
       {/* Create */}
-      <section className="space-y-3">
-        <header className="flex items-baseline gap-3">
-          <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-            NEW GAME
-          </h2>
-          <span className="eyebrow">{season.name}</span>
-        </header>
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              NEW GAME
+            </h2>
+            <span className="eyebrow ml-auto">{season.name}</span>
+          </summary>
 
-        <form action={createGame} className="panel p-4 space-y-3">
+          <form action={createGame} className="panel p-4 space-y-3 mt-3">
           <input type="hidden" name="season_id" value={season.id} />
           <div className="flex flex-wrap gap-3">
             <label className="block flex-1 min-w-[160px]">
@@ -241,15 +245,22 @@ export default async function AdminSchedulePage({
           >
             CREATE
           </button>
-        </form>
+          </form>
+        </details>
       </section>
 
       {/* Skip a week */}
-      <section className="space-y-3">
-        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-          SKIP A WEEK
-        </h2>
-        <form action={skipWeek} className="panel p-4 space-y-3">
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              SKIP A WEEK
+            </h2>
+          </summary>
+        <form action={skipWeek} className="panel p-4 space-y-3 mt-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="block w-full sm:w-auto sm:min-w-[160px]">
               <span className="eyebrow">Week of</span>
@@ -279,7 +290,7 @@ export default async function AdminSchedulePage({
         </form>
 
         {skipList.length > 0 && (
-          <ul className="border border-rule rounded divide-y divide-rule/50">
+          <ul className="mt-3 border border-rule rounded divide-y divide-rule/50">
             {skipList.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="text-[13px] text-ink">
@@ -298,6 +309,7 @@ export default async function AdminSchedulePage({
             ))}
           </ul>
         )}
+        </details>
       </section>
 
       {/* Game list — grouped by week, bye team shown per week */}

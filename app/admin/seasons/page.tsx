@@ -424,7 +424,7 @@ export default async function AdminSeasonsPage({
                             name="weeks"
                             min={1}
                             max={52}
-                            placeholder="from start"
+                            placeholder="total"
                             className={`mt-1 ${inputCls}`}
                           />
                         </label>

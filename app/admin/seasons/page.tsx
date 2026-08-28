@@ -459,13 +459,13 @@ export default async function AdminSeasonsPage({
                           </select>
                         </label>
                         <label className="block w-full sm:w-auto sm:min-w-[100px]">
-                          <span className="eyebrow">Rounds</span>
+                          <span className="eyebrow">Weeks</span>
                           <input
                             type="number"
-                            name="rounds"
-                            defaultValue={1}
+                            name="weeks"
+                            defaultValue={10}
                             min={1}
-                            max={10}
+                            max={52}
                             className={`mt-1 ${inputCls}`}
                           />
                         </label>
@@ -498,12 +498,12 @@ export default async function AdminSeasonsPage({
                       </label>
 
                       <p className="text-ink-faint text-[12px]">
-                        Round-robin: each pair of teams plays{" "}
-                        <strong>rounds</strong> times. With {teamCount} teams,{" "}
-                        rounds=1 produces{" "}
-                        {teamCount >= 2 ? (teamCount * (teamCount - 1)) / 2 : 0}{" "}
-                        regular-season games. Playoffs add 3 more games (SF1, SF2,
-                        Final) as TBD-vs-TBD stubs.
+                        <strong>Weeks</strong> = how many game nights to schedule.
+                        Each week fills the time slots below (one night), and teams
+                        cycle through a balanced round-robin, repeating as needed
+                        when the season runs longer than one round-robin. Playoffs
+                        add 3 more games (SF1, SF2, Final) as TBD-vs-TBD stubs after
+                        the final week.
                       </p>
 
                       <button

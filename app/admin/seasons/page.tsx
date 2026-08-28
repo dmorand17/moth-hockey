@@ -8,15 +8,21 @@ import { ResetSeasonButton } from "./ResetSeasonButton";
 import { SeasonIdentityFields } from "./SeasonIdentityFields";
 import {
   activateSeason,
+  assignTeamCaptain,
   createSeason,
+  createTeam,
   deleteSeason,
   generatePlayoffs,
   generateSchedule,
   resetSeason,
   updateSeasonDates,
   updateStandingsRules,
+  updateTeam,
 } from "./actions";
+import { ColorSwatches } from "./color-swatches";
+import { RosterEditor } from "./RosterEditor";
 import { StandingsRulesEditor } from "./StandingsRulesEditor";
+import { PlayerCombobox } from "@/components/PlayerCombobox";
 
 type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
 
@@ -33,6 +39,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   has_games: "Delete or move games before deleting the season.",
   regular_incomplete: "Finish all regular-season games before generating playoffs.",
   playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
+  invalid_color: "Color must be a hex like #ef4444.",
+  already_rostered: "That player is already on a team this season.",
 };
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
@@ -73,17 +81,24 @@ export default async function AdminSeasonsPage({
   const seasons = (seasonsRaw ?? []) as SeasonRow[];
 
   // Aggregate counts per season for the summary chips + playoff bracket details.
-  const [{ data: teamRows }, { data: gameRows }, { data: playoffRows }] = await Promise.all([
-    supabase.from("teams").select("season_id"),
-    supabase.from("games").select("season_id, status, kind"),
-    supabase
-      .from("games")
-      .select(
-        "season_id, playoff_round, status, home_score, away_score, home_team:home_team_id(name, color), away_team:away_team_id(name, color)",
-      )
-      .eq("kind", "playoff")
-      .order("playoff_round"),
-  ]);
+  const [{ data: teamRows }, { data: gameRows }, { data: playoffRows }, { data: rosterRows }, { data: allPlayers }] =
+    await Promise.all([
+      supabase.from("teams").select("id, name, slug, color, season_id").order("name"),
+      supabase.from("games").select("season_id, status, kind"),
+      supabase
+        .from("games")
+        .select(
+          "season_id, playoff_round, status, home_score, away_score, home_team:home_team_id(name, color), away_team:away_team_id(name, color)",
+        )
+        .eq("kind", "playoff")
+        .order("playoff_round"),
+      supabase
+        .from("team_players")
+        .select(
+          "team_id, season_id, player_id, position, jersey_number, is_captain, player:player_id(id, first_name, last_name)",
+        ),
+      supabase.from("players").select("id, first_name, last_name").order("last_name").order("first_name"),
+    ]);
 
   const teamCounts = new Map<string, number>();
   for (const t of teamRows ?? []) {
@@ -119,6 +134,48 @@ export default async function AdminSeasonsPage({
     bracketBySeason.set(p.season_id, list);
   }
 
+  type RosterPlayer = {
+    player_id: string;
+    first_name: string;
+    last_name: string;
+    position: string;
+    jersey_number: number | null;
+    is_captain: boolean;
+  };
+  const teamsBySeason = new Map<string, { id: string; name: string; slug: string; color: string }[]>();
+  for (const t of teamRows ?? []) {
+    const arr = teamsBySeason.get(t.season_id) ?? [];
+    arr.push({ id: t.id, name: t.name, slug: t.slug, color: t.color });
+    teamsBySeason.set(t.season_id, arr);
+  }
+  const rosterByTeam = new Map<string, RosterPlayer[]>();
+  const rosteredBySeason = new Map<string, Set<string>>();
+  const captainByTeam = new Map<string, string>();
+  for (const r of rosterRows ?? []) {
+    const p = r.player as { id: string; first_name: string; last_name: string } | null;
+    if (!p) continue;
+    (rosterByTeam.get(r.team_id) ?? rosterByTeam.set(r.team_id, []).get(r.team_id)!).push({
+      player_id: p.id,
+      first_name: p.first_name,
+      last_name: p.last_name,
+      position: r.position,
+      jersey_number: r.jersey_number,
+      is_captain: r.is_captain,
+    });
+    const set = rosteredBySeason.get(r.season_id) ?? new Set<string>();
+    set.add(p.id);
+    rosteredBySeason.set(r.season_id, set);
+    if (r.is_captain) captainByTeam.set(r.team_id, p.id);
+  }
+  for (const players of rosterByTeam.values()) {
+    players.sort((a, b) => {
+      if (a.jersey_number != null && b.jersey_number != null) return a.jersey_number - b.jersey_number;
+      if (a.jersey_number != null) return -1;
+      if (b.jersey_number != null) return 1;
+      return a.last_name.localeCompare(b.last_name);
+    });
+  }
+
   const flash =
     params.saved === "generated"
       ? `Generated ${params.n ?? "?"} games.`
@@ -135,8 +192,20 @@ export default async function AdminSeasonsPage({
                 : params.saved === "activated"
                   ? "Season activated."
                   : params.saved === "deleted"
-                    ? "Season deleted."
-                    : null;
+                  ? "Season deleted."
+                  : params.saved === "team_created"
+                    ? "Team created."
+                    : params.saved === "team_updated"
+                      ? "Team updated."
+                      : params.saved === "captain"
+                        ? "Captain updated."
+                        : params.saved === "added"
+                          ? "Player added to roster."
+                          : params.saved === "roster_updated"
+                            ? "Roster entry updated."
+                            : params.saved === "removed"
+                              ? "Player removed from roster."
+                              : null;
   const error = params.error
     ? (ERROR_MESSAGES[params.error] ?? params.error)
     : null;
@@ -417,6 +486,176 @@ export default async function AdminSeasonsPage({
                         pointSystem={season.point_system}
                         tiebreakers={season.tiebreakers}
                       />
+                    </FieldGroup>
+
+                    {/* Teams */}
+                    <FieldGroup
+                      label="Teams"
+                      hint="Add teams to this season. Rosters and captains are per-season."
+                    >
+                      {/* Add-team form */}
+                      <form action={createTeam} className="panel p-3 space-y-3">
+                        <input type="hidden" name="season_id" value={season.id} />
+                        <div className="flex items-end gap-3">
+                          <label className="block flex-1">
+                            <span className="eyebrow">Name</span>
+                            <input
+                              type="text"
+                              name="name"
+                              required
+                              placeholder="Ice Holes"
+                              className={`mt-1 ${inputCls}`}
+                            />
+                          </label>
+                          <button
+                            type="submit"
+                            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+                          >
+                            ADD TEAM
+                          </button>
+                        </div>
+                        <div>
+                          <span className="eyebrow">Color</span>
+                          <ColorSwatches
+                            name="color"
+                            defaultValue="#ef4444"
+                            idPrefix={`new-team-${season.id}`}
+                          />
+                        </div>
+                      </form>
+
+                      {/* Team list */}
+                      {(teamsBySeason.get(season.id) ?? []).length === 0 ? (
+                        <p className="text-ink-dim text-[12px]">
+                          No teams yet — add one above.
+                        </p>
+                      ) : (
+                        <div className="space-y-1">
+                          {(teamsBySeason.get(season.id) ?? []).map((team) => {
+                            const teamPlayers = rosterByTeam.get(team.id) ?? [];
+                            const unrosteredForSeason = (allPlayers ?? []).filter(
+                              (p) => !(rosteredBySeason.get(season.id)?.has(p.id)),
+                            );
+                            return (
+                              <details
+                                key={team.id}
+                                className="group/t border border-rule rounded"
+                              >
+                                <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer list-none select-none hover:bg-board-3 transition-colors rounded">
+                                  <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open/t:rotate-90 inline-block">
+                                    ▶
+                                  </span>
+                                  <span
+                                    className="h-3 w-3 rounded-sm shrink-0"
+                                    style={{ background: team.color }}
+                                  />
+                                  <span className="font-display text-[14px] tracking-[0.04em] text-ink">
+                                    {team.name.toUpperCase()}
+                                  </span>
+                                  <span className="font-mono text-[11px] text-ink-faint">
+                                    /{team.slug}
+                                  </span>
+                                  <span className="eyebrow text-ink-faint ml-auto">
+                                    {teamPlayers.length} players
+                                  </span>
+                                </summary>
+
+                                <div className="border-t border-rule p-4 space-y-4">
+                                  {/* Name / Color */}
+                                  <form action={updateTeam} className="space-y-3">
+                                    <input type="hidden" name="id" value={team.id} />
+                                    <input type="hidden" name="slug" value={team.slug} />
+                                    <div className="flex items-end gap-3">
+                                      <label className="block flex-1">
+                                        <span className="eyebrow">Name</span>
+                                        <input
+                                          type="text"
+                                          name="name"
+                                          required
+                                          defaultValue={team.name}
+                                          className={`mt-1 ${inputCls}`}
+                                        />
+                                      </label>
+                                      <button
+                                        type="submit"
+                                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+                                      >
+                                        SAVE
+                                      </button>
+                                    </div>
+                                    <div>
+                                      <span className="eyebrow">Color</span>
+                                      <ColorSwatches
+                                        name="color"
+                                        defaultValue={team.color}
+                                        idPrefix={`team-${team.id}`}
+                                      />
+                                    </div>
+                                  </form>
+
+                                  {/* Captain */}
+                                  <div className="border-t border-rule/50 pt-3">
+                                    <form
+                                      action={assignTeamCaptain}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <input
+                                        type="hidden"
+                                        name="team_id"
+                                        value={team.id}
+                                      />
+                                      <input
+                                        type="hidden"
+                                        name="season_id"
+                                        value={season.id}
+                                      />
+                                      <span className="eyebrow shrink-0">Captain</span>
+                                      <div className="flex-1">
+                                        <PlayerCombobox
+                                          name="player_id"
+                                          defaultValue={captainByTeam.get(team.id) ?? ""}
+                                          disabled={teamPlayers.length === 0}
+                                          allowClear
+                                          placeholder={
+                                            teamPlayers.length === 0
+                                              ? "No players yet"
+                                              : "— No captain —"
+                                          }
+                                          options={teamPlayers.map((p) => ({
+                                            value: p.player_id,
+                                            label: `${p.last_name}, ${p.first_name}`,
+                                          }))}
+                                        />
+                                      </div>
+                                      <button
+                                        type="submit"
+                                        disabled={teamPlayers.length === 0}
+                                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        SAVE
+                                      </button>
+                                    </form>
+                                    {teamPlayers.length === 0 && (
+                                      <p className="text-ink-faint text-[11px] mt-1.5">
+                                        Add players to the roster to pick a captain.
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Roster */}
+                                  <div className="border-t border-rule/50 pt-3">
+                                    <RosterEditor
+                                      teamId={team.id}
+                                      initialRows={teamPlayers}
+                                      unrosteredAll={unrosteredForSeason}
+                                    />
+                                  </div>
+                                </div>
+                              </details>
+                            );
+                          })}
+                        </div>
+                      )}
                     </FieldGroup>
 
                     {/* Playoffs */}

@@ -57,6 +57,7 @@ export async function addToRoster(formData: FormData) {
   }
 
   revalidatePath("/admin/seasons");
+  revalidatePath("/teams");
   redirect("/admin/seasons?saved=added");
 }
 
@@ -80,6 +81,7 @@ export async function updateRosterEntry(formData: FormData) {
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 
   revalidatePath("/admin/seasons");
+  revalidatePath("/teams");
   redirect("/admin/seasons?saved=roster_updated");
 }
 
@@ -141,6 +143,7 @@ export async function saveRosterChanges(input: {
   }
 
   revalidatePath("/admin/seasons");
+  revalidatePath("/teams");
   return { ok: true };
 }
 
@@ -162,5 +165,6 @@ export async function removeFromRoster(formData: FormData) {
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 
   revalidatePath("/admin/seasons");
+  revalidatePath("/teams");
   redirect("/admin/seasons?saved=removed");
 }

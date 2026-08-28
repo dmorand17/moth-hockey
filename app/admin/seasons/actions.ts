@@ -484,7 +484,7 @@ export async function generatePlayoffs(formData: FormData) {
   redirect(`/admin/seasons?saved=playoffs`);
 }
 
-// ── Team actions (canonical home; teams/actions.ts is a stub until Task 5) ───
+// ── Team actions ─────────────────────────────────────────────
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 

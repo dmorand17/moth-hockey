@@ -158,7 +158,7 @@ export function playoffFeeders(
 ): Partial<Record<PlayoffRound, [PlayoffRound, PlayoffRound]>> {
   if (rounds === 2) return { final: ["sf1", "sf2"] };
   if (rounds === 3)
-    return { sf1: ["qf1", "qf2"], sf2: ["qf3", "qf4"], final: ["sf1", "sf2"] };
+    return { sf1: ["qf1", "qf2"], sf2: ["qf4", "qf3"], final: ["sf1", "sf2"] };
   return {};
 }
 

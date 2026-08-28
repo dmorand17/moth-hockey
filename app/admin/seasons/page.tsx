@@ -39,7 +39,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   cannot_delete_current: "Cannot delete the current season. Activate another first.",
   has_games: "Delete or move games before deleting the season.",
   regular_incomplete: "Finish all regular-season games before generating playoffs.",
-  playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
   not_enough_seeds: "Not enough teams in the standings for that bracket.",
   invalid_color: "Color must be a hex like #ef4444.",
   already_rostered: "That player is already on a team this season.",
@@ -685,9 +684,9 @@ export default async function AdminSeasonsPage({
                           UPDATE PLAYOFF MATCHUPS
                         </button>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
-                          Fills the bracket (#1 v #4, #2 v #3) from the current standings,
-                          and advances the Final once both semifinals are decided. Create the
-                          playoff dates via &ldquo;reserve playoffs&rdquo; when generating the schedule.
+                          Seeds each round from the current standings (top team is
+                          home) and advances winners as earlier rounds finish. Create the
+                          playoff dates with the &ldquo;Playoff rounds&rdquo; option when generating the schedule.
                         </p>
                       </form>
                     </Disclosure>
@@ -780,9 +779,8 @@ export default async function AdminSeasonsPage({
                             sits out each week. For even byes, use a multiple of{" "}
                             {teamCount} regular weeks — e.g. {teamCount},{" "}
                             {teamCount * 2}, or {teamCount * 3} (1, 2, or 3 byes
-                            each). With playoffs reserved (2 weeks), that&apos;s{" "}
-                            {teamCount + 2}, {teamCount * 2 + 2}, or{" "}
-                            {teamCount * 3 + 2} weeks total.
+                            each). Any playoff rounds you choose add their weeks on
+                            top of that.
                           </p>
                         )}
 

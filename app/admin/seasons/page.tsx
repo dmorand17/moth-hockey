@@ -323,7 +323,6 @@ export default async function AdminSeasonsPage({
               const teamCount = teamCounts.get(season.id) ?? 0;
               const gameAgg = gameCounts.get(season.id);
               const gameTotal = gameAgg?.n ?? 0;
-              const finalCount = gameAgg?.final ?? 0;
               const canDelete = !season.is_current && gameTotal === 0;
               const bracket = bracketBySeason.get(season.id) ?? [];
               const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
@@ -368,10 +367,6 @@ export default async function AdminSeasonsPage({
                         value={`${season.period_length_minutes} min`}
                       />
                       <StatTile label="Teams" value={teamCount} />
-                      <StatTile
-                        label="Games"
-                        value={`${finalCount}/${gameTotal} final`}
-                      />
                     </div>
 
                     {/* Activate — the primary action for an inactive season */}
@@ -391,11 +386,13 @@ export default async function AdminSeasonsPage({
                       </form>
                     )}
 
-                    {/* Dates */}
-                    <FieldGroup
-                      label="Dates"
-                      hint="Set an end date, or weeks to set it from the start. One is required. Editing dates does not move existing games — regenerate to reschedule."
-                    >
+                    {/* Dates — collapsed */}
+                    <Disclosure label="Dates" hint="start & end, or weeks">
+                      <p className="text-ink-faint text-[11px] mt-2 mb-2">
+                        End date or weeks (one required). Editing dates
+                        doesn&apos;t move existing games — regenerate to
+                        reschedule.
+                      </p>
                       <form
                         action={updateSeasonDates}
                         className="flex flex-wrap items-end gap-3"
@@ -435,20 +432,21 @@ export default async function AdminSeasonsPage({
                           SAVE DATES
                         </button>
                       </form>
-                    </FieldGroup>
+                    </Disclosure>
 
-                    {/* Standings rules */}
-                    <FieldGroup
-                      label="Standings rules"
-                      hint="Changing these recomputes this season's standings and playoff seeding."
-                    >
+                    {/* Standings rules — collapsed */}
+                    <Disclosure label="Standings rules" hint="points & tie-breakers">
+                      <p className="text-ink-faint text-[11px] mt-2 mb-2">
+                        Changing these recomputes this season&apos;s standings and
+                        playoff seeding.
+                      </p>
                       <StandingsRulesEditor
                         action={updateStandingsRules}
                         seasonId={season.id}
                         pointSystem={season.point_system}
                         tiebreakers={season.tiebreakers}
                       />
-                    </FieldGroup>
+                    </Disclosure>
 
                     {/* Teams */}
                     <FieldGroup
@@ -666,7 +664,7 @@ export default async function AdminSeasonsPage({
                     </FieldGroup>
 
                     {/* Playoffs */}
-                    <FieldGroup label="Playoffs" accent="ice">
+                    <Disclosure label="Playoffs" accent="ice">
                       {hasPlayoffStubs && (
                         <div className="space-y-1.5 mb-3">
                           <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
@@ -685,7 +683,7 @@ export default async function AdminSeasonsPage({
                           playoff dates via &ldquo;reserve playoffs&rdquo; when generating the schedule.
                         </p>
                       </form>
-                    </FieldGroup>
+                    </Disclosure>
 
                     {/* Generate schedule — collapsed */}
                     <Disclosure label="Generate schedule" accent="ice">

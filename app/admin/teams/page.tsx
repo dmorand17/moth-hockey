@@ -119,13 +119,19 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
         </p>
       )}
 
-      <section className="space-y-3">
-        <header className="flex items-baseline justify-between">
-          <h2 className="font-display text-xl tracking-[0.04em] text-ink">NEW TEAM</h2>
-          <span className="eyebrow">{season.name}</span>
-        </header>
-        <form action={createTeam} className="panel p-4 space-y-3">
-          <input type="hidden" name="season_id" value={season.id} />
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              NEW TEAM
+            </h2>
+            <span className="eyebrow ml-auto">{season.name}</span>
+          </summary>
+          <form action={createTeam} className="panel p-4 space-y-3 mt-3">
+            <input type="hidden" name="season_id" value={season.id} />
           <div className="flex items-end gap-3">
             <label className="block flex-1">
               <span className="eyebrow">Name</span>
@@ -151,7 +157,8 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
           <p className="text-ink-faint text-[12px]">
             Assign a captain from the team&apos;s roster after adding players.
           </p>
-        </form>
+          </form>
+        </details>
       </section>
 
       <section className="space-y-1">

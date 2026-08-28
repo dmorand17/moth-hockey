@@ -768,10 +768,12 @@ export default async function AdminSeasonsPage({
                         {teamCount % 2 === 1 && teamCount >= 3 && (
                           <p className="text-[12px] text-[#fbbf24]/90">
                             <strong>Byes:</strong> with {teamCount} teams, one team
-                            sits out each week. For every team to get the same number
-                            of byes, use a multiple of {teamCount} weeks — e.g.{" "}
-                            {teamCount}, {teamCount * 2}, or {teamCount * 3} (1, 2, or 3
-                            byes each).
+                            sits out each week. For even byes, use a multiple of{" "}
+                            {teamCount} regular weeks — e.g. {teamCount},{" "}
+                            {teamCount * 2}, or {teamCount * 3} (1, 2, or 3 byes
+                            each). With playoffs reserved (2 weeks), that&apos;s{" "}
+                            {teamCount + 2}, {teamCount * 2 + 2}, or{" "}
+                            {teamCount * 3 + 2} weeks total.
                           </p>
                         )}
 

@@ -10,9 +10,9 @@ import {
   activateSeason,
   createSeason,
   deleteSeason,
+  generatePlayoffs,
   generateSchedule,
   resetSeason,
-  seedPlayoffs,
   updateSeasonDates,
   updateStandingsRules,
 } from "./actions";
@@ -32,6 +32,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   cannot_delete_current: "Cannot delete the current season. Activate another first.",
   has_games: "Delete or move games before deleting the season.",
   no_playoff_stubs: "Generate the schedule with playoffs first to seed the bracket.",
+  regular_incomplete: "Finish all regular-season games before generating playoffs.",
+  playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
 };
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
@@ -125,7 +127,9 @@ export default async function AdminSeasonsPage({
       ? `Generated ${params.n ?? "?"} games.`
       : params.saved === "seeded"
         ? `Bracket seeded — ${params.n ?? "0"} round(s) updated.`
-        : params.saved === "reset"
+        : params.saved === "playoffs"
+          ? "Playoffs generated / advanced."
+          : params.saved === "reset"
           ? "Season reset — all games and results cleared."
           : params.saved === "dates"
             ? "Dates updated."
@@ -256,7 +260,6 @@ export default async function AdminSeasonsPage({
               const gameAgg = gameCounts.get(season.id);
               const gameTotal = gameAgg?.n ?? 0;
               const finalCount = gameAgg?.final ?? 0;
-              const regularFinalCount = gameAgg?.regular_final ?? 0;
               const canDelete = !season.is_current && gameTotal === 0;
               const bracket = bracketBySeason.get(season.id) ?? [];
               const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
@@ -264,7 +267,6 @@ export default async function AdminSeasonsPage({
               const finalSlot =
                 bracket.find((b) => b.playoff_round === "final") ?? null;
               const hasPlayoffStubs = bracket.length > 0;
-              const canSeed = hasPlayoffStubs && regularFinalCount > 0;
 
               return (
                 <details
@@ -382,37 +384,25 @@ export default async function AdminSeasonsPage({
                     </FieldGroup>
 
                     {/* Playoffs */}
-                    {hasPlayoffStubs && (
-                      <FieldGroup label="Playoffs" accent="ice">
-                        <div className="space-y-1.5">
+                    <FieldGroup label="Playoffs" accent="ice">
+                      {hasPlayoffStubs && (
+                        <div className="space-y-1.5 mb-3">
                           <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
                           <BracketRow label="SF2 (#2 v #3)" slot={sf2} />
                           <BracketRow label="Final" slot={finalSlot} />
                         </div>
-                        <form
-                          action={seedPlayoffs}
-                          className="flex flex-wrap items-center gap-3 mt-3"
-                        >
-                          <input type="hidden" name="season_id" value={season.id} />
-                          <button
-                            type="submit"
-                            disabled={!canSeed}
-                            className={primaryBtn}
-                            title={
-                              !canSeed
-                                ? "Need final regular-season games to seed the bracket"
-                                : undefined
-                            }
-                          >
-                            SEED PLAYOFFS
-                          </button>
-                          <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
-                            Idempotent — only fills rounds that aren&apos;t already
-                            final. The Final fills once both semis are decided.
-                          </p>
-                        </form>
-                      </FieldGroup>
-                    )}
+                      )}
+                      <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
+                        <input type="hidden" name="season_id" value={season.id} />
+                        <button type="submit" className={primaryBtn}>
+                          {hasPlayoffStubs ? "ADVANCE / RE-SEED PLAYOFFS" : "GENERATE PLAYOFFS"}
+                        </button>
+                        <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
+                          Seeds #1 v #4 and #2 v #3 from the standings once every regular-season game
+                          is final. Re-run after the semifinals to advance the Final.
+                        </p>
+                      </form>
+                    </FieldGroup>
 
                     {/* Generate schedule — collapsed */}
                     <Disclosure label="Generate schedule" accent="ice">
@@ -477,24 +467,12 @@ export default async function AdminSeasonsPage({
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
-                        <label className="inline-flex items-center gap-2 min-h-11">
-                          <input
-                            type="checkbox"
-                            name="with_playoffs"
-                            defaultChecked
-                            className="size-4 accent-ice"
-                          />
-                          <span className="font-mono text-[13px] text-ink">
-                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
-                          </span>
-                        </label>
-
                         <p className="text-ink-faint text-[12px]">
                           <strong>Weeks</strong> = how many game nights to schedule.
                           Each week fills the time slots (one night) and teams cycle
                           through a balanced round-robin, repeating as needed.
-                          Playoffs add SF1, SF2 &amp; Final as TBD stubs after the
-                          final week.
+                          Use the Playoffs section to generate the bracket after all
+                          regular-season games are final.
                         </p>
 
                         <button

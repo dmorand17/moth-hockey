@@ -157,12 +157,18 @@ export default async function AdminSeasonsPage({
       )}
 
       {/* Create */}
-      <section className="space-y-3">
-        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-          NEW SEASON
-        </h2>
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              NEW SEASON
+            </h2>
+          </summary>
 
-        <form action={createSeason} className="panel p-4 sm:p-5 space-y-5">
+          <form action={createSeason} className="panel p-4 sm:p-5 space-y-5 mt-3">
           <FieldGroup
             label="Identity"
             hint="Name auto-fills from type + year until you edit it."
@@ -265,7 +271,8 @@ export default async function AdminSeasonsPage({
           <button type="submit" className={primaryBtn}>
             CREATE SEASON
           </button>
-        </form>
+          </form>
+        </details>
       </section>
 
       {/* Season list */}

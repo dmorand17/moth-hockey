@@ -3,11 +3,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
 import { weekdayLabel, type WeekdayIdx } from "@/lib/season-schedule";
 import { TimeSlotsField } from "./TimeSlotsField";
+import { ResetSeasonButton } from "./ResetSeasonButton";
 import {
   activateSeason,
   createSeason,
   deleteSeason,
   generateSchedule,
+  resetSeason,
   seedPlayoffs,
   updateSeasonDates,
 } from "./actions";
@@ -112,6 +114,8 @@ export default async function AdminSeasonsPage({
       ? `Generated ${params.n ?? "?"} games.`
       : params.saved === "seeded"
         ? `Bracket seeded — ${params.n ?? "0"} round(s) updated.`
+        : params.saved === "reset"
+        ? "Season reset — all games and results cleared."
         : params.saved === "dates"
           ? "Dates updated."
           : params.saved === "created"
@@ -515,6 +519,23 @@ export default async function AdminSeasonsPage({
                       </button>
                     </form>
                   </details>
+
+                  {/* Reset — wipe all games + results, keep teams/rosters */}
+                  {gameTotal > 0 && (
+                    <div className="border-t border-rule/50 pt-3">
+                      <ResetSeasonButton
+                        action={resetSeason}
+                        seasonId={season.id}
+                        seasonName={season.name}
+                        gameTotal={gameTotal}
+                      />
+                      <p className="text-ink-faint text-[11px] mt-2">
+                        Deletes all {gameTotal} games and their scores/stats for
+                        this season. Teams and rosters are kept — regenerate the
+                        schedule afterward.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Delete */}
                   <form

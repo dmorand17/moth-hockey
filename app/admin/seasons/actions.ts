@@ -178,6 +178,41 @@ export async function deleteSeason(formData: FormData) {
   redirect("/admin/seasons?saved=deleted");
 }
 
+// Reset a season's schedule + results without deleting the season itself.
+// Clears ALL games (any status; cascades events/appearances/availability),
+// the computed season stats, and any skip notes. Teams and rosters are kept so
+// the schedule can be regenerated. Used to wipe a demo season and start fresh.
+export async function resetSeason(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) back("error=invalid_input");
+
+  const supabase = await createSupabaseServerClient();
+
+  const { error: gamesErr } = await supabase
+    .from("games")
+    .delete()
+    .eq("season_id", id);
+  if (gamesErr) back(`error=${encodeURIComponent(gamesErr.message)}`);
+
+  const { error: statsErr } = await supabase
+    .from("season_player_stats")
+    .delete()
+    .eq("season_id", id);
+  if (statsErr) back(`error=${encodeURIComponent(statsErr.message)}`);
+
+  const { error: skipErr } = await supabase
+    .from("schedule_skips")
+    .delete()
+    .eq("season_id", id);
+  if (skipErr) back(`error=${encodeURIComponent(skipErr.message)}`);
+
+  revalidatePublicSeasonPaths();
+  revalidatePath("/admin/schedule");
+  redirect("/admin/seasons?saved=reset");
+}
+
 export async function generateSchedule(formData: FormData) {
   await requireRole(["admin"]);
 

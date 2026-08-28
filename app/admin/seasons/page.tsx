@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
-import { weekdayLabel, type WeekdayIdx } from "@/lib/season-schedule";
+import { weekdayLabel, playoffLabel, playoffRoundsFor, type WeekdayIdx, type PlayoffRound } from "@/lib/season-schedule";
 import { TimeSlotsField } from "./TimeSlotsField";
 import { ResetSeasonButton } from "./ResetSeasonButton";
 import { SeasonIdentityFields } from "./SeasonIdentityFields";
@@ -326,10 +326,6 @@ export default async function AdminSeasonsPage({
               const gameTotal = gameAgg?.n ?? 0;
               const canDelete = !season.is_current && gameTotal === 0;
               const bracket = bracketBySeason.get(season.id) ?? [];
-              const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
-              const sf2 = bracket.find((b) => b.playoff_round === "sf2") ?? null;
-              const finalSlot =
-                bracket.find((b) => b.playoff_round === "final") ?? null;
               const hasPlayoffStubs = bracket.length > 0;
 
               return (
@@ -664,9 +660,23 @@ export default async function AdminSeasonsPage({
                     <Disclosure label="Playoffs" accent="ice">
                       {hasPlayoffStubs && (
                         <div className="space-y-1.5 mb-3">
-                          <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
-                          <BracketRow label="SF2 (#2 v #3)" slot={sf2} />
-                          <BracketRow label="Final" slot={finalSlot} />
+                          {bracket
+                            .filter(
+                              (g): g is BracketSlot & { playoff_round: PlayoffRound } =>
+                                g.playoff_round !== null,
+                            )
+                            .sort(
+                              (a, b) =>
+                                playoffRoundsFor(3).indexOf(a.playoff_round) -
+                                playoffRoundsFor(3).indexOf(b.playoff_round),
+                            )
+                            .map((g) => (
+                              <BracketRow
+                                key={g.playoff_round}
+                                label={playoffLabel(g.playoff_round)}
+                                slot={g}
+                              />
+                            ))}
                         </div>
                       )}
                       <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">

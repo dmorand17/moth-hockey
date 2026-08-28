@@ -14,7 +14,9 @@ import {
   resetSeason,
   seedPlayoffs,
   updateSeasonDates,
+  updateStandingsRules,
 } from "./actions";
+import { StandingsRulesEditor } from "./StandingsRulesEditor";
 
 type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
 
@@ -45,6 +47,8 @@ type SeasonRow = {
   end_date: string | null;
   is_current: boolean;
   period_length_minutes: number;
+  point_system: string;
+  tiebreakers: string[];
 };
 
 type AggRow = { season_id: string; n: number };
@@ -61,7 +65,7 @@ export default async function AdminSeasonsPage({
   const { data: seasonsRaw } = await supabase
     .from("seasons")
     .select(
-      "id, season_type, year, name, start_date, end_date, is_current, period_length_minutes",
+      "id, season_type, year, name, start_date, end_date, is_current, period_length_minutes, point_system, tiebreakers",
     )
     .order("start_date", { ascending: false });
 
@@ -125,13 +129,15 @@ export default async function AdminSeasonsPage({
           ? "Season reset — all games and results cleared."
           : params.saved === "dates"
             ? "Dates updated."
-            : params.saved === "created"
-              ? "Season created."
-              : params.saved === "activated"
-                ? "Season activated."
-                : params.saved === "deleted"
-                  ? "Season deleted."
-                  : null;
+            : params.saved === "rules"
+              ? "Standings rules updated."
+              : params.saved === "created"
+                ? "Season created."
+                : params.saved === "activated"
+                  ? "Season activated."
+                  : params.saved === "deleted"
+                    ? "Season deleted."
+                    : null;
   const error = params.error
     ? (ERROR_MESSAGES[params.error] ?? params.error)
     : null;
@@ -363,6 +369,16 @@ export default async function AdminSeasonsPage({
                           SAVE DATES
                         </button>
                       </form>
+                    </FieldGroup>
+
+                    {/* Standings rules */}
+                    <FieldGroup label="Standings rules">
+                      <StandingsRulesEditor
+                        action={updateStandingsRules}
+                        seasonId={season.id}
+                        pointSystem={season.point_system}
+                        tiebreakers={season.tiebreakers}
+                      />
                     </FieldGroup>
 
                     {/* Playoffs */}

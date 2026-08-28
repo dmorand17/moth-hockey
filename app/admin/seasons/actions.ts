@@ -357,6 +357,31 @@ export async function generateSchedule(formData: FormData) {
   redirect(`/admin/seasons?saved=generated&n=${rows.length}`);
 }
 
+export async function updateStandingsRules(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const id = String(formData.get("id") ?? "").trim();
+  const pointSystem = String(formData.get("point_system") ?? "").trim();
+  const tiebreakers = formData
+    .getAll("tiebreakers")
+    .map(String)
+    .filter((k) => ["wins", "diff", "gf", "ga", "h2h"].includes(k));
+
+  if (!id || (pointSystem !== "2-1-0" && pointSystem !== "3-2-1")) {
+    back("error=invalid_input");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("seasons")
+    .update({ point_system: pointSystem, tiebreakers })
+    .eq("id", id);
+  if (error) back(`error=${encodeURIComponent(error.message)}`);
+
+  revalidatePublicSeasonPaths();
+  redirect("/admin/seasons?saved=rules");
+}
+
 export async function seedPlayoffs(formData: FormData) {
   await requireRole(["admin"]);
 

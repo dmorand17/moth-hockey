@@ -8,6 +8,7 @@ import { ok, fail, type ActionResult } from "@/lib/action-result";
 import {
   buildGameSlots,
   firstRoundSeeds,
+  localDateKey,
   playoffFeeders,
   playoffRoundsFor,
   playoffSlots,
@@ -272,7 +273,6 @@ export async function generateSchedule(formData: FormData): Promise<ActionResult
     .getAll("times")
     .map((v) => String(v).trim())
     .filter((v) => v !== "");
-  const playoffRounds = Math.max(0, Math.min(3, parseInt0(String(formData.get("playoff_rounds") ?? "2"), 2)));
   if (!seasonId || weekday === null || weeks < 1 || times.length === 0) {
     return fail("Check all required fields.");
   }
@@ -330,40 +330,18 @@ export async function generateSchedule(formData: FormData): Promise<ActionResult
     kind: "regular",
   }));
 
-  // Optionally reserve playoff nights after the regular season as TBD-vs-TBD
-  // stubs, so the bracket dates show on the schedule immediately. The
-  // "Update Playoff Matchups" action seeds the teams from standings later.
-  const bracket = playoffRoundsFor(playoffRounds);
-  if (bracket.length > 0) {
-    const ptimes = playoffSlots(season.start_date, weekday, times, pairs.length, bracket.length);
-    bracket.forEach((round, i) =>
-      rows.push({
-        season_id: seasonId,
-        home_team_id: null,
-        away_team_id: null,
-        scheduled_at: ptimes[i],
-        location,
-        kind: "playoff",
-        playoff_round: round,
-      }),
-    );
-  }
-
   if (rows.length > 0) {
     const { error: insErr } = await supabase.from("games").insert(rows);
     if (insErr) return fail(insErr.message);
   }
 
-  // Sync the season's length to what we just scheduled: regular_weeks from the
-  // form, and end_date extended to cover the playoff nights (each week holds
-  // times.length slots, so playoffs span ceil(games / slots) extra weeks).
-  const playoffWeeks =
-    bracket.length > 0 ? Math.ceil(bracket.length / times.length) : 0;
+  // Sync the season's regular-season length + end date to what we scheduled.
+  // Playoffs are set up separately (Playoffs section) and extend end_date then.
   await supabase
     .from("seasons")
     .update({
       regular_weeks: weeks,
-      end_date: resolveEndDate(season.start_date, String(weeks + playoffWeeks)),
+      end_date: resolveEndDate(season.start_date, String(weeks)),
     })
     .eq("id", seasonId);
 
@@ -371,6 +349,112 @@ export async function generateSchedule(formData: FormData): Promise<ActionResult
   revalidatePath("/admin/schedule");
   revalidatePath("/schedule");
   return ok(`Generated ${rows.length} games.`);
+}
+
+// Create/replace the playoff bracket stubs for a season, independent of how the
+// regular schedule was built (generator OR manual New Game entries). Places the
+// TBD-vs-TBD stubs on the week(s) after the last regular game, inferring the
+// weekday + time slots from that last game night. Re-running replaces existing
+// *scheduled* playoff stubs but leaves any live/final playoff games untouched.
+export async function reservePlayoffs(formData: FormData): Promise<ActionResult> {
+  await requireRole(["admin"]);
+
+  const seasonId = String(formData.get("season_id") ?? "").trim();
+  const rounds = Math.max(0, Math.min(3, parseInt0(String(formData.get("playoff_rounds") ?? "0"), 0)));
+  if (!seasonId) return fail("Check all required fields.");
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data: season } = await supabase
+    .from("seasons")
+    .select("id, start_date, regular_weeks, default_location")
+    .eq("id", seasonId)
+    .single();
+  if (!season) return fail("Check all required fields.");
+
+  // Don't clobber a bracket that's already underway.
+  const { count: playedCount } = await supabase
+    .from("games")
+    .select("id", { count: "exact", head: true })
+    .eq("season_id", seasonId)
+    .eq("kind", "playoff")
+    .neq("status", "scheduled");
+  if ((playedCount ?? 0) > 0)
+    return fail("Playoff games have already started — reset the season to change rounds.");
+
+  // Clear existing (unplayed) playoff stubs so the rounds can be changed.
+  const { error: clearErr } = await supabase
+    .from("games")
+    .delete()
+    .eq("season_id", seasonId)
+    .eq("kind", "playoff")
+    .eq("status", "scheduled");
+  if (clearErr) return fail(clearErr.message);
+
+  const bracket = playoffRoundsFor(rounds);
+  if (bracket.length === 0) {
+    revalidatePath("/admin/seasons");
+    revalidatePath("/admin/schedule");
+    revalidatePath("/schedule");
+    return ok("Playoff rounds cleared.");
+  }
+
+  // Infer placement from the existing regular schedule.
+  const { data: regular } = await supabase
+    .from("games")
+    .select("scheduled_at, location")
+    .eq("season_id", seasonId)
+    .eq("kind", "regular")
+    .order("scheduled_at", { ascending: true });
+  if (!regular || regular.length === 0)
+    return fail("Add regular-season games first — playoffs are placed after them.");
+
+  const last = regular[regular.length - 1];
+  const lastDateKey = localDateKey(last.scheduled_at); // YYYY-MM-DD (local)
+  const [ly, lm, ld] = lastDateKey.split("-").map(Number);
+  const weekday = new Date(ly, lm - 1, ld).getDay() as WeekdayIdx;
+
+  // Distinct time-of-day slots used on that last game night, in order.
+  const hhmm = (iso: string) => {
+    const d = new Date(iso);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+  const nightTimes = Array.from(
+    new Set(regular.filter((g) => localDateKey(g.scheduled_at) === lastDateKey).map((g) => hhmm(g.scheduled_at))),
+  ).sort();
+  const times = nightTimes.length > 0 ? nightTimes : ["19:00"];
+
+  // Start the search the day after the last regular game so the first playoff
+  // night lands on the NEXT occurrence of that weekday.
+  const nextDay = new Date(ly, lm - 1, ld + 1);
+  const startDate = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
+  const ptimes = buildGameSlots(startDate, weekday, times, bracket.length);
+
+  const location = last.location ?? season.default_location ?? null;
+  const rows = bracket.map((round, i) => ({
+    season_id: seasonId,
+    home_team_id: null,
+    away_team_id: null,
+    scheduled_at: ptimes[i],
+    location,
+    kind: "playoff" as const,
+    playoff_round: round,
+  }));
+  const { error: insErr } = await supabase.from("games").insert(rows);
+  if (insErr) return fail(insErr.message);
+
+  // Extend end_date to the last playoff night if it runs past the current end.
+  const lastPlayoffDate = localDateKey(ptimes[ptimes.length - 1]);
+  await supabase
+    .from("seasons")
+    .update({ end_date: lastPlayoffDate })
+    .eq("id", seasonId)
+    .lt("end_date", lastPlayoffDate);
+
+  revalidatePath("/admin/seasons");
+  revalidatePath("/admin/schedule");
+  revalidatePath("/schedule");
+  return ok(`Reserved ${bracket.length} playoff game${bracket.length === 1 ? "" : "s"}.`);
 }
 
 export async function updateStandingsRules(formData: FormData): Promise<ActionResult> {

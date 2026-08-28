@@ -1,5 +1,9 @@
 "use client";
 
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
+import type { ActionResult } from "@/lib/action-result";
+
 // Destructive reset: wipes all games + results for a season. Wrapped in a
 // native confirm() so an admin can't clear a live season by a stray click.
 export function ResetSeasonButton({
@@ -8,13 +12,13 @@ export function ResetSeasonButton({
   seasonName,
   gameTotal,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   seasonId: string;
   seasonName: string;
   gameTotal: number;
 }) {
   return (
-    <form
+    <ActionForm
       action={action}
       onSubmit={(e) => {
         if (
@@ -27,12 +31,9 @@ export function ResetSeasonButton({
       }}
     >
       <input type="hidden" name="id" value={seasonId} />
-      <button
-        type="submit"
-        className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors"
-      >
+      <SubmitButton className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors">
         RESET SEASON
-      </button>
-    </form>
+      </SubmitButton>
+    </ActionForm>
   );
 }

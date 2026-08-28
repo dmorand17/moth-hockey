@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { setAvailability } from "@/app/account/actions";
 
 export function CheckInToggle({
@@ -20,8 +21,13 @@ export function CheckInToggle({
     const target = status === choice ? null : choice; // re-tap active = clear
     startTransition(async () => {
       const res = await setAvailability({ gameId, status: target });
-      if (!res.ok) setError(res.error);
-      else router.refresh();
+      if (!res.ok) {
+        setError(res.error);
+        toast.error(res.error);
+      } else {
+        toast.success(res.message ?? "Saved");
+        router.refresh();
+      }
     });
   };
 

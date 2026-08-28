@@ -1,18 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { buildScheduledAt } from "@/lib/schedule-config";
+import { ok, fail, type ActionResult } from "@/lib/action-result";
 
 type Status = "scheduled" | "live" | "final";
 type DecidedIn = "regulation" | "ot" | "shootout";
-
-function back(qs: string): never {
-  redirect(`/admin/schedule?${qs}`);
-}
 
 function parseStatus(raw: string): Status {
   if (raw === "live" || raw === "final") return raw;
@@ -29,11 +25,11 @@ function parseScore(raw: string): number {
   return isNaN(n) || n < 0 ? 0 : n;
 }
 
-export async function createGame(formData: FormData) {
+export async function createGame(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
-  if (!season) back("error=no_season");
+  if (!season) return fail("No active season.");
 
   const homeTeamId = String(formData.get("home_team_id") ?? "").trim();
   const awayTeamId = String(formData.get("away_team_id") ?? "").trim();
@@ -42,7 +38,7 @@ export async function createGame(formData: FormData) {
   const location = String(formData.get("location") ?? "").trim() || null;
 
   if (!homeTeamId || !awayTeamId || !scheduledDate || !scheduledTime || homeTeamId === awayTeamId)
-    back("error=invalid_input");
+    return fail("Check all required fields (home team ≠ away team, valid date).");
 
   const { error } = await supabase.from("games").insert({
     season_id: season.id,
@@ -52,13 +48,13 @@ export async function createGame(formData: FormData) {
     location,
   });
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/schedule");
-  redirect("/admin/schedule?saved=created");
+  return ok("Game created.");
 }
 
-export async function updateGame(formData: FormData) {
+export async function updateGame(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
 
@@ -74,8 +70,8 @@ export async function updateGame(formData: FormData) {
   const homeTeamId = String(formData.get("home_team_id") ?? "").trim() || null;
   const awayTeamId = String(formData.get("away_team_id") ?? "").trim() || null;
 
-  if (!id || !scheduledDate || !scheduledTime) back("error=invalid_input");
-  if (homeTeamId && awayTeamId && homeTeamId === awayTeamId) back("error=same_team");
+  if (!id || !scheduledDate || !scheduledTime) return fail("Check all required fields (home team ≠ away team, valid date).");
+  if (homeTeamId && awayTeamId && homeTeamId === awayTeamId) return fail("Home and away team must be different.");
 
   const { error } = await supabase
     .from("games")
@@ -92,36 +88,36 @@ export async function updateGame(formData: FormData) {
     })
     .eq("id", id);
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/schedule");
-  redirect("/admin/schedule?saved=updated");
+  return ok("Game updated.");
 }
 
-export async function deleteGame(formData: FormData) {
+export async function deleteGame(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
 
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) back("error=invalid_input");
+  if (!id) return fail("Check all required fields (home team ≠ away team, valid date).");
 
   const { error } = await supabase.from("games").delete().eq("id", id);
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/schedule");
-  redirect("/admin/schedule?saved=deleted");
+  return ok("Game deleted.");
 }
 
-export async function skipWeek(formData: FormData) {
+export async function skipWeek(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
-  if (!season) back("error=no_season");
+  if (!season) return fail("No active season.");
 
   const skipDate = String(formData.get("skip_date") ?? "").trim(); // YYYY-MM-DD
   const reason = String(formData.get("reason") ?? "").trim();
-  if (!skipDate || !reason) back("error=invalid_input");
+  if (!skipDate || !reason) return fail("Check all required fields (home team ≠ away team, valid date).");
 
   // Local start-of-day for the picked date, as an ISO instant for comparison.
   const [y, m, d] = skipDate.split("-").map(Number);
@@ -135,7 +131,7 @@ export async function skipWeek(formData: FormData) {
     .eq("season_id", season.id)
     .eq("skip_date", skipDate)
     .maybeSingle();
-  if (existingSkip) back("error=already_skipped");
+  if (existingSkip) return fail("That week is already recorded as skipped.");
 
   // Push every still-scheduled game on/after that date out by 7 days.
   const { data: games, error: fetchErr } = await supabase
@@ -144,7 +140,7 @@ export async function skipWeek(formData: FormData) {
     .eq("season_id", season.id)
     .eq("status", "scheduled")
     .gte("scheduled_at", fromIso);
-  if (fetchErr) back(`error=${encodeURIComponent(fetchErr.message)}`);
+  if (fetchErr) return fail(fetchErr.message);
 
   for (const g of games ?? []) {
     const next = new Date(
@@ -154,30 +150,30 @@ export async function skipWeek(formData: FormData) {
       .from("games")
       .update({ scheduled_at: next, updated_at: new Date().toISOString() })
       .eq("id", g.id);
-    if (updErr) back(`error=${encodeURIComponent(updErr.message)}`);
+    if (updErr) return fail(updErr.message);
   }
 
   const { error: insErr } = await supabase
     .from("schedule_skips")
     .insert({ season_id: season.id, skip_date: skipDate, reason });
-  if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
+  if (insErr) return fail(insErr.message);
 
   revalidatePath("/admin/schedule");
   revalidatePath("/schedule");
-  redirect("/admin/schedule?saved=skipped");
+  return ok("Week skipped — later games moved out a week.");
 }
 
-export async function removeScheduleSkip(formData: FormData) {
+export async function removeScheduleSkip(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
 
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) back("error=invalid_input");
+  if (!id) return fail("Check all required fields (home team ≠ away team, valid date).");
 
   const { error } = await supabase.from("schedule_skips").delete().eq("id", id);
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/schedule");
   revalidatePath("/schedule");
-  redirect("/admin/schedule?saved=skip_removed");
+  return ok("Skip note removed.");
 }

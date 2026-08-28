@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { PlayerCombobox } from "@/components/PlayerCombobox";
 import { linkAccounts } from "./actions";
 
@@ -53,8 +54,13 @@ export function NeedsLinkingEditor({
     }));
     startTransition(async () => {
       const res = await linkAccounts(updates);
-      if (res.ok) router.refresh();
-      else setError(res.error);
+      if (res.ok) {
+        toast.success(res.message ?? "Accounts linked.");
+        router.refresh();
+      } else {
+        toast.error(res.error);
+        setError(res.error);
+      }
     });
   };
 

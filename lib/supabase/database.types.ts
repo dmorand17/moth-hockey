@@ -544,6 +544,7 @@ export type Database = {
           name: string
           period_length_minutes: number
           point_system: string
+          regular_weeks: number | null
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
           tiebreakers: string[]
@@ -557,6 +558,7 @@ export type Database = {
           name: string
           period_length_minutes?: number
           point_system?: string
+          regular_weeks?: number | null
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
           tiebreakers?: string[]
@@ -570,6 +572,7 @@ export type Database = {
           name?: string
           period_length_minutes?: number
           point_system?: string
+          regular_weeks?: number | null
           season_type?: Database["public"]["Enums"]["season_type"]
           start_date?: string
           tiebreakers?: string[]
@@ -772,7 +775,7 @@ export type Database = {
       game_status: "scheduled" | "live" | "final"
       penalty_shot_result: "goal" | "saved"
       player_position: "forward" | "defense" | "goalie"
-      playoff_round: "sf1" | "sf2" | "final"
+      playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final"
       season_type: "spring" | "summer" | "fall" | "winter"
       user_role: "admin" | "scorekeeper" | "team_captain" | "player"
     }
@@ -914,7 +917,7 @@ export const Constants = {
       game_status: ["scheduled", "live", "final"],
       penalty_shot_result: ["goal", "saved"],
       player_position: ["forward", "defense", "goalie"],
-      playoff_round: ["sf1", "sf2", "final"],
+      playoff_round: ["qf1", "qf2", "qf3", "qf4", "sf1", "sf2", "final"],
       season_type: ["spring", "summer", "fall", "winter"],
       user_role: ["admin", "scorekeeper", "team_captain", "player"],
     },

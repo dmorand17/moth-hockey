@@ -6,22 +6,8 @@ import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
 import { createGame, updateGame, deleteGame, skipWeek, removeScheduleSkip } from "./actions";
 import { localDateKey, byeTeamNamesByDate } from "@/lib/season-schedule";
 import { TimeSelect } from "./TimeSelect";
-
-type SearchParams = Promise<{ saved?: string; error?: string }>;
-
-const FLASH_MESSAGES: Record<string, string> = {
-  created: "Game created.",
-  updated: "Game updated.",
-  deleted: "Game deleted.",
-  skipped: "Week skipped — later games moved out a week.",
-  skip_removed: "Skip note removed.",
-};
-
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_input: "Check all required fields (home team ≠ away team, valid date).",
-  already_skipped: "That week is already recorded as skipped.",
-  same_team: "Home and away team must be different.",
-};
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type TeamRef = { id: string; name: string; color: string };
 
@@ -31,7 +17,7 @@ type GameRow = {
   location: string | null;
   status: "scheduled" | "live" | "final";
   kind: "regular" | "playoff";
-  playoff_round: "sf1" | "sf2" | "final" | null;
+  playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
   home_score: number;
   away_score: number;
   decided_in: "regulation" | "ot" | "shootout" | null;
@@ -99,17 +85,11 @@ function formatWeekLabel(isoDate: string): string {
   });
 }
 
-export default async function AdminSchedulePage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function AdminSchedulePage() {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
   if (!season) return <NoSeason isAdmin />;
-
-  const params = await searchParams;
 
   const [{ data: teams }, { data: gamesRaw }, { data: skips }] = await Promise.all([
     supabase
@@ -160,17 +140,6 @@ export default async function AdminSchedulePage({
 
   return (
     <div className="space-y-8">
-      {params.saved && (
-        <p role="status" className="text-ice text-sm">
-          {FLASH_MESSAGES[params.saved] ?? "Saved."}
-        </p>
-      )}
-      {params.error && (
-        <p role="alert" className="text-goal text-sm">
-          {ERROR_MESSAGES[params.error] ?? params.error}
-        </p>
-      )}
-
       {/* Create */}
       <section>
         <details className="group">
@@ -184,7 +153,7 @@ export default async function AdminSchedulePage({
             <span className="eyebrow ml-auto">{season.name}</span>
           </summary>
 
-          <form action={createGame} className="panel p-4 space-y-3 mt-3">
+          <ActionForm action={createGame} resetOnSuccess className="panel p-4 space-y-3 mt-3">
           <input type="hidden" name="season_id" value={season.id} />
           <div className="flex flex-wrap gap-3">
             <label className="block flex-1 min-w-[160px]">
@@ -239,13 +208,12 @@ export default async function AdminSchedulePage({
             </label>
           </div>
 
-          <button
-            type="submit"
+          <SubmitButton
             className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
           >
             CREATE
-          </button>
-          </form>
+          </SubmitButton>
+          </ActionForm>
         </details>
       </section>
 
@@ -260,7 +228,7 @@ export default async function AdminSchedulePage({
               SKIP A WEEK
             </h2>
           </summary>
-        <form action={skipWeek} className="panel p-4 space-y-3 mt-3">
+        <ActionForm action={skipWeek} resetOnSuccess className="panel p-4 space-y-3 mt-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="block w-full sm:w-auto sm:min-w-[160px]">
               <span className="eyebrow">Week of</span>
@@ -276,18 +244,17 @@ export default async function AdminSchedulePage({
                 className={`mt-1 ${inputCls}`}
               />
             </label>
-            <button
-              type="submit"
+            <SubmitButton
               className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
             >
               SKIP
-            </button>
+            </SubmitButton>
           </div>
           <p className="text-ink-faint text-[12px]">
             Pushes every scheduled game on or after that date out by one week.
             Played (live/final) games are left in place.
           </p>
-        </form>
+        </ActionForm>
 
         {skipList.length > 0 && (
           <ul className="mt-3 border border-rule rounded divide-y divide-rule/50">
@@ -296,15 +263,14 @@ export default async function AdminSchedulePage({
                 <span className="text-[13px] text-ink">
                   <span className="font-mono text-ink-dim">{s.skip_date}</span> — {s.reason}
                 </span>
-                <form action={removeScheduleSkip}>
+                <ActionForm action={removeScheduleSkip}>
                   <input type="hidden" name="id" value={s.id} />
-                  <button
-                    type="submit"
+                  <SubmitButton
                     className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors"
                   >
                     REMOVE
-                  </button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               </li>
             ))}
           </ul>
@@ -397,7 +363,7 @@ export default async function AdminSchedulePage({
 
               {/* Edit form */}
               <div className="border-t border-rule px-3 py-3 space-y-3">
-                <form action={updateGame} className="space-y-3">
+                <ActionForm action={updateGame} className="space-y-3">
                   <input type="hidden" name="id" value={game.id} />
 
                   <div className="flex flex-wrap gap-3">
@@ -541,25 +507,23 @@ export default async function AdminSchedulePage({
                     </label>
 
                     <div className="pb-0.5">
-                      <button
-                        type="submit"
+                      <SubmitButton
                         className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
                       >
                         SAVE
-                      </button>
+                      </SubmitButton>
                     </div>
                   </div>
-                </form>
+                </ActionForm>
 
-                <form action={deleteGame}>
+                <ActionForm action={deleteGame}>
                   <input type="hidden" name="id" value={game.id} />
-                  <button
-                    type="submit"
+                  <SubmitButton
                     className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors"
                   >
                     DELETE GAME
-                  </button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               </div>
             </details>
                 ))}

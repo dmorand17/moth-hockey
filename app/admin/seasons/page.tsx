@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
-import { weekdayLabel, type WeekdayIdx } from "@/lib/season-schedule";
+import { weekdayLabel, playoffLabel, playoffRoundsFor, type WeekdayIdx, type PlayoffRound } from "@/lib/season-schedule";
 import { TimeSlotsField } from "./TimeSlotsField";
 import { ResetSeasonButton } from "./ResetSeasonButton";
 import { SeasonIdentityFields } from "./SeasonIdentityFields";
+import { SeasonDurationFields } from "./SeasonDurationFields";
 import {
   activateSeason,
   assignTeamCaptain,
@@ -24,31 +25,27 @@ import { ColorSwatches } from "./color-swatches";
 import { RosterEditor } from "./RosterEditor";
 import { StandingsRulesEditor } from "./StandingsRulesEditor";
 import { PlayerCombobox } from "@/components/PlayerCombobox";
-
-type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
 
 const inputCls =
   "bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice w-full";
 const primaryBtn =
   "min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_input: "Check all required fields.",
-  need_end: "Set an end date or a number of weeks.",
-  not_enough_teams: "Need at least 2 teams in this season to generate a schedule.",
-  cannot_delete_current: "Cannot delete the current season. Activate another first.",
-  has_games: "Delete or move games before deleting the season.",
-  regular_incomplete: "Finish all regular-season games before generating playoffs.",
-  playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
-  invalid_color: "Color must be a hex like #ef4444.",
-  already_rostered: "That player is already on a team this season.",
-  no_source_teams: "That season has no teams to copy.",
-  teams_exist: "Some of those team names already exist in this season.",
-};
-
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Whole weeks between a season's start and end (end = start + weeks×7), for
+// pre-filling the weeks field and the overview. Empty string when indeterminate.
+function weeksBetween(startDate: string, endDate: string | null): string {
+  if (!startDate || !endDate) return "";
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const weeks = Math.round((end.getTime() - start.getTime()) / (7 * 86400000));
+  return weeks > 0 ? String(weeks) : "";
+}
 
 type SeasonRow = {
   id: string;
@@ -57,6 +54,7 @@ type SeasonRow = {
   name: string;
   start_date: string;
   end_date: string | null;
+  regular_weeks: number | null;
   is_current: boolean;
   period_length_minutes: number;
   point_system: string;
@@ -65,19 +63,14 @@ type SeasonRow = {
 
 type AggRow = { season_id: string; n: number };
 
-export default async function AdminSeasonsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function AdminSeasonsPage() {
   await requireRole(["admin"]);
-  const params = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const { data: seasonsRaw } = await supabase
     .from("seasons")
     .select(
-      "id, season_type, year, name, start_date, end_date, is_current, period_length_minutes, point_system, tiebreakers",
+      "id, season_type, year, name, start_date, end_date, regular_weeks, is_current, period_length_minutes, point_system, tiebreakers",
     )
     .order("start_date", { ascending: false });
 
@@ -123,7 +116,7 @@ export default async function AdminSeasonsPage({
   }
 
   type BracketSlot = {
-    playoff_round: "sf1" | "sf2" | "final" | null;
+    playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
     status: "scheduled" | "live" | "final";
     home_score: number;
     away_score: number;
@@ -179,57 +172,10 @@ export default async function AdminSeasonsPage({
     });
   }
 
-  const flash =
-    params.saved === "generated"
-      ? `Generated ${params.n ?? "?"} games.`
-      : params.saved === "playoffs"
-          ? "Playoffs generated / advanced."
-          : params.saved === "reset"
-          ? "Season reset — all games and results cleared."
-          : params.saved === "dates"
-            ? "Dates updated."
-            : params.saved === "rules"
-              ? "Standings rules updated."
-              : params.saved === "created"
-                ? "Season created."
-                : params.saved === "activated"
-                  ? "Season activated."
-                  : params.saved === "deleted"
-                  ? "Season deleted."
-                  : params.saved === "team_created"
-                    ? "Team created."
-                    : params.saved === "team_updated"
-                      ? "Team updated."
-                      : params.saved === "captain"
-                        ? "Captain updated."
-                        : params.saved === "added"
-                          ? "Player added to roster."
-                          : params.saved === "roster_updated"
-                            ? "Roster entry updated."
-                            : params.saved === "removed"
-                              ? "Player removed from roster."
-                              : params.saved === "teams_copied"
-                                ? "Teams copied."
-                                : null;
-  const error = params.error
-    ? (ERROR_MESSAGES[params.error] ?? params.error)
-    : null;
-
   const currentYear = new Date().getFullYear();
 
   return (
     <div className="space-y-8">
-      {flash && (
-        <p role="status" className="text-ice text-sm">
-          {flash}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-goal text-sm">
-          {error}
-        </p>
-      )}
-
       {/* Create */}
       <section>
         <details className="group">
@@ -242,7 +188,7 @@ export default async function AdminSeasonsPage({
             </h2>
           </summary>
 
-          <form action={createSeason} className="panel p-4 sm:p-5 space-y-5 mt-3">
+          <ActionForm action={createSeason} resetOnSuccess className="panel p-4 sm:p-5 space-y-5 mt-3">
           <FieldGroup
             label="Identity"
             hint="Name auto-fills from type + year until you edit it."
@@ -252,33 +198,10 @@ export default async function AdminSeasonsPage({
 
           <FieldGroup
             label="Duration"
-            hint="Set an end date, or a number of weeks (weeks sets the end from the start). One is required."
+            hint="Set the regular season length in weeks — the end date is calculated from the start."
           >
-            <div className="flex flex-wrap gap-3">
-              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                <span className="eyebrow">Start date</span>
-                <input
-                  type="date"
-                  name="start_date"
-                  required
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
-              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                <span className="eyebrow">End date</span>
-                <input type="date" name="end_date" className={`mt-1 ${inputCls}`} />
-              </label>
-              <label className="block w-full sm:w-auto sm:min-w-[100px]">
-                <span className="eyebrow">Weeks</span>
-                <input
-                  type="number"
-                  name="weeks"
-                  min={1}
-                  max={52}
-                  placeholder="10"
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
+            <div className="flex flex-wrap items-end gap-3">
+              <SeasonDurationFields />
               <label className="block w-full sm:w-auto sm:min-w-[130px]">
                 <span className="eyebrow">Period (min)</span>
                 <input
@@ -299,10 +222,10 @@ export default async function AdminSeasonsPage({
             it — expand the season below.
           </p>
 
-          <button type="submit" className={primaryBtn}>
+          <SubmitButton className={primaryBtn}>
             CREATE SEASON
-          </button>
-          </form>
+          </SubmitButton>
+          </ActionForm>
         </details>
       </section>
 
@@ -325,10 +248,6 @@ export default async function AdminSeasonsPage({
               const gameTotal = gameAgg?.n ?? 0;
               const canDelete = !season.is_current && gameTotal === 0;
               const bracket = bracketBySeason.get(season.id) ?? [];
-              const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
-              const sf2 = bracket.find((b) => b.playoff_round === "sf2") ?? null;
-              const finalSlot =
-                bracket.find((b) => b.playoff_round === "final") ?? null;
               const hasPlayoffStubs = bracket.length > 0;
 
               return (
@@ -363,6 +282,13 @@ export default async function AdminSeasonsPage({
                       <StatTile label="Start" value={season.start_date} />
                       <StatTile label="End" value={season.end_date ?? "—"} />
                       <StatTile
+                        label="Weeks"
+                        value={
+                          season.regular_weeks ??
+                          (weeksBetween(season.start_date, season.end_date) || "—")
+                        }
+                      />
+                      <StatTile
                         label="Period"
                         value={`${season.period_length_minutes} min`}
                       />
@@ -371,67 +297,45 @@ export default async function AdminSeasonsPage({
 
                     {/* Activate — the primary action for an inactive season */}
                     {!season.is_current && (
-                      <form
+                      <ActionForm
                         action={activateSeason}
                         className="flex flex-wrap items-center gap-x-4 gap-y-2 panel-bare rounded-lg p-3"
                       >
                         <input type="hidden" name="id" value={season.id} />
-                        <button type="submit" className={primaryBtn}>
+                        <SubmitButton className={primaryBtn}>
                           ACTIVATE
-                        </button>
+                        </SubmitButton>
                         <p className="text-ink-faint text-[12px] flex-1 min-w-[200px]">
                           Point the public site (standings, schedule, stats) at
                           this season.
                         </p>
-                      </form>
+                      </ActionForm>
                     )}
 
                     {/* Dates — collapsed */}
-                    <Disclosure label="Dates" hint="start & end, or weeks">
+                    <Disclosure label="Dates" hint="start & weeks">
                       <p className="text-ink-faint text-[11px] mt-2 mb-2">
-                        End date or weeks (one required). Editing dates
-                        doesn&apos;t move existing games — regenerate to
-                        reschedule.
+                        Set the regular season weeks — the end date is calculated
+                        from the start. Editing dates doesn&apos;t move existing
+                        games — regenerate to reschedule.
                       </p>
-                      <form
+                      <ActionForm
                         action={updateSeasonDates}
                         className="flex flex-wrap items-end gap-3"
                       >
                         <input type="hidden" name="id" value={season.id} />
-                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                          <span className="eyebrow">Start date</span>
-                          <input
-                            type="date"
-                            name="start_date"
-                            required
-                            defaultValue={season.start_date}
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                          <span className="eyebrow">End date</span>
-                          <input
-                            type="date"
-                            name="end_date"
-                            defaultValue={season.end_date ?? ""}
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                        <label className="block w-full sm:w-auto sm:min-w-[110px]">
-                          <span className="eyebrow">Weeks</span>
-                          <input
-                            type="number"
-                            name="weeks"
-                            min={1}
-                            max={52}
-                            placeholder="total"
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                        <button type="submit" className={primaryBtn}>
+                        <SeasonDurationFields
+                          defaultStartDate={season.start_date}
+                          defaultWeeks={
+                            season.regular_weeks != null
+                              ? String(season.regular_weeks)
+                              : weeksBetween(season.start_date, season.end_date)
+                          }
+                        />
+                        <SubmitButton className={primaryBtn}>
                           SAVE DATES
-                        </button>
-                      </form>
+                        </SubmitButton>
+                      </ActionForm>
                     </Disclosure>
 
                     {/* Standings rules — collapsed */}
@@ -451,7 +355,7 @@ export default async function AdminSeasonsPage({
                     {/* Teams — collapsed */}
                     <Disclosure label="Teams" hint="rosters & captains">
                       {/* Add-team form */}
-                      <form action={createTeam} className="panel p-3 space-y-3">
+                      <ActionForm action={createTeam} resetOnSuccess className="panel p-3 space-y-3">
                         <input type="hidden" name="season_id" value={season.id} />
                         <div className="flex items-end gap-3">
                           <label className="block flex-1">
@@ -464,12 +368,9 @@ export default async function AdminSeasonsPage({
                               className={`mt-1 ${inputCls}`}
                             />
                           </label>
-                          <button
-                            type="submit"
-                            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
-                          >
+                          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
                             ADD TEAM
-                          </button>
+                          </SubmitButton>
                         </div>
                         <div>
                           <span className="eyebrow">Color</span>
@@ -479,7 +380,7 @@ export default async function AdminSeasonsPage({
                             idPrefix={`new-team-${season.id}`}
                           />
                         </div>
-                      </form>
+                      </ActionForm>
 
                       {/* Copy teams from another season — rarely used, collapsed */}
                       {seasons.length > 1 && (
@@ -490,7 +391,7 @@ export default async function AdminSeasonsPage({
                             </span>
                             Copy teams from another season
                           </summary>
-                          <form
+                          <ActionForm
                             action={copyTeamsInto}
                             className="mt-2 flex flex-wrap items-end gap-3 panel-bare rounded p-3"
                           >
@@ -515,14 +416,14 @@ export default async function AdminSeasonsPage({
                                   ))}
                               </select>
                             </label>
-                            <button type="submit" className={primaryBtn}>
+                            <SubmitButton className={primaryBtn}>
                               COPY TEAMS
-                            </button>
+                            </SubmitButton>
                             <p className="text-ink-faint text-[11px] w-full">
                               Copies team names/colors only — rosters &amp;
                               captains stay per-season.
                             </p>
-                          </form>
+                          </ActionForm>
                         </details>
                       )}
 
@@ -564,9 +465,8 @@ export default async function AdminSeasonsPage({
 
                                 <div className="border-t border-rule p-4 space-y-4">
                                   {/* Name / Color */}
-                                  <form action={updateTeam} className="space-y-3">
+                                  <ActionForm action={updateTeam} className="space-y-3">
                                     <input type="hidden" name="id" value={team.id} />
-                                    <input type="hidden" name="slug" value={team.slug} />
                                     <div className="flex items-end gap-3">
                                       <label className="block flex-1">
                                         <span className="eyebrow">Name</span>
@@ -578,12 +478,9 @@ export default async function AdminSeasonsPage({
                                           className={`mt-1 ${inputCls}`}
                                         />
                                       </label>
-                                      <button
-                                        type="submit"
-                                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
-                                      >
+                                      <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
                                         SAVE
-                                      </button>
+                                      </SubmitButton>
                                     </div>
                                     <div>
                                       <span className="eyebrow">Color</span>
@@ -593,11 +490,11 @@ export default async function AdminSeasonsPage({
                                         idPrefix={`team-${team.id}`}
                                       />
                                     </div>
-                                  </form>
+                                  </ActionForm>
 
                                   {/* Captain */}
                                   <div className="border-t border-rule/50 pt-3">
-                                    <form
+                                    <ActionForm
                                       action={assignTeamCaptain}
                                       className="flex items-center gap-2"
                                     >
@@ -629,14 +526,13 @@ export default async function AdminSeasonsPage({
                                           }))}
                                         />
                                       </div>
-                                      <button
-                                        type="submit"
+                                      <SubmitButton
                                         disabled={teamPlayers.length === 0}
                                         className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                                       >
                                         SAVE
-                                      </button>
-                                    </form>
+                                      </SubmitButton>
+                                    </ActionForm>
                                     {teamPlayers.length === 0 && (
                                       <p className="text-ink-faint text-[11px] mt-1.5">
                                         Add players to the roster to pick a captain.
@@ -664,27 +560,41 @@ export default async function AdminSeasonsPage({
                     <Disclosure label="Playoffs" accent="ice">
                       {hasPlayoffStubs && (
                         <div className="space-y-1.5 mb-3">
-                          <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
-                          <BracketRow label="SF2 (#2 v #3)" slot={sf2} />
-                          <BracketRow label="Final" slot={finalSlot} />
+                          {bracket
+                            .filter(
+                              (g): g is BracketSlot & { playoff_round: PlayoffRound } =>
+                                g.playoff_round !== null,
+                            )
+                            .sort(
+                              (a, b) =>
+                                playoffRoundsFor(3).indexOf(a.playoff_round) -
+                                playoffRoundsFor(3).indexOf(b.playoff_round),
+                            )
+                            .map((g) => (
+                              <BracketRow
+                                key={g.playoff_round}
+                                label={playoffLabel(g.playoff_round)}
+                                slot={g}
+                              />
+                            ))}
                         </div>
                       )}
-                      <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
+                      <ActionForm action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
                         <input type="hidden" name="season_id" value={season.id} />
-                        <button type="submit" className={primaryBtn}>
+                        <SubmitButton className={primaryBtn}>
                           UPDATE PLAYOFF MATCHUPS
-                        </button>
+                        </SubmitButton>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
-                          Fills the bracket (#1 v #4, #2 v #3) from the current standings,
-                          and advances the Final once both semifinals are decided. Create the
-                          playoff dates via &ldquo;reserve playoffs&rdquo; when generating the schedule.
+                          Seeds each round from the current standings (top team is
+                          home) and advances winners as earlier rounds finish. Create the
+                          playoff dates with the &ldquo;Playoff rounds&rdquo; option when generating the schedule.
                         </p>
-                      </form>
+                      </ActionForm>
                     </Disclosure>
 
                     {/* Generate schedule — collapsed */}
                     <Disclosure label="Schedule Generator" accent="ice">
-                      <form
+                      <ActionForm
                         action={generateSchedule}
                         className="mt-3 space-y-3 panel-bare rounded-lg p-3"
                       >
@@ -718,12 +628,12 @@ export default async function AdminSeasonsPage({
                               ))}
                             </select>
                           </label>
-                          <label className="block w-full sm:w-auto sm:min-w-[100px]">
-                            <span className="eyebrow">Weeks</span>
+                          <label className="block w-full sm:w-auto sm:min-w-[140px]">
+                            <span className="eyebrow">Regular season weeks</span>
                             <input
                               type="number"
                               name="weeks"
-                              defaultValue={10}
+                              defaultValue={season.regular_weeks ?? 10}
                               min={1}
                               max={52}
                               className={`mt-1 ${inputCls}`}
@@ -745,45 +655,44 @@ export default async function AdminSeasonsPage({
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
-                        <label className="inline-flex items-center gap-2 min-h-11">
-                          <input
-                            type="checkbox"
-                            name="with_playoffs"
-                            defaultChecked
-                            className="size-4 accent-ice"
-                          />
-                          <span className="font-mono text-[13px] text-ink">
-                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
-                          </span>
+                        <label className="block w-full sm:w-auto sm:min-w-[200px]">
+                          <span className="eyebrow">Playoff rounds</span>
+                          <select name="playoff_rounds" defaultValue="2" className={`mt-1 ${inputCls}`}>
+                            <option value="0">None</option>
+                            <option value="1">Final only (top 2)</option>
+                            <option value="2">Semis + Final (top 4)</option>
+                            <option value="3">Quarters + Semis + Final (top 8)</option>
+                          </select>
                         </label>
 
                         <p className="text-ink-faint text-[12px]">
-                          <strong>Weeks</strong> = how many game nights to schedule.
-                          Each week fills the time slots (one night) and teams cycle
-                          through a balanced round-robin, repeating as needed. With
-                          playoffs reserved, SF1, SF2 &amp; Final are added as TBD-vs-TBD
-                          stubs after the final week (they show on the schedule right
-                          away; seed them from the Playoffs section).
+                          <strong>Regular season weeks</strong> = how many game
+                          nights to schedule (not counting playoffs). Each week
+                          fills the time slots (one night) and teams cycle through a
+                          balanced round-robin, repeating as needed. Playoffs add the
+                          chosen rounds as TBD-vs-TBD stubs after the final week (they
+                          show on the schedule right away; seed them from the Playoffs
+                          section).
                         </p>
 
                         {teamCount % 2 === 1 && teamCount >= 3 && (
                           <p className="text-[12px] text-[#fbbf24]/90">
                             <strong>Byes:</strong> with {teamCount} teams, one team
-                            sits out each week. For every team to get the same number
-                            of byes, use a multiple of {teamCount} weeks — e.g.{" "}
-                            {teamCount}, {teamCount * 2}, or {teamCount * 3} (1, 2, or 3
-                            byes each).
+                            sits out each week. For even byes, use a multiple of{" "}
+                            {teamCount} regular weeks — e.g. {teamCount},{" "}
+                            {teamCount * 2}, or {teamCount * 3} (1, 2, or 3 byes
+                            each). Any playoff rounds you choose add their weeks on
+                            top of that.
                           </p>
                         )}
 
-                        <button
-                          type="submit"
+                        <SubmitButton
                           disabled={teamCount < 2}
                           className={primaryBtn}
                         >
                           GENERATE
-                        </button>
-                      </form>
+                        </SubmitButton>
+                      </ActionForm>
                     </Disclosure>
 
                     {/* Danger zone — collapsed by default */}
@@ -804,13 +713,12 @@ export default async function AdminSeasonsPage({
                           </div>
                         )}
 
-                        <form
+                        <ActionForm
                           action={deleteSeason}
                           className={gameTotal > 0 ? "border-t border-rule/50 pt-3" : ""}
                         >
                           <input type="hidden" name="id" value={season.id} />
-                          <button
-                            type="submit"
+                          <SubmitButton
                             disabled={!canDelete}
                             className="text-goal/70 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors disabled:opacity-30 disabled:hover:text-goal/70 disabled:cursor-not-allowed"
                             title={
@@ -820,12 +728,12 @@ export default async function AdminSeasonsPage({
                             }
                           >
                             DELETE SEASON
-                          </button>
+                          </SubmitButton>
                           <p className="text-ink-faint text-[11px] mt-2">
                             Removes the season entirely. Only allowed when inactive
                             and game-free — reset first if it has games.
                           </p>
-                        </form>
+                        </ActionForm>
                       </div>
                     </Disclosure>
                   </div>

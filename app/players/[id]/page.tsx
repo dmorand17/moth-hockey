@@ -207,7 +207,7 @@ export default async function PlayerPage({
     const g = app.game as unknown as {
       id: string; season_id: string; scheduled_at: string; status: string;
       kind: "regular" | "playoff";
-      playoff_round: "sf1" | "sf2" | "final" | null;
+      playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
       home_score: number; away_score: number; decided_in: string | null;
       home_team: { id: string; name: string; slug: string; color: string } | null;
       away_team: { id: string; name: string; slug: string; color: string } | null;

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   adjustShootoutTally,
   advancePeriod,
@@ -155,12 +156,17 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     setClock({ gameId: game.id, clockSeconds: displayClock }).catch(() => {});
   }, [displayClock, running, game.id]);
 
-  const run = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => {
+  const run = (fn: () => Promise<{ ok: true; message?: string } | { ok: false; error: string }>) => {
     setError(null);
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) setError(res.error);
-      else router.refresh();
+      if (!res.ok) {
+        setError(res.error);
+        toast.error(res.error);
+      } else {
+        toast.success(res.message ?? "Saved");
+        router.refresh();
+      }
     });
   };
 

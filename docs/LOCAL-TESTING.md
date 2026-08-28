@@ -78,6 +78,29 @@ This wipes everything — including `auth.users` — and reseeds, so the three t
 users always come back identically (same UUIDs). Run it whenever you want a clean
 slate or after pulling new migrations.
 
+## Loading sample data (4 or 5 teams)
+
+For a fuller demo — teams with rosters, a played schedule (standings + stats), and
+byes — load a sample dataset into the current season:
+
+```bash
+scripts/local/seed-sample.sh 5   # 5 teams (odd → one bye per week)
+scripts/local/seed-sample.sh 4   # 4 teams (even → no byes)
+```
+
+Each run seeds the current season with:
+
+- **N teams** with rosters (6 forwards, 2 defense, 1 goalie each; one captain)
+- a **10-week schedule** (2 games/night) + playoff stubs (TBD-vs-TBD)
+- the **first 7 weeks played** — final scores + goal events + appearances
+
+So `/standings`, `/stats`, `/schedule` (with the bye lines), and player profiles
+all populate. Use the **5-team** set to see bye weeks in action.
+
+It's re-runnable — it wipes the season's games/rosters/stats and cleans up
+orphaned seed players first. To get back to the base seed, run `supabase db reset`.
+The dev server must be able to reach the local DB (`supabase start`).
+
 ## Inspecting data
 
 - **Studio** (http://127.0.0.1:54323) — browse/edit tables, run SQL, view auth users.

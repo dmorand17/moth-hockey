@@ -25,27 +25,13 @@ import { ColorSwatches } from "./color-swatches";
 import { RosterEditor } from "./RosterEditor";
 import { StandingsRulesEditor } from "./StandingsRulesEditor";
 import { PlayerCombobox } from "@/components/PlayerCombobox";
-
-type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
 
 const inputCls =
   "bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice w-full";
 const primaryBtn =
   "min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
-
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_input: "Check all required fields.",
-  need_end: "Set the number of regular season weeks.",
-  not_enough_teams: "Need at least 2 teams in this season to generate a schedule.",
-  cannot_delete_current: "Cannot delete the current season. Activate another first.",
-  has_games: "Delete or move games before deleting the season.",
-  regular_incomplete: "Finish all regular-season games before generating playoffs.",
-  not_enough_seeds: "Not enough teams in the standings for that bracket.",
-  invalid_color: "Color must be a hex like #ef4444.",
-  already_rostered: "That player is already on a team this season.",
-  no_source_teams: "That season has no teams to copy.",
-  teams_exist: "Some of those team names already exist in this season.",
-};
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
 
@@ -77,13 +63,8 @@ type SeasonRow = {
 
 type AggRow = { season_id: string; n: number };
 
-export default async function AdminSeasonsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function AdminSeasonsPage() {
   await requireRole(["admin"]);
-  const params = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const { data: seasonsRaw } = await supabase
@@ -191,57 +172,10 @@ export default async function AdminSeasonsPage({
     });
   }
 
-  const flash =
-    params.saved === "generated"
-      ? `Generated ${params.n ?? "?"} games.`
-      : params.saved === "playoffs"
-          ? "Playoffs generated / advanced."
-          : params.saved === "reset"
-          ? "Season reset — all games and results cleared."
-          : params.saved === "dates"
-            ? "Dates updated."
-            : params.saved === "rules"
-              ? "Standings rules updated."
-              : params.saved === "created"
-                ? "Season created."
-                : params.saved === "activated"
-                  ? "Season activated."
-                  : params.saved === "deleted"
-                  ? "Season deleted."
-                  : params.saved === "team_created"
-                    ? "Team created."
-                    : params.saved === "team_updated"
-                      ? "Team updated."
-                      : params.saved === "captain"
-                        ? "Captain updated."
-                        : params.saved === "added"
-                          ? "Player added to roster."
-                          : params.saved === "roster_updated"
-                            ? "Roster entry updated."
-                            : params.saved === "removed"
-                              ? "Player removed from roster."
-                              : params.saved === "teams_copied"
-                                ? "Teams copied."
-                                : null;
-  const error = params.error
-    ? (ERROR_MESSAGES[params.error] ?? params.error)
-    : null;
-
   const currentYear = new Date().getFullYear();
 
   return (
     <div className="space-y-8">
-      {flash && (
-        <p role="status" className="text-ice text-sm">
-          {flash}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-goal text-sm">
-          {error}
-        </p>
-      )}
-
       {/* Create */}
       <section>
         <details className="group">
@@ -254,7 +188,7 @@ export default async function AdminSeasonsPage({
             </h2>
           </summary>
 
-          <form action={createSeason} className="panel p-4 sm:p-5 space-y-5 mt-3">
+          <ActionForm action={createSeason} resetOnSuccess className="panel p-4 sm:p-5 space-y-5 mt-3">
           <FieldGroup
             label="Identity"
             hint="Name auto-fills from type + year until you edit it."
@@ -288,10 +222,10 @@ export default async function AdminSeasonsPage({
             it — expand the season below.
           </p>
 
-          <button type="submit" className={primaryBtn}>
+          <SubmitButton className={primaryBtn}>
             CREATE SEASON
-          </button>
-          </form>
+          </SubmitButton>
+          </ActionForm>
         </details>
       </section>
 
@@ -363,19 +297,19 @@ export default async function AdminSeasonsPage({
 
                     {/* Activate — the primary action for an inactive season */}
                     {!season.is_current && (
-                      <form
+                      <ActionForm
                         action={activateSeason}
                         className="flex flex-wrap items-center gap-x-4 gap-y-2 panel-bare rounded-lg p-3"
                       >
                         <input type="hidden" name="id" value={season.id} />
-                        <button type="submit" className={primaryBtn}>
+                        <SubmitButton className={primaryBtn}>
                           ACTIVATE
-                        </button>
+                        </SubmitButton>
                         <p className="text-ink-faint text-[12px] flex-1 min-w-[200px]">
                           Point the public site (standings, schedule, stats) at
                           this season.
                         </p>
-                      </form>
+                      </ActionForm>
                     )}
 
                     {/* Dates — collapsed */}
@@ -385,7 +319,7 @@ export default async function AdminSeasonsPage({
                         from the start. Editing dates doesn&apos;t move existing
                         games — regenerate to reschedule.
                       </p>
-                      <form
+                      <ActionForm
                         action={updateSeasonDates}
                         className="flex flex-wrap items-end gap-3"
                       >
@@ -398,10 +332,10 @@ export default async function AdminSeasonsPage({
                               : weeksBetween(season.start_date, season.end_date)
                           }
                         />
-                        <button type="submit" className={primaryBtn}>
+                        <SubmitButton className={primaryBtn}>
                           SAVE DATES
-                        </button>
-                      </form>
+                        </SubmitButton>
+                      </ActionForm>
                     </Disclosure>
 
                     {/* Standings rules — collapsed */}
@@ -421,7 +355,7 @@ export default async function AdminSeasonsPage({
                     {/* Teams — collapsed */}
                     <Disclosure label="Teams" hint="rosters & captains">
                       {/* Add-team form */}
-                      <form action={createTeam} className="panel p-3 space-y-3">
+                      <ActionForm action={createTeam} resetOnSuccess className="panel p-3 space-y-3">
                         <input type="hidden" name="season_id" value={season.id} />
                         <div className="flex items-end gap-3">
                           <label className="block flex-1">
@@ -434,12 +368,9 @@ export default async function AdminSeasonsPage({
                               className={`mt-1 ${inputCls}`}
                             />
                           </label>
-                          <button
-                            type="submit"
-                            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
-                          >
+                          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
                             ADD TEAM
-                          </button>
+                          </SubmitButton>
                         </div>
                         <div>
                           <span className="eyebrow">Color</span>
@@ -449,7 +380,7 @@ export default async function AdminSeasonsPage({
                             idPrefix={`new-team-${season.id}`}
                           />
                         </div>
-                      </form>
+                      </ActionForm>
 
                       {/* Copy teams from another season — rarely used, collapsed */}
                       {seasons.length > 1 && (
@@ -460,7 +391,7 @@ export default async function AdminSeasonsPage({
                             </span>
                             Copy teams from another season
                           </summary>
-                          <form
+                          <ActionForm
                             action={copyTeamsInto}
                             className="mt-2 flex flex-wrap items-end gap-3 panel-bare rounded p-3"
                           >
@@ -485,14 +416,14 @@ export default async function AdminSeasonsPage({
                                   ))}
                               </select>
                             </label>
-                            <button type="submit" className={primaryBtn}>
+                            <SubmitButton className={primaryBtn}>
                               COPY TEAMS
-                            </button>
+                            </SubmitButton>
                             <p className="text-ink-faint text-[11px] w-full">
                               Copies team names/colors only — rosters &amp;
                               captains stay per-season.
                             </p>
-                          </form>
+                          </ActionForm>
                         </details>
                       )}
 
@@ -534,7 +465,7 @@ export default async function AdminSeasonsPage({
 
                                 <div className="border-t border-rule p-4 space-y-4">
                                   {/* Name / Color */}
-                                  <form action={updateTeam} className="space-y-3">
+                                  <ActionForm action={updateTeam} className="space-y-3">
                                     <input type="hidden" name="id" value={team.id} />
                                     <div className="flex items-end gap-3">
                                       <label className="block flex-1">
@@ -547,12 +478,9 @@ export default async function AdminSeasonsPage({
                                           className={`mt-1 ${inputCls}`}
                                         />
                                       </label>
-                                      <button
-                                        type="submit"
-                                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
-                                      >
+                                      <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
                                         SAVE
-                                      </button>
+                                      </SubmitButton>
                                     </div>
                                     <div>
                                       <span className="eyebrow">Color</span>
@@ -562,11 +490,11 @@ export default async function AdminSeasonsPage({
                                         idPrefix={`team-${team.id}`}
                                       />
                                     </div>
-                                  </form>
+                                  </ActionForm>
 
                                   {/* Captain */}
                                   <div className="border-t border-rule/50 pt-3">
-                                    <form
+                                    <ActionForm
                                       action={assignTeamCaptain}
                                       className="flex items-center gap-2"
                                     >
@@ -598,14 +526,13 @@ export default async function AdminSeasonsPage({
                                           }))}
                                         />
                                       </div>
-                                      <button
-                                        type="submit"
+                                      <SubmitButton
                                         disabled={teamPlayers.length === 0}
                                         className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                                       >
                                         SAVE
-                                      </button>
-                                    </form>
+                                      </SubmitButton>
+                                    </ActionForm>
                                     {teamPlayers.length === 0 && (
                                       <p className="text-ink-faint text-[11px] mt-1.5">
                                         Add players to the roster to pick a captain.
@@ -652,22 +579,22 @@ export default async function AdminSeasonsPage({
                             ))}
                         </div>
                       )}
-                      <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
+                      <ActionForm action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
                         <input type="hidden" name="season_id" value={season.id} />
-                        <button type="submit" className={primaryBtn}>
+                        <SubmitButton className={primaryBtn}>
                           UPDATE PLAYOFF MATCHUPS
-                        </button>
+                        </SubmitButton>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
                           Seeds each round from the current standings (top team is
                           home) and advances winners as earlier rounds finish. Create the
                           playoff dates with the &ldquo;Playoff rounds&rdquo; option when generating the schedule.
                         </p>
-                      </form>
+                      </ActionForm>
                     </Disclosure>
 
                     {/* Generate schedule — collapsed */}
                     <Disclosure label="Schedule Generator" accent="ice">
-                      <form
+                      <ActionForm
                         action={generateSchedule}
                         className="mt-3 space-y-3 panel-bare rounded-lg p-3"
                       >
@@ -759,14 +686,13 @@ export default async function AdminSeasonsPage({
                           </p>
                         )}
 
-                        <button
-                          type="submit"
+                        <SubmitButton
                           disabled={teamCount < 2}
                           className={primaryBtn}
                         >
                           GENERATE
-                        </button>
-                      </form>
+                        </SubmitButton>
+                      </ActionForm>
                     </Disclosure>
 
                     {/* Danger zone — collapsed by default */}
@@ -787,13 +713,12 @@ export default async function AdminSeasonsPage({
                           </div>
                         )}
 
-                        <form
+                        <ActionForm
                           action={deleteSeason}
                           className={gameTotal > 0 ? "border-t border-rule/50 pt-3" : ""}
                         >
                           <input type="hidden" name="id" value={season.id} />
-                          <button
-                            type="submit"
+                          <SubmitButton
                             disabled={!canDelete}
                             className="text-goal/70 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors disabled:opacity-30 disabled:hover:text-goal/70 disabled:cursor-not-allowed"
                             title={
@@ -803,12 +728,12 @@ export default async function AdminSeasonsPage({
                             }
                           >
                             DELETE SEASON
-                          </button>
+                          </SubmitButton>
                           <p className="text-ink-faint text-[11px] mt-2">
                             Removes the season entirely. Only allowed when inactive
                             and game-free — reset first if it has games.
                           </p>
-                        </form>
+                        </ActionForm>
                       </div>
                     </Disclosure>
                   </div>

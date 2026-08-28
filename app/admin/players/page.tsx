@@ -2,6 +2,8 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
 import { createPlayer, importPlayers } from "./actions";
 import { NeedsLinkingEditor } from "./NeedsLinkingEditor";
 import {
@@ -21,38 +23,6 @@ const ROLE_OPTIONS: RoleOption[] = [
   { value: "player", label: "Player" },
 ];
 
-type SearchParams = Promise<{
-  saved?: string;
-  error?: string;
-  added?: string;
-  dup?: string;
-  bad?: string;
-}>;
-
-const FLASH_MESSAGES: Record<string, string> = {
-  created: "Player created.",
-  updated: "Player updated.",
-  link: "Player link updated.",
-};
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_input: "First and last name are required.",
-};
-
-function importSummary(params: {
-  added?: string;
-  dup?: string;
-  bad?: string;
-}): string {
-  const added = Number(params.added ?? 0);
-  const dup = Number(params.dup ?? 0);
-  const bad = Number(params.bad ?? 0);
-  const parts = [`Added ${added}`];
-  if (dup > 0) parts.push(`skipped ${dup} duplicate${dup === 1 ? "" : "s"}`);
-  if (bad > 0)
-    parts.push(`${bad} line${bad === 1 ? "" : "s"} couldn't be parsed`);
-  return parts.join(" · ") + ".";
-}
-
 type RosterEntry = {
   season_id: string;
   position: "forward" | "defense" | "goalie";
@@ -60,19 +30,11 @@ type RosterEntry = {
   team: { id: string; name: string; color: string } | null;
 };
 
-export default async function AdminPlayersPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function AdminPlayersPage() {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const season = await getCurrentSeason();
   if (!season) return <NoSeason isAdmin />;
-
-  const params = await searchParams;
-  const flash = params.saved;
-  const error = params.error;
 
   const [{ data: rawPlayers }, { data: profiles }, { data: roles }] =
     await Promise.all([
@@ -152,19 +114,6 @@ export default async function AdminPlayersPage({
 
   return (
     <div className="space-y-6">
-      {flash && (
-        <p role="status" className="text-ice text-sm">
-          {flash === "imported"
-            ? importSummary(params)
-            : (FLASH_MESSAGES[flash] ?? "Saved.")}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-goal text-sm">
-          {ERROR_MESSAGES[error] ?? error}
-        </p>
-      )}
-
       {/* Create */}
       <section>
         <details className="group">
@@ -176,7 +125,7 @@ export default async function AdminPlayersPage({
               NEW PLAYER
             </h2>
           </summary>
-          <form action={createPlayer} className="panel p-4 mt-3">
+          <ActionForm action={createPlayer} resetOnSuccess className="panel p-4 mt-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="block flex-1 min-w-[140px]">
               <span className="eyebrow">First name</span>
@@ -198,14 +147,11 @@ export default async function AdminPlayersPage({
                 className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
               />
             </label>
-            <button
-              type="submit"
-              className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
-            >
+            <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
               CREATE
-            </button>
+            </SubmitButton>
           </div>
-          </form>
+          </ActionForm>
         </details>
       </section>
 
@@ -220,7 +166,7 @@ export default async function AdminPlayersPage({
               IMPORT PLAYERS
             </h2>
           </summary>
-          <form action={importPlayers} className="panel p-4 space-y-3 mt-3">
+          <ActionForm action={importPlayers} resetOnSuccess className="panel p-4 space-y-3 mt-3">
           <label className="block">
             <span className="eyebrow">Paste names — one per line</span>
             <textarea
@@ -235,13 +181,10 @@ export default async function AdminPlayersPage({
             One player per line — use <strong>First Last</strong> or{" "}
             <strong>Last, First</strong>. Names already in the list are skipped.
           </p>
-          <button
-            type="submit"
-            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-          >
+          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
             IMPORT
-          </button>
-          </form>
+          </SubmitButton>
+          </ActionForm>
         </details>
       </section>
 

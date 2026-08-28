@@ -6,8 +6,8 @@ import {
   deleteContentPage,
   updateContentPage,
 } from "./actions";
-
-type SearchParams = Promise<{ saved?: string; error?: string }>;
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type Section = "rules" | "faq" | "league";
 
@@ -16,16 +16,6 @@ const SECTIONS: { key: Section; label: string; eyebrow: string }[] = [
   { key: "rules", label: "Rules", eyebrow: "House rules" },
   { key: "faq", label: "FAQ", eyebrow: "Q & A" },
 ];
-
-const FLASH_MESSAGES: Record<string, string> = {
-  created: "Entry created.",
-  updated: "Entry updated.",
-  deleted: "Entry deleted.",
-};
-
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_input: "Title and section are required.",
-};
 
 const inputCls =
   "bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice w-full";
@@ -39,13 +29,8 @@ type ContentRow = {
   sort_order: number;
 };
 
-export default async function AdminContentPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function AdminContentPage() {
   await requireRole(["admin"]);
-  const params = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const { data: rows } = await supabase
@@ -61,17 +46,6 @@ export default async function AdminContentPage({
 
   return (
     <div className="space-y-8">
-      {params.saved && (
-        <p role="status" className="text-ice text-sm">
-          {FLASH_MESSAGES[params.saved] ?? "Saved."}
-        </p>
-      )}
-      {params.error && (
-        <p role="alert" className="text-goal text-sm">
-          {ERROR_MESSAGES[params.error] ?? params.error}
-        </p>
-      )}
-
       <p className="text-ink-dim text-[13px] leading-relaxed">
         Pages here power <span className="font-mono">/about/league</span>,{" "}
         <span className="font-mono">/about/rules</span>, and{" "}
@@ -107,7 +81,7 @@ export default async function AdminContentPage({
                 </span>
               </summary>
               <div className="border-t border-rule p-4">
-                <form action={createContentPage} className="space-y-3">
+                <ActionForm action={createContentPage} resetOnSuccess className="space-y-3">
                   <input type="hidden" name="section" value={section.key} />
                   <div className="flex flex-wrap gap-3">
                     <label className="block flex-1 min-w-[200px]">
@@ -152,13 +126,10 @@ export default async function AdminContentPage({
                       className={`mt-1 ${inputCls} font-mono text-[13px] leading-relaxed`}
                     />
                   </label>
-                  <button
-                    type="submit"
-                    className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-                  >
+                  <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
                     CREATE
-                  </button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               </div>
             </details>
 
@@ -190,7 +161,7 @@ export default async function AdminContentPage({
                     </summary>
 
                     <div className="border-t border-rule p-4 space-y-3">
-                      <form action={updateContentPage} className="space-y-3">
+                      <ActionForm action={updateContentPage} className="space-y-3">
                         <input type="hidden" name="id" value={entry.id} />
                         <input
                           type="hidden"
@@ -237,16 +208,13 @@ export default async function AdminContentPage({
                           />
                         </label>
                         <div className="flex items-center gap-3">
-                          <button
-                            type="submit"
-                            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-                          >
+                          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
                             SAVE
-                          </button>
+                          </SubmitButton>
                         </div>
-                      </form>
+                      </ActionForm>
 
-                      <form
+                      <ActionForm
                         action={deleteContentPage}
                         className="border-t border-rule/50 pt-3"
                       >
@@ -256,13 +224,10 @@ export default async function AdminContentPage({
                           name="section"
                           value={entry.section}
                         />
-                        <button
-                          type="submit"
-                          className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors"
-                        >
+                        <SubmitButton className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors">
                           DELETE ENTRY
-                        </button>
-                      </form>
+                        </SubmitButton>
+                      </ActionForm>
                     </div>
                   </details>
                 ))}

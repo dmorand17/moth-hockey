@@ -1,44 +1,40 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ok, fail, type ActionResult } from "@/lib/action-result";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Role = Database["public"]["Enums"]["user_role"];
 
-function back(qs: string): never {
-  redirect(`/admin/players?${qs}`);
-}
-
-export async function createPlayer(formData: FormData) {
+export async function createPlayer(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
 
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
 
-  if (!firstName || !lastName) back("error=invalid_input");
+  if (!firstName || !lastName) return fail("First and last name are required.");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("players")
     .insert({ first_name: firstName, last_name: lastName });
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/players");
-  redirect("/admin/players?saved=created");
+  return ok("Player created.");
 }
 
-export async function updatePlayer(formData: FormData) {
+export async function updatePlayer(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
 
   const id = String(formData.get("id") ?? "").trim();
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
 
-  if (!id || !firstName || !lastName) back("error=invalid_input");
+  if (!id || !firstName || !lastName) return fail("First and last name are required.");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
@@ -46,10 +42,10 @@ export async function updatePlayer(formData: FormData) {
     .update({ first_name: firstName, last_name: lastName })
     .eq("id", id);
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/players");
-  redirect("/admin/players?saved=updated");
+  return ok("Player updated.");
 }
 
 // Batch: link accounts to players and/or set their role in one round-trip.
@@ -61,7 +57,7 @@ const ASSIGNABLE_ROLES: Role[] = ["admin", "scorekeeper", "player"];
 
 export async function linkAccounts(
   updates: { user_id: string; player_id: string | null; role: Role }[],
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
 
@@ -98,7 +94,7 @@ export async function linkAccounts(
 
 export async function deletePlayer(input: {
   playerId: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const { playerId } = input;
@@ -133,7 +129,7 @@ const sumNullable = (a: number | null, b: number | null): number | null =>
 export async function mergePlayer(input: {
   keepId: string;
   duplicateId: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const { keepId, duplicateId } = input;
@@ -294,7 +290,7 @@ export async function mergePlayer(input: {
   return { ok: true };
 }
 
-export async function linkUserToPlayer(formData: FormData) {
+export async function linkUserToPlayer(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
 
   const userId = String(formData.get("user_id") ?? "");
@@ -302,7 +298,7 @@ export async function linkUserToPlayer(formData: FormData) {
   // Empty string means "unlink"
   const targetPlayerId = playerIdRaw || null;
 
-  if (!userId) back("error=invalid_input");
+  if (!userId) return fail("Check all required fields.");
 
   const supabase = await createSupabaseServerClient();
 
@@ -315,7 +311,7 @@ export async function linkUserToPlayer(formData: FormData) {
     .update({ user_id: null })
     .eq("user_id", userId);
 
-  if (clearErr) back(`error=${encodeURIComponent(clearErr.message)}`);
+  if (clearErr) return fail(clearErr.message);
 
   if (targetPlayerId) {
     const { error: linkErr } = await supabase
@@ -323,11 +319,11 @@ export async function linkUserToPlayer(formData: FormData) {
       .update({ user_id: userId })
       .eq("id", targetPlayerId);
 
-    if (linkErr) back(`error=${encodeURIComponent(linkErr.message)}`);
+    if (linkErr) return fail(linkErr.message);
   }
 
   revalidatePath("/admin/players");
-  redirect("/admin/players?saved=link");
+  return ok("Player link updated.");
 }
 
 // Parse pasted player names, one per line. A line containing a comma is
@@ -364,15 +360,14 @@ function parsePlayerNames(text: string): {
 }
 
 // Bulk-create players from pasted names. Skips names that already exist
-// (case-insensitive first+last) and repeats within the paste. Redirects back
-// with a summary (added / duplicates skipped / invalid lines).
-export async function importPlayers(formData: FormData) {
+// (case-insensitive first+last) and repeats within the paste.
+export async function importPlayers(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
 
   const { valid, invalidCount } = parsePlayerNames(
     String(formData.get("names") ?? ""),
   );
-  if (valid.length === 0) back("error=invalid_input");
+  if (valid.length === 0) return fail("No valid names found. Use First Last or Last, First — one per line.");
 
   const supabase = await createSupabaseServerClient();
   // High limit so dedup sees the whole pool (PostgREST defaults to 1000 rows).
@@ -380,11 +375,11 @@ export async function importPlayers(formData: FormData) {
     .from("players")
     .select("first_name, last_name")
     .limit(10000);
-  if (fetchErr) back(`error=${encodeURIComponent(fetchErr.message)}`);
+  if (fetchErr) return fail(fetchErr.message);
 
   // NUL separator so a multi-word first name can't collide with another split.
   const key = (f: string, l: string) =>
-    `${f.toLowerCase()}\u0000${l.toLowerCase()}`;
+    `${f.toLowerCase()} ${l.toLowerCase()}`;
   const seen = new Set<string>();
   for (const p of existing ?? []) seen.add(key(p.first_name, p.last_name));
 
@@ -402,11 +397,13 @@ export async function importPlayers(formData: FormData) {
 
   if (rows.length > 0) {
     const { error: insErr } = await supabase.from("players").insert(rows);
-    if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
+    if (insErr) return fail(insErr.message);
   }
 
   revalidatePath("/admin/players");
-  redirect(
-    `/admin/players?saved=imported&added=${rows.length}&dup=${dup}&bad=${invalidCount}`,
-  );
+  const parts = [`Added ${rows.length}`];
+  if (dup > 0) parts.push(`skipped ${dup} duplicate${dup === 1 ? "" : "s"}`);
+  if (invalidCount > 0)
+    parts.push(`${invalidCount} line${invalidCount === 1 ? "" : "s"} couldn't be parsed`);
+  return ok(parts.join(" · ") + ".");
 }

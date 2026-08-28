@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatPhone } from "@/lib/format";
+import { ok, fail, type ActionResult } from "@/lib/action-result";
 
-export async function updateProfile(formData: FormData) {
+export async function updateProfile(formData: FormData): Promise<ActionResult> {
   const supabase = await createSupabaseServerClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
@@ -19,11 +20,11 @@ export async function updateProfile(formData: FormData) {
     .eq("user_id", userData.user.id);
 
   if (error) {
-    redirect(`/account?error=${encodeURIComponent(error.message)}`);
+    return fail(error.message);
   }
 
   revalidatePath("/account");
-  redirect("/account?saved=1");
+  return ok("Profile updated.");
 }
 
 export async function signOut() {
@@ -37,7 +38,7 @@ export async function signOut() {
 export async function setAvailability(input: {
   gameId: string;
   status: "in" | "out" | null;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<ActionResult> {
   const supabase = await createSupabaseServerClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { ok: false, error: "Not signed in." };

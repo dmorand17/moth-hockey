@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createNewSub, startGame, updateRoster } from "@/app/score/[gameId]/actions";
 
 type Position = "forward" | "defense" | "goalie";
@@ -121,6 +122,7 @@ export function RosterCheckIn({
     const res = await createNewSub({ firstName, lastName, position });
     if (!res.ok) {
       setError(res.error);
+      toast.error(res.error);
       return false;
     }
     const setter = teamSide === "home" ? setHome : setAway;
@@ -157,8 +159,10 @@ export function RosterCheckIn({
       });
       if (!res.ok) {
         setError(res.error);
+        toast.error(res.error);
         return;
       }
+      toast.success(res.message ?? "Saved");
       if (redirectTo) {
         router.push(redirectTo);
       } else {

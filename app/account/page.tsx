@@ -6,8 +6,8 @@ import { CheckInToggle } from "@/components/CheckInToggle";
 import { getCurrentSeason } from "@/lib/queries";
 import { formatDate, formatTime } from "@/lib/format";
 import { signOut, updateProfile } from "./actions";
-
-type SearchParams = Promise<{ saved?: string; error?: string }>;
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type TeamRef = { id: string; name: string; slug: string; color: string };
 type RosterRow = {
@@ -50,7 +50,7 @@ function teamInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export default async function AccountPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function AccountPage() {
   const supabase = await createSupabaseServerClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
@@ -117,9 +117,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
     }
   }
 
-  const params = await searchParams;
-  const saved = params.saved === "1";
-  const error = params.error;
   const roleLabel = roleRow?.role ? ROLE_LABELS[roleRow.role] ?? roleRow.role : "—";
   const roleColor = ROLE_COLOR[roleRow?.role ?? "player"] ?? "var(--ink-dim)";
 
@@ -213,7 +210,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
         )}
 
         <details
-          open={saved || !!error}
           className="group border-t border-rule pt-4"
         >
           <summary className="flex items-center justify-between gap-3 cursor-pointer list-none select-none">
@@ -227,17 +223,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
               ▶
             </span>
           </summary>
-          <form action={updateProfile} className="space-y-4 mt-4" noValidate>
-            {saved && (
-              <p role="status" className="text-ice text-sm">
-                Saved.
-              </p>
-            )}
-            {error && (
-              <p role="alert" className="text-goal text-sm">
-                {error}
-              </p>
-            )}
+          <ActionForm action={updateProfile} className="space-y-4 mt-4" noValidate>
             <label className="block">
               <span className="eyebrow">Full name</span>
               <input
@@ -256,13 +242,10 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
                 className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
               />
             </label>
-            <button
-              type="submit"
-              className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-display tracking-[0.14em] text-[15px] rounded transition-colors"
-            >
+            <SubmitButton className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-display tracking-[0.14em] text-[15px] rounded transition-colors">
               SAVE
-            </button>
-          </form>
+            </SubmitButton>
+          </ActionForm>
         </details>
       </section>
 

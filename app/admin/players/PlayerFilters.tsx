@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
 import { updatePlayer, linkUserToPlayer, deletePlayer, mergePlayer } from "./actions";
 
 export type Team = { id: string; name: string; color: string };
@@ -56,7 +59,6 @@ export function PlayerFilters({
   const [teamFilter, setTeamFilter] = useState("");
   const [linkFilter, setLinkFilter] = useState<LinkFilter>("all");
   const [expanded, setExpanded] = useState(false);
-  const [, startTransition] = useTransition();
   const [actionPending, startAction] = useTransition();
   const [playerErrors, setPlayerErrors] = useState<Map<string, string>>(new Map());
   const [mergeTargets, setMergeTargets] = useState<Map<string, string>>(new Map());
@@ -75,8 +77,10 @@ export function PlayerFilters({
     startAction(async () => {
       const result = await deletePlayer({ playerId: player.id });
       if (result.ok) {
+        toast.success(result.message ?? "Player deleted.");
         router.refresh();
       } else {
+        toast.error(result.error);
         setPlayerError(player.id, result.error);
       }
     });
@@ -95,8 +99,10 @@ export function PlayerFilters({
     startAction(async () => {
       const result = await mergePlayer({ keepId, duplicateId: player.id });
       if (result.ok) {
+        toast.success(result.message ?? "Players merged.");
         router.refresh();
       } else {
+        toast.error(result.error);
         setPlayerError(player.id, result.error);
       }
     });
@@ -135,8 +141,6 @@ export function PlayerFilters({
     setLinkFilter(v);
     resetPage();
   };
-
-  const submit = () => startTransition(() => {});
 
   return (
     <div className="space-y-3">
@@ -252,9 +256,8 @@ export function PlayerFilters({
 
                 <div className="border-t border-rule px-3 py-3 space-y-4">
                   {/* Name */}
-                  <form
+                  <ActionForm
                     action={updatePlayer}
-                    onSubmit={submit}
                     className="flex flex-wrap items-end gap-2"
                   >
                     <input type="hidden" name="id" value={player.id} />
@@ -278,13 +281,10 @@ export function PlayerFilters({
                         className={`mt-1 w-full ${rowInputCls}`}
                       />
                     </label>
-                    <button
-                      type="submit"
-                      className="px-2.5 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0"
-                    >
+                    <SubmitButton className="px-2.5 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0">
                       SAVE
-                    </button>
-                  </form>
+                    </SubmitButton>
+                  </ActionForm>
 
                   {/* Account — link/role assignment lives in the Needs Linking
                       section (link + role) and on the Users page (role). Here we
@@ -297,20 +297,17 @@ export function PlayerFilters({
                           {player.account.email}
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
-                          <form action={linkUserToPlayer} onSubmit={submit}>
+                          <ActionForm action={linkUserToPlayer}>
                             <input
                               type="hidden"
                               name="user_id"
                               value={player.account.user_id}
                             />
                             <input type="hidden" name="player_id" value="" />
-                            <button
-                              type="submit"
-                              className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors"
-                            >
+                            <SubmitButton className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors">
                               UNLINK
-                            </button>
-                          </form>
+                            </SubmitButton>
+                          </ActionForm>
                           <a
                             href={`/admin/users#user-${player.account.user_id}`}
                             className="eyebrow hover:text-ink transition-colors"

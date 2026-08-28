@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ok, fail, type ActionResult } from "@/lib/action-result";
 
 type Position = "forward" | "defense" | "goalie";
 
@@ -24,7 +25,7 @@ function parsePosition(raw: string): Position {
   return "forward";
 }
 
-export async function addToRoster(formData: FormData) {
+export async function addToRoster(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
 
@@ -33,14 +34,14 @@ export async function addToRoster(formData: FormData) {
   const position = parsePosition(String(formData.get("position") ?? ""));
   const jerseyNumber = parseJersey(String(formData.get("jersey_number") ?? ""));
 
-  if (!teamId || !playerId) back("error=invalid_input");
+  if (!teamId || !playerId) return fail("Check all required fields.");
 
   const { data: team } = await supabase
     .from("teams")
     .select("season_id")
     .eq("id", teamId)
     .single();
-  if (!team) back("error=no_team");
+  if (!team) return fail("Team not found.");
 
   const { error } = await supabase.from("team_players").insert({
     team_id: teamId,
@@ -52,16 +53,16 @@ export async function addToRoster(formData: FormData) {
 
   if (error) {
     // Unique (player_id, season_id) violation — already on a team this season.
-    if (error.code === "23505") back("error=already_rostered");
-    back(`error=${encodeURIComponent(error.message)}`);
+    if (error.code === "23505") return fail("That player is already on a team this season.");
+    return fail(error.message);
   }
 
   revalidatePath("/admin/seasons");
   revalidatePath("/teams");
-  redirect("/admin/seasons?saved=added");
+  return ok("Added.");
 }
 
-export async function updateRosterEntry(formData: FormData) {
+export async function updateRosterEntry(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
 
@@ -70,7 +71,7 @@ export async function updateRosterEntry(formData: FormData) {
   const position = parsePosition(String(formData.get("position") ?? ""));
   const jerseyNumber = parseJersey(String(formData.get("jersey_number") ?? ""));
 
-  if (!teamId || !playerId) back("error=invalid_input");
+  if (!teamId || !playerId) return fail("Check all required fields.");
 
   const { error } = await supabase
     .from("team_players")
@@ -78,11 +79,11 @@ export async function updateRosterEntry(formData: FormData) {
     .eq("team_id", teamId)
     .eq("player_id", playerId);
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/seasons");
   revalidatePath("/teams");
-  redirect("/admin/seasons?saved=roster_updated");
+  return ok("Roster updated.");
 }
 
 // Batch roster save: applies additions, removals, and position/jersey updates
@@ -93,7 +94,7 @@ export async function saveRosterChanges(input: {
   toAdd: { player_id: string; position: Position; jersey_number: number | null }[];
   toRemove: { player_id: string }[];
   toUpdate: { player_id: string; position: Position; jersey_number: number | null }[];
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<ActionResult> {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
   const { data: team } = await supabase

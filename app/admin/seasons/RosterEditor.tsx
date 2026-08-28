@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { PlayerCombobox } from "@/components/PlayerCombobox";
 import { saveRosterChanges } from "../rosters/actions";
 
@@ -121,8 +122,10 @@ export function RosterEditor({
       if (result.ok) {
         setSavedRows([...rows]);
         setError(null);
+        toast.success(result.message ?? "Saved");
       } else {
         setError(result.error);
+        toast.error(result.error);
       }
     });
   };

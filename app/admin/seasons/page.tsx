@@ -21,6 +21,7 @@ const inputCls =
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Check all required fields.",
+  need_end: "Set an end date or a number of weeks.",
   not_enough_teams: "Need at least 2 teams in this season to generate a schedule.",
   cannot_delete_current: "Cannot delete the current season. Activate another first.",
   has_games: "Delete or move games before deleting the season.",
@@ -198,10 +199,21 @@ export default async function AdminSeasonsPage({
               />
             </label>
             <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-              <span className="eyebrow">End date (optional)</span>
+              <span className="eyebrow">End date</span>
               <input
                 type="date"
                 name="end_date"
+                className={`mt-1 ${inputCls}`}
+              />
+            </label>
+            <label className="block w-full sm:w-auto sm:min-w-[110px]">
+              <span className="eyebrow">Weeks</span>
+              <input
+                type="number"
+                name="weeks"
+                min={1}
+                max={52}
+                placeholder="10"
                 className={`mt-1 ${inputCls}`}
               />
             </label>
@@ -217,6 +229,12 @@ export default async function AdminSeasonsPage({
               />
             </label>
           </div>
+
+          <p className="text-ink-faint text-[12px]">
+            Set an <strong>end date</strong> or a number of{" "}
+            <strong>weeks</strong> (weeks sets the end date from the start). One
+            is required.
+          </p>
 
           <label className="block">
             <span className="eyebrow">Copy teams from (optional)</span>
@@ -338,7 +356,7 @@ export default async function AdminSeasonsPage({
                         />
                       </label>
                       <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                        <span className="eyebrow">End date (optional)</span>
+                        <span className="eyebrow">End date</span>
                         <input
                           type="date"
                           name="end_date"
@@ -346,7 +364,22 @@ export default async function AdminSeasonsPage({
                           className={`mt-1 ${inputCls}`}
                         />
                       </label>
+                      <label className="block w-full sm:w-auto sm:min-w-[110px]">
+                        <span className="eyebrow">Weeks</span>
+                        <input
+                          type="number"
+                          name="weeks"
+                          min={1}
+                          max={52}
+                          placeholder="from start"
+                          className={`mt-1 ${inputCls}`}
+                        />
+                      </label>
                     </div>
+                    <p className="text-ink-faint text-[11px]">
+                      Set an end date, or enter weeks to set it from the start
+                      date. One is required.
+                    </p>
                     <button
                       type="submit"
                       className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"

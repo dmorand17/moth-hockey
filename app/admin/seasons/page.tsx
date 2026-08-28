@@ -522,6 +522,16 @@ export default async function AdminSeasonsPage({
                           away; seed them from the Playoffs section).
                         </p>
 
+                        {teamCount % 2 === 1 && teamCount >= 3 && (
+                          <p className="text-[12px] text-[#fbbf24]/90">
+                            <strong>Byes:</strong> with {teamCount} teams, one team
+                            sits out each week. For every team to get the same number
+                            of byes, use a multiple of {teamCount} weeks — e.g.{" "}
+                            {teamCount}, {teamCount * 2}, or {teamCount * 3} (1, 2, or 3
+                            byes each).
+                          </p>
+                        )}
+
                         <button
                           type="submit"
                           disabled={teamCount < 2}

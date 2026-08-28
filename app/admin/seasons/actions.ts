@@ -12,14 +12,15 @@ import {
   type WeekdayIdx,
 } from "@/lib/season-schedule";
 
-type SeasonType = "spring" | "fall" | "winter";
+type SeasonType = "spring" | "summer" | "fall" | "winter";
 
 function back(qs: string): never {
   redirect(`/admin/seasons?${qs}`);
 }
 
 function parseSeasonType(raw: string): SeasonType | null {
-  if (raw === "spring" || raw === "fall" || raw === "winter") return raw;
+  if (raw === "spring" || raw === "summer" || raw === "fall" || raw === "winter")
+    return raw;
   return null;
 }
 

@@ -5,6 +5,7 @@ import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
 import { weekdayLabel, type WeekdayIdx } from "@/lib/season-schedule";
 import { TimeSlotsField } from "./TimeSlotsField";
 import { ResetSeasonButton } from "./ResetSeasonButton";
+import { SeasonIdentityFields } from "./SeasonIdentityFields";
 import {
   activateSeason,
   createSeason,
@@ -37,7 +38,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 type SeasonRow = {
   id: string;
-  season_type: "spring" | "fall" | "winter";
+  season_type: "spring" | "summer" | "fall" | "winter";
   year: number;
   name: string;
   start_date: string;
@@ -157,39 +158,11 @@ export default async function AdminSeasonsPage({
         </h2>
 
         <form action={createSeason} className="panel p-4 sm:p-5 space-y-5">
-          <FieldGroup label="Identity">
-            <div className="flex flex-wrap gap-3">
-              <label className="block w-full sm:w-auto sm:min-w-[140px]">
-                <span className="eyebrow">Type</span>
-                <select name="season_type" required className={`mt-1 ${inputCls}`}>
-                  <option value="spring">Spring</option>
-                  <option value="fall">Fall</option>
-                  <option value="winter">Winter</option>
-                </select>
-              </label>
-              <label className="block w-full sm:w-auto sm:min-w-[110px]">
-                <span className="eyebrow">Year</span>
-                <input
-                  type="number"
-                  name="year"
-                  required
-                  defaultValue={currentYear}
-                  min={2000}
-                  max={2100}
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
-              <label className="block flex-1 min-w-[180px]">
-                <span className="eyebrow">Name</span>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder={`Spring ${currentYear}`}
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
-            </div>
+          <FieldGroup
+            label="Identity"
+            hint="Name auto-fills from type + year until you edit it."
+          >
+            <SeasonIdentityFields currentYear={currentYear} />
           </FieldGroup>
 
           <FieldGroup

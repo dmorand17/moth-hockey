@@ -41,7 +41,7 @@ export async function getCurrentSeason() {
 export type SeasonOption = {
   id: string;
   name: string;
-  season_type: "spring" | "fall" | "winter";
+  season_type: "spring" | "summer" | "fall" | "winter";
   year: number;
   is_current: boolean;
 };

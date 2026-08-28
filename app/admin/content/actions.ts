@@ -1,15 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ok, fail, type ActionResult } from "@/lib/action-result";
 
 type Section = "rules" | "faq" | "league";
-
-function back(qs: string): never {
-  redirect(`/admin/content?${qs}`);
-}
 
 function parseSection(raw: string): Section | null {
   if (raw === "rules" || raw === "faq" || raw === "league") return raw;
@@ -20,7 +16,7 @@ function slugify(input: string): string {
   return input
     .toLowerCase()
     .trim()
-    .replace(/['’]/g, "")
+    .replace(/['']/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -30,7 +26,7 @@ function parseSortOrder(raw: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-export async function createContentPage(formData: FormData) {
+export async function createContentPage(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
 
   const section = parseSection(String(formData.get("section") ?? ""));
@@ -39,10 +35,10 @@ export async function createContentPage(formData: FormData) {
   const body = String(formData.get("body_md") ?? "");
   const sortOrder = parseSortOrder(String(formData.get("sort_order") ?? "0"));
 
-  if (!section || !title) back("error=invalid_input");
+  if (!section || !title) return fail("Title and section are required.");
 
   const slug = slugify(slugRaw || title);
-  if (!slug) back("error=invalid_input");
+  if (!slug) return fail("Title and section are required.");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("content_pages").insert({
@@ -53,14 +49,14 @@ export async function createContentPage(formData: FormData) {
     sort_order: sortOrder,
   });
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/content");
   revalidatePath(`/about/${section}`);
-  redirect("/admin/content?saved=created");
+  return ok("Entry created.");
 }
 
-export async function updateContentPage(formData: FormData) {
+export async function updateContentPage(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
 
   const id = String(formData.get("id") ?? "").trim();
@@ -70,10 +66,10 @@ export async function updateContentPage(formData: FormData) {
   const body = String(formData.get("body_md") ?? "");
   const sortOrder = parseSortOrder(String(formData.get("sort_order") ?? "0"));
 
-  if (!id || !section || !title) back("error=invalid_input");
+  if (!id || !section || !title) return fail("Title and section are required.");
 
   const slug = slugify(slugRaw || title);
-  if (!slug) back("error=invalid_input");
+  if (!slug) return fail("Title and section are required.");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
@@ -81,26 +77,26 @@ export async function updateContentPage(formData: FormData) {
     .update({ section, slug, title, body_md: body, sort_order: sortOrder })
     .eq("id", id);
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/content");
   revalidatePath(`/about/${section}`);
-  redirect("/admin/content?saved=updated");
+  return ok("Entry updated.");
 }
 
-export async function deleteContentPage(formData: FormData) {
+export async function deleteContentPage(formData: FormData): Promise<ActionResult> {
   await requireRole(["admin"]);
 
   const id = String(formData.get("id") ?? "").trim();
   const section = parseSection(String(formData.get("section") ?? ""));
-  if (!id) back("error=invalid_input");
+  if (!id) return fail("Title and section are required.");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("content_pages").delete().eq("id", id);
 
-  if (error) back(`error=${encodeURIComponent(error.message)}`);
+  if (error) return fail(error.message);
 
   revalidatePath("/admin/content");
   if (section) revalidatePath(`/about/${section}`);
-  redirect("/admin/content?saved=deleted");
+  return ok("Entry deleted.");
 }

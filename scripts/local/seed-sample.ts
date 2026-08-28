@@ -16,7 +16,7 @@ import {
   roundRobinGames,
   buildGameSlots,
   buildPlayoffSlots,
-} from "../../lib/season-schedule.ts";
+} from "../../lib/season-schedule";
 
 const SEASON = "00000000-0000-0000-0000-000000000001";
 const START = "2026-03-01";

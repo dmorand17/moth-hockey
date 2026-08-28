@@ -433,6 +433,38 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_skips: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          season_id: string
+          skip_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          season_id: string
+          skip_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          season_id?: string
+          skip_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_skips_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       season_player_stats: {
         Row: {
           assists: number

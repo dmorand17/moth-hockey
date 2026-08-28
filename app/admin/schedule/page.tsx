@@ -3,7 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
-import { createGame, updateGame, deleteGame } from "./actions";
+import { createGame, updateGame, deleteGame, skipWeek, removeScheduleSkip } from "./actions";
+import { localDateKey, byeTeamNamesByDate } from "@/lib/season-schedule";
 import { TimeSelect } from "./TimeSelect";
 
 type SearchParams = Promise<{ saved?: string; error?: string }>;
@@ -12,10 +13,14 @@ const FLASH_MESSAGES: Record<string, string> = {
   created: "Game created.",
   updated: "Game updated.",
   deleted: "Game deleted.",
+  skipped: "Week skipped — later games moved out a week.",
+  skip_removed: "Skip note removed.",
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Check all required fields (home team ≠ away team, valid date).",
+  already_skipped: "That week is already recorded as skipped.",
+  same_team: "Home and away team must be different.",
 };
 
 type TeamRef = { id: string; name: string; color: string };
@@ -84,6 +89,16 @@ function formatGameDate(iso: string): string {
   });
 }
 
+/** "Sunday, March 1" from a "YYYY-MM-DD" local date key */
+function formatWeekLabel(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export default async function AdminSchedulePage({
   searchParams,
 }: {
@@ -96,7 +111,7 @@ export default async function AdminSchedulePage({
 
   const params = await searchParams;
 
-  const [{ data: teams }, { data: gamesRaw }] = await Promise.all([
+  const [{ data: teams }, { data: gamesRaw }, { data: skips }] = await Promise.all([
     supabase
       .from("teams")
       .select("id, name, color")
@@ -109,10 +124,39 @@ export default async function AdminSchedulePage({
       )
       .eq("season_id", season.id)
       .order("scheduled_at"),
+    supabase
+      .from("schedule_skips")
+      .select("id, skip_date, reason")
+      .eq("season_id", season.id)
+      .order("skip_date"),
   ]);
 
   const games = (gamesRaw ?? []) as unknown as GameRow[];
   const teamList = (teams ?? []) as TeamRef[];
+
+  const byesByDate = byeTeamNamesByDate(
+    (teams ?? []).map((t) => ({ id: t.id, name: t.name })),
+    games
+      .filter((g) => g.kind === "regular")
+      .map((g) => ({
+        localDate: localDateKey(g.scheduled_at),
+        homeTeamId: g.home_team?.id ?? null,
+        awayTeamId: g.away_team?.id ?? null,
+      })),
+  );
+  const skipList = skips ?? [];
+
+  // Group games into weekly game-nights (local date), oldest first.
+  const gamesByDate = new Map<string, GameRow[]>();
+  for (const g of games) {
+    const k = localDateKey(g.scheduled_at);
+    const arr = gamesByDate.get(k);
+    if (arr) arr.push(g);
+    else gamesByDate.set(k, [g]);
+  }
+  const weekGroups = Array.from(gamesByDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, weekGames]) => ({ date, weekGames }));
 
   return (
     <div className="space-y-8">
@@ -200,7 +244,63 @@ export default async function AdminSchedulePage({
         </form>
       </section>
 
-      {/* Game list */}
+      {/* Skip a week */}
+      <section className="space-y-3">
+        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+          SKIP A WEEK
+        </h2>
+        <form action={skipWeek} className="panel p-4 space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block w-full sm:w-auto sm:min-w-[160px]">
+              <span className="eyebrow">Week of</span>
+              <input type="date" name="skip_date" required className={`mt-1 ${inputCls}`} />
+            </label>
+            <label className="block flex-1 min-w-[200px]">
+              <span className="eyebrow">Reason</span>
+              <input
+                type="text"
+                name="reason"
+                required
+                placeholder="Weather — rink closed"
+                className={`mt-1 ${inputCls}`}
+              />
+            </label>
+            <button
+              type="submit"
+              className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+            >
+              SKIP
+            </button>
+          </div>
+          <p className="text-ink-faint text-[12px]">
+            Pushes every scheduled game on or after that date out by one week.
+            Played (live/final) games are left in place.
+          </p>
+        </form>
+
+        {skipList.length > 0 && (
+          <ul className="border border-rule rounded divide-y divide-rule/50">
+            {skipList.map((s) => (
+              <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="text-[13px] text-ink">
+                  <span className="font-mono text-ink-dim">{s.skip_date}</span> — {s.reason}
+                </span>
+                <form action={removeScheduleSkip}>
+                  <input type="hidden" name="id" value={s.id} />
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                  >
+                    REMOVE
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Game list — grouped by week, bye team shown per week */}
       <section className="space-y-1">
         <header className="flex items-baseline justify-between mb-2">
           <h2 className="font-display text-xl tracking-[0.04em] text-ink">
@@ -214,7 +314,19 @@ export default async function AdminSchedulePage({
             No games scheduled yet.
           </p>
         ) : (
-          games.map((game) => (
+          <div className="space-y-5">
+            {weekGroups.map(({ date, weekGames }) => (
+              <div key={date} className="space-y-1">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="eyebrow text-goal">{formatWeekLabel(date)}</span>
+                  <span className="flex-1 h-px bg-rule" />
+                  {(byesByDate[date]?.length ?? 0) > 0 && (
+                    <span className="eyebrow text-ink-faint">
+                      Bye: {byesByDate[date].join(", ")}
+                    </span>
+                  )}
+                </div>
+                {weekGames.map((game) => (
             <details key={game.id} className="group border border-rule rounded">
               {/* Summary row */}
               <summary className="flex flex-wrap items-center gap-3 px-3 py-2.5 cursor-pointer list-none select-none hover:bg-board-3 transition-colors rounded">
@@ -275,6 +387,42 @@ export default async function AdminSchedulePage({
               <div className="border-t border-rule px-3 py-3 space-y-3">
                 <form action={updateGame} className="space-y-3">
                   <input type="hidden" name="id" value={game.id} />
+
+                  <div className="flex flex-wrap gap-3">
+                    <label className="block flex-1 min-w-[160px]">
+                      <span className="eyebrow">Home team</span>
+                      <select
+                        name="home_team_id"
+                        key={game.id + "-home"}
+                        defaultValue={game.home_team?.id ?? ""}
+                        className={`mt-1 ${inputCls}`}
+                      >
+                        <option value="">— TBD —</option>
+                        {teamList.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block flex-1 min-w-[160px]">
+                      <span className="eyebrow">Away team</span>
+                      <select
+                        name="away_team_id"
+                        key={game.id + "-away"}
+                        defaultValue={game.away_team?.id ?? ""}
+                        className={`mt-1 ${inputCls}`}
+                      >
+                        <option value="">— TBD —</option>
+                        {teamList.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
 
                   <div className="flex flex-wrap gap-3">
                     <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[140px]">
@@ -402,7 +550,10 @@ export default async function AdminSchedulePage({
                 </form>
               </div>
             </details>
-          ))
+                ))}
+              </div>
+            ))}
+          </div>
         )}
       </section>
     </div>

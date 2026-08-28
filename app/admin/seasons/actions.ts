@@ -8,7 +8,7 @@ import { getStandings } from "@/lib/queries";
 import {
   buildGameSlots,
   buildPlayoffSlots,
-  roundRobinPairs,
+  roundRobinGames,
   type WeekdayIdx,
 } from "@/lib/season-schedule";
 
@@ -183,7 +183,7 @@ export async function generateSchedule(formData: FormData) {
 
   const seasonId = String(formData.get("season_id") ?? "").trim();
   const weekday = parseWeekday(String(formData.get("weekday") ?? ""));
-  const rounds = parseInt0(String(formData.get("rounds") ?? "1"), 1);
+  const weeks = parseInt0(String(formData.get("weeks") ?? "1"), 1);
   const location = String(formData.get("location") ?? "").trim() || null;
   const times = formData
     .getAll("times")
@@ -191,7 +191,7 @@ export async function generateSchedule(formData: FormData) {
     .filter((v) => v !== "");
   const withPlayoffs = String(formData.get("with_playoffs") ?? "") === "on";
 
-  if (!seasonId || weekday === null || rounds < 1 || times.length === 0) {
+  if (!seasonId || weekday === null || weeks < 1 || times.length === 0) {
     back("error=invalid_input");
   }
 
@@ -221,7 +221,9 @@ export async function generateSchedule(formData: FormData) {
     .eq("status", "scheduled");
   if (clearErr) back(`error=${encodeURIComponent(clearErr.message)}`);
 
-  const pairs = roundRobinPairs(teamIds, rounds);
+  // One "week" = one game night of `times.length` slots. Fill exactly
+  // weeks × slots games so the schedule spans exactly `weeks` calendar weeks.
+  const pairs = roundRobinGames(teamIds, weeks * times.length);
   const slots = buildGameSlots(season.start_date, weekday, times, pairs.length);
 
   type GameInsert = {

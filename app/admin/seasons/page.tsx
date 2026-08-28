@@ -428,11 +428,12 @@ export default async function AdminSeasonsPage({
                       <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
                         <input type="hidden" name="season_id" value={season.id} />
                         <button type="submit" className={primaryBtn}>
-                          {hasPlayoffStubs ? "ADVANCE / RE-SEED PLAYOFFS" : "GENERATE PLAYOFFS"}
+                          UPDATE PLAYOFF MATCHUPS
                         </button>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
-                          Seeds #1 v #4 and #2 v #3 from the standings once every regular-season game
-                          is final. Re-run after the semifinals to advance the Final.
+                          Fills the bracket (#1 v #4, #2 v #3) from the current standings,
+                          and advances the Final once both semifinals are decided. Create the
+                          playoff dates via &ldquo;reserve playoffs&rdquo; when generating the schedule.
                         </p>
                       </form>
                     </FieldGroup>
@@ -500,12 +501,25 @@ export default async function AdminSeasonsPage({
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
+                        <label className="inline-flex items-center gap-2 min-h-11">
+                          <input
+                            type="checkbox"
+                            name="with_playoffs"
+                            defaultChecked
+                            className="size-4 accent-ice"
+                          />
+                          <span className="font-mono text-[13px] text-ink">
+                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
+                          </span>
+                        </label>
+
                         <p className="text-ink-faint text-[12px]">
                           <strong>Weeks</strong> = how many game nights to schedule.
                           Each week fills the time slots (one night) and teams cycle
-                          through a balanced round-robin, repeating as needed.
-                          Use the Playoffs section to generate the bracket after all
-                          regular-season games are final.
+                          through a balanced round-robin, repeating as needed. With
+                          playoffs reserved, SF1, SF2 &amp; Final are added as TBD-vs-TBD
+                          stubs after the final week (they show on the schedule right
+                          away; seed them from the Playoffs section).
                         </p>
 
                         <button

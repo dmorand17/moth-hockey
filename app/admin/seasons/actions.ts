@@ -389,6 +389,10 @@ export async function generatePlayoffs(formData: FormData) {
   let sf2 = playoffs.find((p) => p.playoff_round === "sf2") ?? null;
   let finalRow = playoffs.find((p) => p.playoff_round === "final") ?? null;
 
+  if ((!sf1 || !sf2 || !finalRow) && regular.length === 0) {
+    back("error=regular_incomplete");
+  }
+
   if (!sf1 || !sf2 || !finalRow) {
     const hhmm = (iso: string) => {
       const d = new Date(iso);

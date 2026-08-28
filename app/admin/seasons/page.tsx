@@ -122,9 +122,7 @@ export default async function AdminSeasonsPage({
   const flash =
     params.saved === "generated"
       ? `Generated ${params.n ?? "?"} games.`
-      : params.saved === "seeded"
-        ? `Bracket seeded — ${params.n ?? "0"} round(s) updated.`
-        : params.saved === "playoffs"
+      : params.saved === "playoffs"
           ? "Playoffs generated / advanced."
           : params.saved === "reset"
           ? "Season reset — all games and results cleared."

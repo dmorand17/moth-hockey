@@ -70,13 +70,19 @@ export async function updateGame(formData: FormData) {
   const homeScore = parseScore(String(formData.get("home_score") ?? "0"));
   const awayScore = parseScore(String(formData.get("away_score") ?? "0"));
   const decidedIn = parseDecidedIn(String(formData.get("decided_in") ?? ""));
+  // Teams are editable (e.g. reseating a playoff bracket). Empty = TBD (null).
+  const homeTeamId = String(formData.get("home_team_id") ?? "").trim() || null;
+  const awayTeamId = String(formData.get("away_team_id") ?? "").trim() || null;
 
   if (!id || !scheduledDate || !scheduledTime) back("error=invalid_input");
+  if (homeTeamId && awayTeamId && homeTeamId === awayTeamId) back("error=same_team");
 
   const { error } = await supabase
     .from("games")
     .update({
       scheduled_at: buildScheduledAt(scheduledDate, scheduledTime),
+      home_team_id: homeTeamId,
+      away_team_id: awayTeamId,
       location,
       status,
       home_score: status === "final" ? homeScore : 0,

@@ -20,6 +20,7 @@ const FLASH_MESSAGES: Record<string, string> = {
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Check all required fields (home team ≠ away team, valid date).",
   already_skipped: "That week is already recorded as skipped.",
+  same_team: "Home and away team must be different.",
 };
 
 type TeamRef = { id: string; name: string; color: string };
@@ -386,6 +387,42 @@ export default async function AdminSchedulePage({
               <div className="border-t border-rule px-3 py-3 space-y-3">
                 <form action={updateGame} className="space-y-3">
                   <input type="hidden" name="id" value={game.id} />
+
+                  <div className="flex flex-wrap gap-3">
+                    <label className="block flex-1 min-w-[160px]">
+                      <span className="eyebrow">Home team</span>
+                      <select
+                        name="home_team_id"
+                        key={game.id + "-home"}
+                        defaultValue={game.home_team?.id ?? ""}
+                        className={`mt-1 ${inputCls}`}
+                      >
+                        <option value="">— TBD —</option>
+                        {teamList.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block flex-1 min-w-[160px]">
+                      <span className="eyebrow">Away team</span>
+                      <select
+                        name="away_team_id"
+                        key={game.id + "-away"}
+                        defaultValue={game.away_team?.id ?? ""}
+                        className={`mt-1 ${inputCls}`}
+                      >
+                        <option value="">— TBD —</option>
+                        {teamList.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
 
                   <div className="flex flex-wrap gap-3">
                     <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[140px]">

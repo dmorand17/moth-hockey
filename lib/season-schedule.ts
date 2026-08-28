@@ -133,51 +133,6 @@ export function buildGameSlots(
 }
 
 
-/**
- * Pick three playoff slots that follow the regular-season schedule:
- *   week N+1, slot 1 → SF1
- *   week N+1, slot 2 → SF2 (falls back to slot 1 of next week if only 1 slot/night)
- *   week N+2, slot 1 → Final
- * Always returns 3 ISO timestamps regardless of regularPairCount.
- */
-export function buildPlayoffSlots(
-  startDate: string,
-  weekday: WeekdayIdx,
-  times: string[],
-  regularPairCount: number,
-): { sf1: string; sf2: string; final: string } {
-  if (times.length === 0) throw new Error("times must be non-empty");
-  // We want 3 logical playoff slots placed AFTER the regular season.
-  // Regular season uses `regularPairCount` slots. Playoff SFs ideally
-  // share a single ice night; the Final is the next ice night.
-  if (times.length >= 2) {
-    // Two SF slots on one night, Final on next ice night.
-    const slots = buildGameSlots(
-      startDate,
-      weekday,
-      times,
-      regularPairCount + times.length + 1,
-    );
-    return {
-      sf1: slots[regularPairCount],
-      sf2: slots[regularPairCount + 1],
-      final: slots[regularPairCount + times.length],
-    };
-  }
-  // Only one slot per night → SF1, SF2, Final on three consecutive ice nights.
-  const slots = buildGameSlots(
-    startDate,
-    weekday,
-    times,
-    regularPairCount + 3,
-  );
-  return {
-    sf1: slots[regularPairCount],
-    sf2: slots[regularPairCount + 1],
-    final: slots[regularPairCount + 2],
-  };
-}
-
 export type PlayoffRound = "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final";
 
 /** Playoff games in bracket order (round 1 first … Final last) for R rounds. */

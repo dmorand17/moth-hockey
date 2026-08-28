@@ -40,6 +40,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   has_games: "Delete or move games before deleting the season.",
   regular_incomplete: "Finish all regular-season games before generating playoffs.",
   playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
+  not_enough_seeds: "Not enough teams in the standings for that bracket.",
   invalid_color: "Color must be a hex like #ef4444.",
   already_rostered: "That player is already on a team this season.",
   no_source_teams: "That season has no teams to copy.",

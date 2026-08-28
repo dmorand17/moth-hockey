@@ -448,11 +448,8 @@ export default async function AdminSeasonsPage({
                       />
                     </Disclosure>
 
-                    {/* Teams */}
-                    <FieldGroup
-                      label="Teams"
-                      hint="Add teams to this season. Rosters and captains are per-season."
-                    >
+                    {/* Teams — collapsed */}
+                    <Disclosure label="Teams" hint="rosters & captains">
                       {/* Add-team form */}
                       <form action={createTeam} className="panel p-3 space-y-3">
                         <input type="hidden" name="season_id" value={season.id} />
@@ -661,7 +658,7 @@ export default async function AdminSeasonsPage({
                           })}
                         </div>
                       )}
-                    </FieldGroup>
+                    </Disclosure>
 
                     {/* Playoffs */}
                     <Disclosure label="Playoffs" accent="ice">
@@ -686,7 +683,7 @@ export default async function AdminSeasonsPage({
                     </Disclosure>
 
                     {/* Generate schedule — collapsed */}
-                    <Disclosure label="Generate schedule" accent="ice">
+                    <Disclosure label="Schedule Generator" accent="ice">
                       <form
                         action={generateSchedule}
                         className="mt-3 space-y-3 panel-bare rounded-lg p-3"

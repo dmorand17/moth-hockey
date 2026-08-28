@@ -135,10 +135,9 @@ public), each step leaving the build green (`bunx tsc --noEmit` clean,
 ## Dependencies / merge note
 
 - Adds `sonner` (via `bun add sonner`).
-- This branch is off `staging`, which does **not** yet contain the open
-  playoff-rounds PR (#92). Both touch `app/admin/seasons/actions.ts` and
-  `page.tsx` heavily, so a merge conflict is expected and will be resolved when
-  #92 lands (or this rebases onto it).
+- Branch rebased onto `staging` **after** the playoff-rounds PR (#92) merged, so
+  it already contains the current seasons files (qf1–qf4 playoffs, weeks-driven
+  dates) — no outstanding conflict.
 
 ## Testing
 

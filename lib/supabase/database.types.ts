@@ -543,8 +543,10 @@ export type Database = {
           is_current: boolean
           name: string
           period_length_minutes: number
+          point_system: string
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
+          tiebreakers: string[]
           year: number
         }
         Insert: {
@@ -554,8 +556,10 @@ export type Database = {
           is_current?: boolean
           name: string
           period_length_minutes?: number
+          point_system?: string
           season_type: Database["public"]["Enums"]["season_type"]
           start_date: string
+          tiebreakers?: string[]
           year: number
         }
         Update: {
@@ -565,8 +569,10 @@ export type Database = {
           is_current?: boolean
           name?: string
           period_length_minutes?: number
+          point_system?: string
           season_type?: Database["public"]["Enums"]["season_type"]
           start_date?: string
+          tiebreakers?: string[]
           year?: number
         }
         Relationships: []
@@ -767,7 +773,7 @@ export type Database = {
       penalty_shot_result: "goal" | "saved"
       player_position: "forward" | "defense" | "goalie"
       playoff_round: "sf1" | "sf2" | "final"
-      season_type: "spring" | "fall" | "winter"
+      season_type: "spring" | "summer" | "fall" | "winter"
       user_role: "admin" | "scorekeeper" | "team_captain" | "player"
     }
     CompositeTypes: {
@@ -909,7 +915,7 @@ export const Constants = {
       penalty_shot_result: ["goal", "saved"],
       player_position: ["forward", "defense", "goalie"],
       playoff_round: ["sf1", "sf2", "final"],
-      season_type: ["spring", "fall", "winter"],
+      season_type: ["spring", "summer", "fall", "winter"],
       user_role: ["admin", "scorekeeper", "team_captain", "player"],
     },
   },

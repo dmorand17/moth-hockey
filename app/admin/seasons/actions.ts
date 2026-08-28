@@ -548,10 +548,10 @@ export async function updateTeam(formData: FormData) {
 
   const id = String(formData.get("id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
-  const slugRaw = String(formData.get("slug") ?? "").trim();
   const color = String(formData.get("color") ?? "").trim();
 
-  const slug = slugify(slugRaw || name);
+  // Slug tracks the name so renames update the public /teams/<slug> URL too.
+  const slug = slugify(name);
 
   if (!id || !name || !slug) {
     back("error=invalid_input");

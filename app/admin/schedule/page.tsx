@@ -31,7 +31,7 @@ type GameRow = {
   location: string | null;
   status: "scheduled" | "live" | "final";
   kind: "regular" | "playoff";
-  playoff_round: "sf1" | "sf2" | "final" | null;
+  playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
   home_score: number;
   away_score: number;
   decided_in: "regulation" | "ot" | "shootout" | null;

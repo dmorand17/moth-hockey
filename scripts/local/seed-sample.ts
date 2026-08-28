@@ -15,7 +15,8 @@
 import {
   roundRobinGames,
   buildGameSlots,
-  buildPlayoffSlots,
+  playoffRoundsFor,
+  playoffSlots,
 } from "../../lib/season-schedule";
 
 const SEASON = "00000000-0000-0000-0000-000000000001";
@@ -74,7 +75,9 @@ for (const t of teams) {
 
 const pairs = roundRobinGames(teams.map((t) => t.id), WEEKS * TIMES.length);
 const slots = buildGameSlots(START, weekday, TIMES, pairs.length);
-const ps = buildPlayoffSlots(START, weekday, TIMES, pairs.length);
+const bracket = playoffRoundsFor(2); // sf1, sf2, final
+const playoffTimes = playoffSlots(START, weekday, TIMES, pairs.length, bracket.length);
+const psByRound = new Map(bracket.map((r, i) => [r, playoffTimes[i]]));
 const playedGames = PLAYED_WEEKS * TIMES.length;
 
 type GameRow = {
@@ -157,8 +160,7 @@ lines.push(
 // Playoff stubs (TBD).
 lines.push(
   `INSERT INTO games (season_id, home_team_id, away_team_id, scheduled_at, kind, status, playoff_round) VALUES\n  ` +
-    ([["sf1", ps.sf1], ["sf2", ps.sf2], ["final", ps.final]] as const)
-      .map(([r, at]) => `(${q(SEASON)}, NULL, NULL, ${q(at)}, 'playoff', 'scheduled', ${q(r)})`).join(",\n  ") + ";",
+    bracket.map((r) => `(${q(SEASON)}, NULL, NULL, ${q(psByRound.get(r)!)}, 'playoff', 'scheduled', ${q(r)})`).join(",\n  ") + ";",
 );
 if (appearances.length) {
   lines.push(`INSERT INTO game_appearances (game_id, player_id, team_id, is_sub) VALUES\n  ` + appearances.join(",\n  ") + ";");

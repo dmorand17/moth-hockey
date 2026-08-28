@@ -7,8 +7,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStandings } from "@/lib/queries";
 import {
   buildGameSlots,
-  buildPlayoffSlots,
+  firstRoundSeeds,
+  playoffFeeders,
+  playoffRoundsFor,
+  playoffSlots,
   roundRobinGames,
+  type PlayoffRound,
   type WeekdayIdx,
 } from "@/lib/season-schedule";
 
@@ -35,25 +39,19 @@ function parseInt0(raw: string, fallback: number): number {
   return isNaN(n) ? fallback : n;
 }
 
-// A season's end can be given as an explicit end date OR as a number of weeks
-// (which sets end = start + weeks×7 days). Weeks wins when both are provided.
-// Returns null when neither yields a usable end date.
-function resolveEndDate(
-  startDate: string,
-  endDate: string,
-  weeksRaw: string,
-): string | null {
+// A season's end is derived from its regular-season length: end = start +
+// weeks×7 days. Weeks is the single source of truth. Returns null when weeks
+// is missing or not a positive number.
+function resolveEndDate(startDate: string, weeksRaw: string): string | null {
   const weeks = parseInt(weeksRaw, 10);
-  if (!isNaN(weeks) && weeks > 0) {
-    const [y, m, d] = startDate.split("-").map(Number);
-    const end = new Date(y, (m ?? 1) - 1, d ?? 1);
-    end.setDate(end.getDate() + weeks * 7);
-    const yyyy = end.getFullYear();
-    const mm = String(end.getMonth() + 1).padStart(2, "0");
-    const dd = String(end.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  return endDate || null;
+  if (isNaN(weeks) || weeks <= 0) return null;
+  const [y, m, d] = startDate.split("-").map(Number);
+  const end = new Date(y, (m ?? 1) - 1, d ?? 1);
+  end.setDate(end.getDate() + weeks * 7);
+  const yyyy = end.getFullYear();
+  const mm = String(end.getMonth() + 1).padStart(2, "0");
+  const dd = String(end.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function revalidatePublicSeasonPaths() {
@@ -72,7 +70,6 @@ export async function createSeason(formData: FormData) {
   const year = parseInt0(String(formData.get("year") ?? ""), NaN);
   const name = String(formData.get("name") ?? "").trim();
   const startDate = String(formData.get("start_date") ?? "").trim();
-  const endDate = String(formData.get("end_date") ?? "").trim();
   const weeks = String(formData.get("weeks") ?? "").trim();
   const periodLength = parseInt0(
     String(formData.get("period_length_minutes") ?? "17"),
@@ -84,7 +81,7 @@ export async function createSeason(formData: FormData) {
   if (!seasonType || isNaN(year) || !name || !startDate) {
     back("error=invalid_input");
   }
-  const resolvedEnd = resolveEndDate(startDate, endDate, weeks);
+  const resolvedEnd = resolveEndDate(startDate, weeks);
   if (!resolvedEnd) back("error=need_end");
 
   const supabase = await createSupabaseServerClient();
@@ -96,6 +93,7 @@ export async function createSeason(formData: FormData) {
       name,
       start_date: startDate,
       end_date: resolvedEnd,
+      regular_weeks: parseInt(weeks, 10),
       period_length_minutes: periodLength,
       point_system,
       is_current: false,
@@ -154,16 +152,19 @@ export async function updateSeasonDates(formData: FormData) {
 
   const id = String(formData.get("id") ?? "").trim();
   const startDate = String(formData.get("start_date") ?? "").trim();
-  const endDate = String(formData.get("end_date") ?? "").trim();
   const weeks = String(formData.get("weeks") ?? "").trim();
   if (!id || !startDate) back("error=invalid_input");
-  const resolvedEnd = resolveEndDate(startDate, endDate, weeks);
+  const resolvedEnd = resolveEndDate(startDate, weeks);
   if (!resolvedEnd) back("error=need_end");
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("seasons")
-    .update({ start_date: startDate, end_date: resolvedEnd })
+    .update({
+      start_date: startDate,
+      end_date: resolvedEnd,
+      regular_weeks: parseInt(weeks, 10),
+    })
     .eq("id", id);
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 
@@ -271,7 +272,7 @@ export async function generateSchedule(formData: FormData) {
     .getAll("times")
     .map((v) => String(v).trim())
     .filter((v) => v !== "");
-  const withPlayoffs = String(formData.get("with_playoffs") ?? "") === "on";
+  const playoffRounds = Math.max(0, Math.min(3, parseInt0(String(formData.get("playoff_rounds") ?? "2"), 2)));
   if (!seasonId || weekday === null || weeks < 1 || times.length === 0) {
     back("error=invalid_input");
   }
@@ -314,7 +315,7 @@ export async function generateSchedule(formData: FormData) {
     scheduled_at: string;
     location: string | null;
     kind: "regular" | "playoff";
-    playoff_round?: "sf1" | "sf2" | "final" | null;
+    playoff_round?: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
   };
 
   const rows: GameInsert[] = pairs.map(([home, away], i) => ({
@@ -329,29 +330,39 @@ export async function generateSchedule(formData: FormData) {
   // Optionally reserve playoff nights after the regular season as TBD-vs-TBD
   // stubs, so the bracket dates show on the schedule immediately. The
   // "Update Playoff Matchups" action seeds the teams from standings later.
-  if (withPlayoffs) {
-    const ps = buildPlayoffSlots(season.start_date, weekday, times, pairs.length);
-    for (const [round, at] of [
-      ["sf1", ps.sf1],
-      ["sf2", ps.sf2],
-      ["final", ps.final],
-    ] as const) {
+  const bracket = playoffRoundsFor(playoffRounds);
+  if (bracket.length > 0) {
+    const ptimes = playoffSlots(season.start_date, weekday, times, pairs.length, bracket.length);
+    bracket.forEach((round, i) =>
       rows.push({
         season_id: seasonId,
         home_team_id: null,
         away_team_id: null,
-        scheduled_at: at,
+        scheduled_at: ptimes[i],
         location,
         kind: "playoff",
         playoff_round: round,
-      });
-    }
+      }),
+    );
   }
 
   if (rows.length > 0) {
     const { error: insErr } = await supabase.from("games").insert(rows);
     if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
   }
+
+  // Sync the season's length to what we just scheduled: regular_weeks from the
+  // form, and end_date extended to cover the playoff nights (each week holds
+  // times.length slots, so playoffs span ceil(games / slots) extra weeks).
+  const playoffWeeks =
+    bracket.length > 0 ? Math.ceil(bracket.length / times.length) : 0;
+  await supabase
+    .from("seasons")
+    .update({
+      regular_weeks: weeks,
+      end_date: resolveEndDate(season.start_date, String(weeks + playoffWeeks)),
+    })
+    .eq("id", seasonId);
 
   revalidatePath("/admin/seasons");
   revalidatePath("/admin/schedule");
@@ -412,7 +423,7 @@ export async function generatePlayoffs(formData: FormData) {
     .select("id, playoff_round, status, home_team_id, away_team_id, home_score, away_score")
     .eq("season_id", seasonId)
     .eq("kind", "playoff");
-  const playoffs = existingPlayoffs ?? [];
+  let playoffs = existingPlayoffs ?? [];
 
   // Can't start playoffs until the regular season is complete.
   if (
@@ -422,67 +433,69 @@ export async function generatePlayoffs(formData: FormData) {
     back("error=regular_incomplete");
   }
 
+  // Infer rounds from existing playoff game round values.
+  const roundsOf = (rs: string[]) =>
+    rs.some((r) => r.startsWith("qf")) ? 3 : rs.some((r) => r.startsWith("sf")) ? 2 : rs.includes("final") ? 1 : 0;
+  const rounds = roundsOf(playoffs.map((p) => p.playoff_round ?? ""));
+  if (rounds === 0) back("error=invalid_input");
+
+  const need = 2 ** rounds;
   const standings = await getStandings(seasonId);
-  if (standings.length < 4) back("error=playoffs_need_four");
-  const top4 = standings.slice(0, 4);
+  if (standings.length < need) back("error=not_enough_seeds");
 
-  // Create the 3 stubs the first time, dated after the regular season.
-  let sf1 = playoffs.find((p) => p.playoff_round === "sf1") ?? null;
-  let sf2 = playoffs.find((p) => p.playoff_round === "sf2") ?? null;
-  let finalRow = playoffs.find((p) => p.playoff_round === "final") ?? null;
+  const order = playoffRoundsFor(rounds);
 
-  if ((!sf1 || !sf2 || !finalRow) && regular.length === 0) {
-    back("error=regular_incomplete");
-  }
-
-  if (!sf1 || !sf2 || !finalRow) {
+  // Create any missing stubs, dated after the regular season.
+  const existingRounds = new Set(playoffs.map((p) => p.playoff_round));
+  const missingRounds = order.filter((r) => !existingRounds.has(r));
+  if (missingRounds.length > 0) {
+    if (regular.length === 0) back("error=regular_incomplete");
     const hhmm = (iso: string) => {
       const d = new Date(iso);
       return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     };
     const times = Array.from(new Set(regular.map((g) => hhmm(g.scheduled_at)))).sort();
     const weekday = new Date(regular[0].scheduled_at).getDay() as WeekdayIdx;
-    const ps = buildPlayoffSlots(season.start_date, weekday, times, regular.length);
-    const toMake: Array<{ round: "sf1" | "sf2" | "final"; at: string }> = [];
-    if (!sf1) toMake.push({ round: "sf1", at: ps.sf1 });
-    if (!sf2) toMake.push({ round: "sf2", at: ps.sf2 });
-    if (!finalRow) toMake.push({ round: "final", at: ps.final });
+    const allSlots = playoffSlots(season.start_date, weekday, times, regular.length, order.length);
+    const slotsByRound = new Map(order.map((r, i) => [r, allSlots[i]]));
     const { data: inserted, error: insErr } = await supabase
       .from("games")
       .insert(
-        toMake.map((m) => ({
+        missingRounds.map((r) => ({
           season_id: seasonId,
           home_team_id: null,
           away_team_id: null,
-          scheduled_at: m.at,
+          scheduled_at: slotsByRound.get(r)!,
           kind: "playoff" as const,
-          playoff_round: m.round,
+          playoff_round: r,
         })),
       )
       .select("id, playoff_round, status, home_team_id, away_team_id, home_score, away_score");
     if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
-    for (const r of inserted ?? []) {
-      if (r.playoff_round === "sf1") sf1 = r;
-      else if (r.playoff_round === "sf2") sf2 = r;
-      else if (r.playoff_round === "final") finalRow = r;
-    }
+    playoffs = [...playoffs, ...(inserted ?? [])];
   }
 
-  const updates: Array<{ id: string; home_team_id: string; away_team_id: string }> = [];
-  if (sf1 && sf1.status !== "final") {
-    updates.push({ id: sf1.id, home_team_id: top4[0].team_id, away_team_id: top4[3].team_id });
-  }
-  if (sf2 && sf2.status !== "final") {
-    updates.push({ id: sf2.id, home_team_id: top4[1].team_id, away_team_id: top4[2].team_id });
-  }
-  if (
-    finalRow && finalRow.status !== "final" &&
-    sf1 && sf2 && sf1.status === "final" && sf2.status === "final"
-  ) {
-    const sf1Winner = sf1.home_score > sf1.away_score ? sf1.home_team_id : sf1.away_team_id;
-    const sf2Winner = sf2.home_score > sf2.away_score ? sf2.home_team_id : sf2.away_team_id;
-    if (sf1Winner && sf2Winner) {
-      updates.push({ id: finalRow.id, home_team_id: sf1Winner, away_team_id: sf2Winner });
+  const seeds = firstRoundSeeds(rounds);
+  const feeders = playoffFeeders(rounds);
+  const byRound = new Map(playoffs.map((p) => [p.playoff_round, p]));
+  const updates: { id: string; home_team_id: string | null; away_team_id: string | null }[] = [];
+
+  // Round 1: seed from standings (skip games already final).
+  seeds.forEach(([hi, ai], i) => {
+    const g = byRound.get(order[i]);
+    if (g && g.status !== "final")
+      updates.push({ id: g.id, home_team_id: standings[hi - 1].team_id, away_team_id: standings[ai - 1].team_id });
+  });
+
+  // Later rounds: fill from feeders once both are final. Higher seed (feeder listed first) is home.
+  const winner = (g: { home_team_id: string | null; away_team_id: string | null; home_score: number | null; away_score: number | null }) =>
+    (g.home_score ?? 0) >= (g.away_score ?? 0) ? g.home_team_id : g.away_team_id;
+  for (const [round, [a, b]] of Object.entries(feeders)) {
+    const g = byRound.get(round as PlayoffRound);
+    const ga = byRound.get(a), gb = byRound.get(b);
+    if (g && g.status !== "final" && ga?.status === "final" && gb?.status === "final") {
+      const wa = winner(ga), wb = winner(gb);
+      if (wa && wb) updates.push({ id: g.id, home_team_id: wa, away_team_id: wb });
     }
   }
 

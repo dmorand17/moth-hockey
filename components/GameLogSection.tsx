@@ -28,7 +28,7 @@ export type GameLogRow = {
   ps_faced: number;
   ps_saved: number;
   kind?: "regular" | "playoff";
-  playoff_round?: "sf1" | "sf2" | "final" | null;
+  playoff_round?: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
 };
 
 function ResultChip({ result }: { result: "W" | "L" | "OTL" }) {

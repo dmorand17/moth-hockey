@@ -16,7 +16,7 @@ type ScoreGame = {
   location: string | null;
   status: "scheduled" | "live" | "final";
   kind: "regular" | "playoff";
-  playoff_round: "sf1" | "sf2" | "final" | null;
+  playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
   home_team: Team | null;
   away_team: Team | null;
 };

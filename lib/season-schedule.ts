@@ -133,49 +133,51 @@ export function buildGameSlots(
 }
 
 
-/**
- * Pick three playoff slots that follow the regular-season schedule:
- *   week N+1, slot 1 → SF1
- *   week N+1, slot 2 → SF2 (falls back to slot 1 of next week if only 1 slot/night)
- *   week N+2, slot 1 → Final
- * Always returns 3 ISO timestamps regardless of regularPairCount.
- */
-export function buildPlayoffSlots(
+export type PlayoffRound = "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final";
+
+/** Playoff games in bracket order (round 1 first … Final last) for R rounds. */
+export function playoffRoundsFor(rounds: number): PlayoffRound[] {
+  if (rounds === 1) return ["final"];
+  if (rounds === 2) return ["sf1", "sf2", "final"];
+  if (rounds === 3) return ["qf1", "qf2", "qf3", "qf4", "sf1", "sf2", "final"];
+  return [];
+}
+
+/** Round-1 seed pairings (1-indexed) for R rounds, in the same order as the
+ *  first N entries of playoffRoundsFor(rounds). */
+export function firstRoundSeeds(rounds: number): [number, number][] {
+  if (rounds === 1) return [[1, 2]];
+  if (rounds === 2) return [[1, 4], [2, 3]];
+  if (rounds === 3) return [[1, 8], [4, 5], [3, 6], [2, 7]];
+  return [];
+}
+
+/** Which two earlier games feed each later game. */
+export function playoffFeeders(
+  rounds: number,
+): Partial<Record<PlayoffRound, [PlayoffRound, PlayoffRound]>> {
+  if (rounds === 2) return { final: ["sf1", "sf2"] };
+  if (rounds === 3)
+    return { sf1: ["qf1", "qf2"], sf2: ["qf4", "qf3"], final: ["sf1", "sf2"] };
+  return {};
+}
+
+export function playoffLabel(r: PlayoffRound): string {
+  return r === "final" ? "Final" : r.toUpperCase();
+}
+
+/** ISO timestamps for `playoffCount` playoff games, laid into the weekly grid
+ *  right after the regular season (bracket order). */
+export function playoffSlots(
   startDate: string,
   weekday: WeekdayIdx,
   times: string[],
-  regularPairCount: number,
-): { sf1: string; sf2: string; final: string } {
-  if (times.length === 0) throw new Error("times must be non-empty");
-  // We want 3 logical playoff slots placed AFTER the regular season.
-  // Regular season uses `regularPairCount` slots. Playoff SFs ideally
-  // share a single ice night; the Final is the next ice night.
-  if (times.length >= 2) {
-    // Two SF slots on one night, Final on next ice night.
-    const slots = buildGameSlots(
-      startDate,
-      weekday,
-      times,
-      regularPairCount + times.length + 1,
-    );
-    return {
-      sf1: slots[regularPairCount],
-      sf2: slots[regularPairCount + 1],
-      final: slots[regularPairCount + times.length],
-    };
-  }
-  // Only one slot per night → SF1, SF2, Final on three consecutive ice nights.
-  const slots = buildGameSlots(
-    startDate,
-    weekday,
-    times,
-    regularPairCount + 3,
-  );
-  return {
-    sf1: slots[regularPairCount],
-    sf2: slots[regularPairCount + 1],
-    final: slots[regularPairCount + 2],
-  };
+  regularCount: number,
+  playoffCount: number,
+): string[] {
+  if (times.length === 0 || playoffCount <= 0) return [];
+  const slots = buildGameSlots(startDate, weekday, times, regularCount + playoffCount);
+  return slots.slice(regularCount);
 }
 
 /** "YYYY-MM-DD" in local time — a stable per-game-night key. */

@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
-import { weekdayLabel, type WeekdayIdx } from "@/lib/season-schedule";
+import { weekdayLabel, playoffLabel, playoffRoundsFor, type WeekdayIdx, type PlayoffRound } from "@/lib/season-schedule";
 import { TimeSlotsField } from "./TimeSlotsField";
 import { ResetSeasonButton } from "./ResetSeasonButton";
 import { SeasonIdentityFields } from "./SeasonIdentityFields";
+import { SeasonDurationFields } from "./SeasonDurationFields";
 import {
   activateSeason,
   assignTeamCaptain,
@@ -34,12 +35,12 @@ const primaryBtn =
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Check all required fields.",
-  need_end: "Set an end date or a number of weeks.",
+  need_end: "Set the number of regular season weeks.",
   not_enough_teams: "Need at least 2 teams in this season to generate a schedule.",
   cannot_delete_current: "Cannot delete the current season. Activate another first.",
   has_games: "Delete or move games before deleting the season.",
   regular_incomplete: "Finish all regular-season games before generating playoffs.",
-  playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
+  not_enough_seeds: "Not enough teams in the standings for that bracket.",
   invalid_color: "Color must be a hex like #ef4444.",
   already_rostered: "That player is already on a team this season.",
   no_source_teams: "That season has no teams to copy.",
@@ -50,6 +51,16 @@ const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// Whole weeks between a season's start and end (end = start + weeks×7), for
+// pre-filling the weeks field and the overview. Empty string when indeterminate.
+function weeksBetween(startDate: string, endDate: string | null): string {
+  if (!startDate || !endDate) return "";
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const weeks = Math.round((end.getTime() - start.getTime()) / (7 * 86400000));
+  return weeks > 0 ? String(weeks) : "";
+}
+
 type SeasonRow = {
   id: string;
   season_type: "spring" | "summer" | "fall" | "winter";
@@ -57,6 +68,7 @@ type SeasonRow = {
   name: string;
   start_date: string;
   end_date: string | null;
+  regular_weeks: number | null;
   is_current: boolean;
   period_length_minutes: number;
   point_system: string;
@@ -77,7 +89,7 @@ export default async function AdminSeasonsPage({
   const { data: seasonsRaw } = await supabase
     .from("seasons")
     .select(
-      "id, season_type, year, name, start_date, end_date, is_current, period_length_minutes, point_system, tiebreakers",
+      "id, season_type, year, name, start_date, end_date, regular_weeks, is_current, period_length_minutes, point_system, tiebreakers",
     )
     .order("start_date", { ascending: false });
 
@@ -123,7 +135,7 @@ export default async function AdminSeasonsPage({
   }
 
   type BracketSlot = {
-    playoff_round: "sf1" | "sf2" | "final" | null;
+    playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
     status: "scheduled" | "live" | "final";
     home_score: number;
     away_score: number;
@@ -252,33 +264,10 @@ export default async function AdminSeasonsPage({
 
           <FieldGroup
             label="Duration"
-            hint="Set an end date, or a number of weeks (weeks sets the end from the start). One is required."
+            hint="Set the regular season length in weeks — the end date is calculated from the start."
           >
-            <div className="flex flex-wrap gap-3">
-              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                <span className="eyebrow">Start date</span>
-                <input
-                  type="date"
-                  name="start_date"
-                  required
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
-              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                <span className="eyebrow">End date</span>
-                <input type="date" name="end_date" className={`mt-1 ${inputCls}`} />
-              </label>
-              <label className="block w-full sm:w-auto sm:min-w-[100px]">
-                <span className="eyebrow">Weeks</span>
-                <input
-                  type="number"
-                  name="weeks"
-                  min={1}
-                  max={52}
-                  placeholder="10"
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
+            <div className="flex flex-wrap items-end gap-3">
+              <SeasonDurationFields />
               <label className="block w-full sm:w-auto sm:min-w-[130px]">
                 <span className="eyebrow">Period (min)</span>
                 <input
@@ -325,10 +314,6 @@ export default async function AdminSeasonsPage({
               const gameTotal = gameAgg?.n ?? 0;
               const canDelete = !season.is_current && gameTotal === 0;
               const bracket = bracketBySeason.get(season.id) ?? [];
-              const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
-              const sf2 = bracket.find((b) => b.playoff_round === "sf2") ?? null;
-              const finalSlot =
-                bracket.find((b) => b.playoff_round === "final") ?? null;
               const hasPlayoffStubs = bracket.length > 0;
 
               return (
@@ -363,6 +348,13 @@ export default async function AdminSeasonsPage({
                       <StatTile label="Start" value={season.start_date} />
                       <StatTile label="End" value={season.end_date ?? "—"} />
                       <StatTile
+                        label="Weeks"
+                        value={
+                          season.regular_weeks ??
+                          (weeksBetween(season.start_date, season.end_date) || "—")
+                        }
+                      />
+                      <StatTile
                         label="Period"
                         value={`${season.period_length_minutes} min`}
                       />
@@ -387,47 +379,25 @@ export default async function AdminSeasonsPage({
                     )}
 
                     {/* Dates — collapsed */}
-                    <Disclosure label="Dates" hint="start & end, or weeks">
+                    <Disclosure label="Dates" hint="start & weeks">
                       <p className="text-ink-faint text-[11px] mt-2 mb-2">
-                        End date or weeks (one required). Editing dates
-                        doesn&apos;t move existing games — regenerate to
-                        reschedule.
+                        Set the regular season weeks — the end date is calculated
+                        from the start. Editing dates doesn&apos;t move existing
+                        games — regenerate to reschedule.
                       </p>
                       <form
                         action={updateSeasonDates}
                         className="flex flex-wrap items-end gap-3"
                       >
                         <input type="hidden" name="id" value={season.id} />
-                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                          <span className="eyebrow">Start date</span>
-                          <input
-                            type="date"
-                            name="start_date"
-                            required
-                            defaultValue={season.start_date}
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                          <span className="eyebrow">End date</span>
-                          <input
-                            type="date"
-                            name="end_date"
-                            defaultValue={season.end_date ?? ""}
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                        <label className="block w-full sm:w-auto sm:min-w-[110px]">
-                          <span className="eyebrow">Weeks</span>
-                          <input
-                            type="number"
-                            name="weeks"
-                            min={1}
-                            max={52}
-                            placeholder="total"
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
+                        <SeasonDurationFields
+                          defaultStartDate={season.start_date}
+                          defaultWeeks={
+                            season.regular_weeks != null
+                              ? String(season.regular_weeks)
+                              : weeksBetween(season.start_date, season.end_date)
+                          }
+                        />
                         <button type="submit" className={primaryBtn}>
                           SAVE DATES
                         </button>
@@ -663,9 +633,23 @@ export default async function AdminSeasonsPage({
                     <Disclosure label="Playoffs" accent="ice">
                       {hasPlayoffStubs && (
                         <div className="space-y-1.5 mb-3">
-                          <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
-                          <BracketRow label="SF2 (#2 v #3)" slot={sf2} />
-                          <BracketRow label="Final" slot={finalSlot} />
+                          {bracket
+                            .filter(
+                              (g): g is BracketSlot & { playoff_round: PlayoffRound } =>
+                                g.playoff_round !== null,
+                            )
+                            .sort(
+                              (a, b) =>
+                                playoffRoundsFor(3).indexOf(a.playoff_round) -
+                                playoffRoundsFor(3).indexOf(b.playoff_round),
+                            )
+                            .map((g) => (
+                              <BracketRow
+                                key={g.playoff_round}
+                                label={playoffLabel(g.playoff_round)}
+                                slot={g}
+                              />
+                            ))}
                         </div>
                       )}
                       <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
@@ -674,9 +658,9 @@ export default async function AdminSeasonsPage({
                           UPDATE PLAYOFF MATCHUPS
                         </button>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
-                          Fills the bracket (#1 v #4, #2 v #3) from the current standings,
-                          and advances the Final once both semifinals are decided. Create the
-                          playoff dates via &ldquo;reserve playoffs&rdquo; when generating the schedule.
+                          Seeds each round from the current standings (top team is
+                          home) and advances winners as earlier rounds finish. Create the
+                          playoff dates with the &ldquo;Playoff rounds&rdquo; option when generating the schedule.
                         </p>
                       </form>
                     </Disclosure>
@@ -717,12 +701,12 @@ export default async function AdminSeasonsPage({
                               ))}
                             </select>
                           </label>
-                          <label className="block w-full sm:w-auto sm:min-w-[100px]">
-                            <span className="eyebrow">Weeks</span>
+                          <label className="block w-full sm:w-auto sm:min-w-[140px]">
+                            <span className="eyebrow">Regular season weeks</span>
                             <input
                               type="number"
                               name="weeks"
-                              defaultValue={10}
+                              defaultValue={season.regular_weeks ?? 10}
                               min={1}
                               max={52}
                               className={`mt-1 ${inputCls}`}
@@ -744,25 +728,24 @@ export default async function AdminSeasonsPage({
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
-                        <label className="inline-flex items-center gap-2 min-h-11">
-                          <input
-                            type="checkbox"
-                            name="with_playoffs"
-                            defaultChecked
-                            className="size-4 accent-ice"
-                          />
-                          <span className="font-mono text-[13px] text-ink">
-                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
-                          </span>
+                        <label className="block w-full sm:w-auto sm:min-w-[200px]">
+                          <span className="eyebrow">Playoff rounds</span>
+                          <select name="playoff_rounds" defaultValue="2" className={`mt-1 ${inputCls}`}>
+                            <option value="0">None</option>
+                            <option value="1">Final only (top 2)</option>
+                            <option value="2">Semis + Final (top 4)</option>
+                            <option value="3">Quarters + Semis + Final (top 8)</option>
+                          </select>
                         </label>
 
                         <p className="text-ink-faint text-[12px]">
-                          <strong>Weeks</strong> = how many game nights to schedule.
-                          Each week fills the time slots (one night) and teams cycle
-                          through a balanced round-robin, repeating as needed. With
-                          playoffs reserved, SF1, SF2 &amp; Final are added as TBD-vs-TBD
-                          stubs after the final week (they show on the schedule right
-                          away; seed them from the Playoffs section).
+                          <strong>Regular season weeks</strong> = how many game
+                          nights to schedule (not counting playoffs). Each week
+                          fills the time slots (one night) and teams cycle through a
+                          balanced round-robin, repeating as needed. Playoffs add the
+                          chosen rounds as TBD-vs-TBD stubs after the final week (they
+                          show on the schedule right away; seed them from the Playoffs
+                          section).
                         </p>
 
                         {teamCount % 2 === 1 && teamCount >= 3 && (
@@ -771,9 +754,8 @@ export default async function AdminSeasonsPage({
                             sits out each week. For even byes, use a multiple of{" "}
                             {teamCount} regular weeks — e.g. {teamCount},{" "}
                             {teamCount * 2}, or {teamCount * 3} (1, 2, or 3 byes
-                            each). With playoffs reserved (2 weeks), that&apos;s{" "}
-                            {teamCount + 2}, {teamCount * 2 + 2}, or{" "}
-                            {teamCount * 3 + 2} weeks total.
+                            each). Any playoff rounds you choose add their weeks on
+                            top of that.
                           </p>
                         )}
 

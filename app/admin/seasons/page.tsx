@@ -744,25 +744,23 @@ export default async function AdminSeasonsPage({
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
-                        <label className="inline-flex items-center gap-2 min-h-11">
-                          <input
-                            type="checkbox"
-                            name="with_playoffs"
-                            defaultChecked
-                            className="size-4 accent-ice"
-                          />
-                          <span className="font-mono text-[13px] text-ink">
-                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
-                          </span>
+                        <label className="block w-full sm:w-auto sm:min-w-[200px]">
+                          <span className="eyebrow">Playoff rounds</span>
+                          <select name="playoff_rounds" defaultValue="2" className={`mt-1 ${inputCls}`}>
+                            <option value="0">None</option>
+                            <option value="1">Final only (top 2)</option>
+                            <option value="2">Semis + Final (top 4)</option>
+                            <option value="3">Quarters + Semis + Final (top 8)</option>
+                          </select>
                         </label>
 
                         <p className="text-ink-faint text-[12px]">
                           <strong>Weeks</strong> = how many game nights to schedule.
                           Each week fills the time slots (one night) and teams cycle
-                          through a balanced round-robin, repeating as needed. With
-                          playoffs reserved, SF1, SF2 &amp; Final are added as TBD-vs-TBD
-                          stubs after the final week (they show on the schedule right
-                          away; seed them from the Playoffs section).
+                          through a balanced round-robin, repeating as needed. Playoffs
+                          add the chosen rounds as TBD-vs-TBD stubs after the final
+                          week (they show on the schedule right away; seed them from
+                          the Playoffs section).
                         </p>
 
                         {teamCount % 2 === 1 && teamCount >= 3 && (

@@ -8,6 +8,8 @@ import { getStandings } from "@/lib/queries";
 import {
   buildGameSlots,
   buildPlayoffSlots,
+  playoffRoundsFor,
+  playoffSlots,
   roundRobinGames,
   type WeekdayIdx,
 } from "@/lib/season-schedule";
@@ -271,7 +273,7 @@ export async function generateSchedule(formData: FormData) {
     .getAll("times")
     .map((v) => String(v).trim())
     .filter((v) => v !== "");
-  const withPlayoffs = String(formData.get("with_playoffs") ?? "") === "on";
+  const playoffRounds = Math.max(0, Math.min(3, parseInt0(String(formData.get("playoff_rounds") ?? "2"), 2)));
   if (!seasonId || weekday === null || weeks < 1 || times.length === 0) {
     back("error=invalid_input");
   }
@@ -329,23 +331,20 @@ export async function generateSchedule(formData: FormData) {
   // Optionally reserve playoff nights after the regular season as TBD-vs-TBD
   // stubs, so the bracket dates show on the schedule immediately. The
   // "Update Playoff Matchups" action seeds the teams from standings later.
-  if (withPlayoffs) {
-    const ps = buildPlayoffSlots(season.start_date, weekday, times, pairs.length);
-    for (const [round, at] of [
-      ["sf1", ps.sf1],
-      ["sf2", ps.sf2],
-      ["final", ps.final],
-    ] as const) {
+  const bracket = playoffRoundsFor(playoffRounds);
+  if (bracket.length > 0) {
+    const ptimes = playoffSlots(season.start_date, weekday, times, pairs.length, bracket.length);
+    bracket.forEach((round, i) =>
       rows.push({
         season_id: seasonId,
         home_team_id: null,
         away_team_id: null,
-        scheduled_at: at,
+        scheduled_at: ptimes[i],
         location,
         kind: "playoff",
         playoff_round: round,
-      });
-    }
+      }),
+    );
   }
 
   if (rows.length > 0) {

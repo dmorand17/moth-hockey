@@ -157,12 +157,18 @@ export default async function AdminSeasonsPage({
       )}
 
       {/* Create */}
-      <section className="space-y-3">
-        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-          NEW SEASON
-        </h2>
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              NEW SEASON
+            </h2>
+          </summary>
 
-        <form action={createSeason} className="panel p-4 sm:p-5 space-y-5">
+          <form action={createSeason} className="panel p-4 sm:p-5 space-y-5 mt-3">
           <FieldGroup
             label="Identity"
             hint="Name auto-fills from type + year until you edit it."
@@ -265,7 +271,8 @@ export default async function AdminSeasonsPage({
           <button type="submit" className={primaryBtn}>
             CREATE SEASON
           </button>
-        </form>
+          </form>
+        </details>
       </section>
 
       {/* Season list */}
@@ -399,12 +406,15 @@ export default async function AdminSeasonsPage({
                       </form>
                     </FieldGroup>
 
-                    {/* Tie-breakers */}
-                    <FieldGroup label="Tie-breakers">
-                      <p className="text-ink-faint text-[12px]">Point system: <span className="font-mono text-ink-dim">{season.point_system}</span> — set at creation.</p>
+                    {/* Standings rules */}
+                    <FieldGroup
+                      label="Standings rules"
+                      hint="Changing these recomputes this season's standings and playoff seeding."
+                    >
                       <StandingsRulesEditor
                         action={updateStandingsRules}
                         seasonId={season.id}
+                        pointSystem={season.point_system}
                         tiebreakers={season.tiebreakers}
                       />
                     </FieldGroup>
@@ -421,11 +431,12 @@ export default async function AdminSeasonsPage({
                       <form action={generatePlayoffs} className="flex flex-wrap items-center gap-3">
                         <input type="hidden" name="season_id" value={season.id} />
                         <button type="submit" className={primaryBtn}>
-                          {hasPlayoffStubs ? "ADVANCE / RE-SEED PLAYOFFS" : "GENERATE PLAYOFFS"}
+                          UPDATE PLAYOFF MATCHUPS
                         </button>
                         <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
-                          Seeds #1 v #4 and #2 v #3 from the standings once every regular-season game
-                          is final. Re-run after the semifinals to advance the Final.
+                          Fills the bracket (#1 v #4, #2 v #3) from the current standings,
+                          and advances the Final once both semifinals are decided. Create the
+                          playoff dates via &ldquo;reserve playoffs&rdquo; when generating the schedule.
                         </p>
                       </form>
                     </FieldGroup>
@@ -493,13 +504,36 @@ export default async function AdminSeasonsPage({
                           defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
                         />
 
+                        <label className="inline-flex items-center gap-2 min-h-11">
+                          <input
+                            type="checkbox"
+                            name="with_playoffs"
+                            defaultChecked
+                            className="size-4 accent-ice"
+                          />
+                          <span className="font-mono text-[13px] text-ink">
+                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
+                          </span>
+                        </label>
+
                         <p className="text-ink-faint text-[12px]">
                           <strong>Weeks</strong> = how many game nights to schedule.
                           Each week fills the time slots (one night) and teams cycle
-                          through a balanced round-robin, repeating as needed.
-                          Use the Playoffs section to generate the bracket after all
-                          regular-season games are final.
+                          through a balanced round-robin, repeating as needed. With
+                          playoffs reserved, SF1, SF2 &amp; Final are added as TBD-vs-TBD
+                          stubs after the final week (they show on the schedule right
+                          away; seed them from the Playoffs section).
                         </p>
+
+                        {teamCount % 2 === 1 && teamCount >= 3 && (
+                          <p className="text-[12px] text-[#fbbf24]/90">
+                            <strong>Byes:</strong> with {teamCount} teams, one team
+                            sits out each week. For every team to get the same number
+                            of byes, use a multiple of {teamCount} weeks — e.g.{" "}
+                            {teamCount}, {teamCount * 2}, or {teamCount * 3} (1, 2, or 3
+                            byes each).
+                          </p>
+                        )}
 
                         <button
                           type="submit"

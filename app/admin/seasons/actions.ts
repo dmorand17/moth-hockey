@@ -255,6 +255,7 @@ export async function generateSchedule(formData: FormData) {
     .getAll("times")
     .map((v) => String(v).trim())
     .filter((v) => v !== "");
+  const withPlayoffs = String(formData.get("with_playoffs") ?? "") === "on";
   if (!seasonId || weekday === null || weeks < 1 || times.length === 0) {
     back("error=invalid_input");
   }
@@ -309,6 +310,28 @@ export async function generateSchedule(formData: FormData) {
     kind: "regular",
   }));
 
+  // Optionally reserve playoff nights after the regular season as TBD-vs-TBD
+  // stubs, so the bracket dates show on the schedule immediately. The
+  // "Update Playoff Matchups" action seeds the teams from standings later.
+  if (withPlayoffs) {
+    const ps = buildPlayoffSlots(season.start_date, weekday, times, pairs.length);
+    for (const [round, at] of [
+      ["sf1", ps.sf1],
+      ["sf2", ps.sf2],
+      ["final", ps.final],
+    ] as const) {
+      rows.push({
+        season_id: seasonId,
+        home_team_id: null,
+        away_team_id: null,
+        scheduled_at: at,
+        location,
+        kind: "playoff",
+        playoff_round: round,
+      });
+    }
+  }
+
   if (rows.length > 0) {
     const { error: insErr } = await supabase.from("games").insert(rows);
     if (insErr) back(`error=${encodeURIComponent(insErr.message)}`);
@@ -324,17 +347,20 @@ export async function updateStandingsRules(formData: FormData) {
   await requireRole(["admin"]);
 
   const id = String(formData.get("id") ?? "").trim();
+  const pointSystem = String(formData.get("point_system") ?? "").trim();
   const tiebreakers = formData
     .getAll("tiebreakers")
     .map(String)
     .filter((k) => ["wins", "diff", "gf", "ga", "h2h"].includes(k));
 
-  if (!id) back("error=invalid_input");
+  if (!id || (pointSystem !== "2-1-0" && pointSystem !== "3-2-1")) {
+    back("error=invalid_input");
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("seasons")
-    .update({ tiebreakers })
+    .update({ point_system: pointSystem, tiebreakers })
     .eq("id", id);
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 

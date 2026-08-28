@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
@@ -86,6 +87,27 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
 
   return (
     <div className="space-y-6">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-rule pb-3">
+        <h1 className="font-display text-2xl tracking-[0.04em] text-ink">TEAMS</h1>
+        <p className="text-[12px] text-ink-dim">
+          Season:{" "}
+          <Link
+            href="/admin/seasons"
+            className="text-ice hover:underline font-medium"
+          >
+            {season.name}
+          </Link>
+          {season.is_current && (
+            <span className="chip chip-live text-[9px] px-1.5 py-0.5 ml-2 align-middle">
+              ACTIVE
+            </span>
+          )}
+          <span className="block text-ink-faint">
+            Teams belong to this season — change the active season on Seasons.
+          </span>
+        </p>
+      </header>
+
       {params.saved && (
         <p role="status" className="text-ice text-sm">
           {FLASH_MESSAGES[params.saved] ?? "Saved."}
@@ -97,13 +119,19 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
         </p>
       )}
 
-      <section className="space-y-3">
-        <header className="flex items-baseline justify-between">
-          <h2 className="font-display text-xl tracking-[0.04em] text-ink">NEW TEAM</h2>
-          <span className="eyebrow">{season.name}</span>
-        </header>
-        <form action={createTeam} className="panel p-4 space-y-3">
-          <input type="hidden" name="season_id" value={season.id} />
+      <section>
+        <details className="group">
+          <summary className="flex items-center gap-2 cursor-pointer list-none select-none min-h-9">
+            <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+              ▶
+            </span>
+            <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+              NEW TEAM
+            </h2>
+            <span className="eyebrow ml-auto">{season.name}</span>
+          </summary>
+          <form action={createTeam} className="panel p-4 space-y-3 mt-3">
+            <input type="hidden" name="season_id" value={season.id} />
           <div className="flex items-end gap-3">
             <label className="block flex-1">
               <span className="eyebrow">Name</span>
@@ -129,7 +157,8 @@ export default async function AdminTeamsPage({ searchParams }: { searchParams: S
           <p className="text-ink-faint text-[12px]">
             Assign a captain from the team&apos;s roster after adding players.
           </p>
-        </form>
+          </form>
+        </details>
       </section>
 
       <section className="space-y-1">

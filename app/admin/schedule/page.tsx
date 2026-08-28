@@ -88,6 +88,16 @@ function formatGameDate(iso: string): string {
   });
 }
 
+/** "Sunday, March 1" from a "YYYY-MM-DD" local date key */
+function formatWeekLabel(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export default async function AdminSchedulePage({
   searchParams,
 }: {
@@ -133,8 +143,19 @@ export default async function AdminSchedulePage({
         awayTeamId: g.away_team?.id ?? null,
       })),
   );
-  const byeEntries = Object.entries(byesByDate).sort(([a], [b]) => a.localeCompare(b));
   const skipList = skips ?? [];
+
+  // Group games into weekly game-nights (local date), oldest first.
+  const gamesByDate = new Map<string, GameRow[]>();
+  for (const g of games) {
+    const k = localDateKey(g.scheduled_at);
+    const arr = gamesByDate.get(k);
+    if (arr) arr.push(g);
+    else gamesByDate.set(k, [g]);
+  }
+  const weekGroups = Array.from(gamesByDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, weekGames]) => ({ date, weekGames }));
 
   return (
     <div className="space-y-8">
@@ -278,20 +299,7 @@ export default async function AdminSchedulePage({
         )}
       </section>
 
-      {byeEntries.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="font-display text-xl tracking-[0.04em] text-ink">BYES</h2>
-          <ul className="border border-rule rounded divide-y divide-rule/50">
-            {byeEntries.map(([date, teamNames]) => (
-              <li key={date} className="px-3 py-2 text-[13px] text-ink">
-                <span className="font-mono text-ink-dim">{date}</span> — {teamNames.join(", ")}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Game list */}
+      {/* Game list — grouped by week, bye team shown per week */}
       <section className="space-y-1">
         <header className="flex items-baseline justify-between mb-2">
           <h2 className="font-display text-xl tracking-[0.04em] text-ink">
@@ -305,7 +313,19 @@ export default async function AdminSchedulePage({
             No games scheduled yet.
           </p>
         ) : (
-          games.map((game) => (
+          <div className="space-y-5">
+            {weekGroups.map(({ date, weekGames }) => (
+              <div key={date} className="space-y-1">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="eyebrow text-goal">{formatWeekLabel(date)}</span>
+                  <span className="flex-1 h-px bg-rule" />
+                  {(byesByDate[date]?.length ?? 0) > 0 && (
+                    <span className="eyebrow text-ink-faint">
+                      Bye: {byesByDate[date].join(", ")}
+                    </span>
+                  )}
+                </div>
+                {weekGames.map((game) => (
             <details key={game.id} className="group border border-rule rounded">
               {/* Summary row */}
               <summary className="flex flex-wrap items-center gap-3 px-3 py-2.5 cursor-pointer list-none select-none hover:bg-board-3 transition-colors rounded">
@@ -493,7 +513,10 @@ export default async function AdminSchedulePage({
                 </form>
               </div>
             </details>
-          ))
+                ))}
+              </div>
+            ))}
+          </div>
         )}
       </section>
     </div>

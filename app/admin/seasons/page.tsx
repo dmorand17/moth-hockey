@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
@@ -18,6 +19,8 @@ type SearchParams = Promise<{ saved?: string; error?: string; n?: string }>;
 
 const inputCls =
   "bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice w-full";
+const primaryBtn =
+  "min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Check all required fields.",
@@ -29,6 +32,8 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 type SeasonRow = {
   id: string;
@@ -116,22 +121,21 @@ export default async function AdminSeasonsPage({
       : params.saved === "seeded"
         ? `Bracket seeded — ${params.n ?? "0"} round(s) updated.`
         : params.saved === "reset"
-        ? "Season reset — all games and results cleared."
-        : params.saved === "dates"
-          ? "Dates updated."
-          : params.saved === "created"
-            ? "Season created."
-            : params.saved === "activated"
-              ? "Season activated."
-              : params.saved === "deleted"
-                ? "Season deleted."
-                : null;
+          ? "Season reset — all games and results cleared."
+          : params.saved === "dates"
+            ? "Dates updated."
+            : params.saved === "created"
+              ? "Season created."
+              : params.saved === "activated"
+                ? "Season activated."
+                : params.saved === "deleted"
+                  ? "Season deleted."
+                  : null;
   const error = params.error
     ? (ERROR_MESSAGES[params.error] ?? params.error)
     : null;
 
-  const today = new Date();
-  const currentYear = today.getFullYear();
+  const currentYear = new Date().getFullYear();
 
   return (
     <div className="space-y-8">
@@ -148,126 +152,116 @@ export default async function AdminSeasonsPage({
 
       {/* Create */}
       <section className="space-y-3">
-        <header className="flex items-baseline justify-between">
-          <h2 className="font-display text-xl tracking-[0.04em] text-ink">
-            NEW SEASON
-          </h2>
-        </header>
+        <h2 className="font-display text-xl tracking-[0.04em] text-ink">
+          NEW SEASON
+        </h2>
 
-        <form action={createSeason} className="panel p-4 space-y-3">
-          <div className="flex flex-wrap gap-3">
-            <label className="block w-full sm:w-auto sm:min-w-[140px]">
-              <span className="eyebrow">Type</span>
-              <select name="season_type" required className={`mt-1 ${inputCls}`}>
-                <option value="spring">Spring</option>
-                <option value="fall">Fall</option>
-                <option value="winter">Winter</option>
+        <form action={createSeason} className="panel p-4 sm:p-5 space-y-5">
+          <FieldGroup label="Identity">
+            <div className="flex flex-wrap gap-3">
+              <label className="block w-full sm:w-auto sm:min-w-[140px]">
+                <span className="eyebrow">Type</span>
+                <select name="season_type" required className={`mt-1 ${inputCls}`}>
+                  <option value="spring">Spring</option>
+                  <option value="fall">Fall</option>
+                  <option value="winter">Winter</option>
+                </select>
+              </label>
+              <label className="block w-full sm:w-auto sm:min-w-[110px]">
+                <span className="eyebrow">Year</span>
+                <input
+                  type="number"
+                  name="year"
+                  required
+                  defaultValue={currentYear}
+                  min={2000}
+                  max={2100}
+                  className={`mt-1 ${inputCls}`}
+                />
+              </label>
+              <label className="block flex-1 min-w-[180px]">
+                <span className="eyebrow">Name</span>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  placeholder={`Spring ${currentYear}`}
+                  className={`mt-1 ${inputCls}`}
+                />
+              </label>
+            </div>
+          </FieldGroup>
+
+          <FieldGroup
+            label="Duration"
+            hint="Set an end date, or a number of weeks (weeks sets the end from the start). One is required."
+          >
+            <div className="flex flex-wrap gap-3">
+              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
+                <span className="eyebrow">Start date</span>
+                <input
+                  type="date"
+                  name="start_date"
+                  required
+                  className={`mt-1 ${inputCls}`}
+                />
+              </label>
+              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
+                <span className="eyebrow">End date</span>
+                <input type="date" name="end_date" className={`mt-1 ${inputCls}`} />
+              </label>
+              <label className="block w-full sm:w-auto sm:min-w-[100px]">
+                <span className="eyebrow">Weeks</span>
+                <input
+                  type="number"
+                  name="weeks"
+                  min={1}
+                  max={52}
+                  placeholder="10"
+                  className={`mt-1 ${inputCls}`}
+                />
+              </label>
+              <label className="block w-full sm:w-auto sm:min-w-[130px]">
+                <span className="eyebrow">Period (min)</span>
+                <input
+                  type="number"
+                  name="period_length_minutes"
+                  defaultValue={17}
+                  min={1}
+                  max={60}
+                  className={`mt-1 ${inputCls}`}
+                />
+              </label>
+            </div>
+          </FieldGroup>
+
+          <FieldGroup
+            label="Teams"
+            hint="Carryover copies team rows (name, color, slug) only — rosters and captains are reassigned each season. New seasons start inactive; activate from the list below."
+          >
+            <label className="block">
+              <span className="eyebrow">Copy teams from (optional)</span>
+              <select name="copy_from_season_id" className={`mt-1 ${inputCls}`}>
+                <option value="">— No carryover —</option>
+                {seasons.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                    {s.is_current ? " (current)" : ""}
+                  </option>
+                ))}
               </select>
             </label>
-            <label className="block w-full sm:w-auto sm:min-w-[110px]">
-              <span className="eyebrow">Year</span>
-              <input
-                type="number"
-                name="year"
-                required
-                defaultValue={currentYear}
-                min={2000}
-                max={2100}
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-            <label className="block flex-1 min-w-[180px]">
-              <span className="eyebrow">Name</span>
-              <input
-                type="text"
-                name="name"
-                required
-                placeholder={`Spring ${currentYear}`}
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-          </div>
+          </FieldGroup>
 
-          <div className="flex flex-wrap gap-3">
-            <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-              <span className="eyebrow">Start date</span>
-              <input
-                type="date"
-                name="start_date"
-                required
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-            <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-              <span className="eyebrow">End date</span>
-              <input
-                type="date"
-                name="end_date"
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-            <label className="block w-full sm:w-auto sm:min-w-[110px]">
-              <span className="eyebrow">Weeks</span>
-              <input
-                type="number"
-                name="weeks"
-                min={1}
-                max={52}
-                placeholder="10"
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-            <label className="block w-full sm:w-auto sm:min-w-[140px]">
-              <span className="eyebrow">Period (min)</span>
-              <input
-                type="number"
-                name="period_length_minutes"
-                defaultValue={17}
-                min={1}
-                max={60}
-                className={`mt-1 ${inputCls}`}
-              />
-            </label>
-          </div>
-
-          <p className="text-ink-faint text-[12px]">
-            Set an <strong>end date</strong> or a number of{" "}
-            <strong>weeks</strong> (weeks sets the end date from the start). One
-            is required.
-          </p>
-
-          <label className="block">
-            <span className="eyebrow">Copy teams from (optional)</span>
-            <select name="copy_from_season_id" className={`mt-1 ${inputCls}`}>
-              <option value="">— No carryover —</option>
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.is_current ? " (current)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <p className="text-ink-faint text-[12px] leading-relaxed">
-            Carryover copies team rows (name, color, slug) only — rosters and
-            captains are reassigned each season. The new season is created{" "}
-            <strong>inactive</strong>; activate it from the list below when
-            ready.
-          </p>
-
-          <button
-            type="submit"
-            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-          >
-            CREATE
+          <button type="submit" className={primaryBtn}>
+            CREATE SEASON
           </button>
         </form>
       </section>
 
       {/* Season list */}
-      <section className="space-y-1">
-        <header className="flex items-baseline justify-between mb-2">
+      <section className="space-y-2">
+        <header className="flex items-baseline justify-between">
           <h2 className="font-display text-xl tracking-[0.04em] text-ink">
             SEASONS
           </h2>
@@ -277,324 +271,375 @@ export default async function AdminSeasonsPage({
         {seasons.length === 0 ? (
           <p className="text-ink-dim text-sm panel-bare p-4">No seasons yet.</p>
         ) : (
-          seasons.map((season) => {
-            const teamCount = teamCounts.get(season.id) ?? 0;
-            const gameAgg = gameCounts.get(season.id);
-            const gameTotal = gameAgg?.n ?? 0;
-            const finalCount = gameAgg?.final ?? 0;
-            const regularFinalCount = gameAgg?.regular_final ?? 0;
-            const canDelete = !season.is_current && gameTotal === 0;
-            const bracket = bracketBySeason.get(season.id) ?? [];
-            const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
-            const sf2 = bracket.find((b) => b.playoff_round === "sf2") ?? null;
-            const finalSlot =
-              bracket.find((b) => b.playoff_round === "final") ?? null;
-            const hasPlayoffStubs = bracket.length > 0;
-            const canSeed = hasPlayoffStubs && regularFinalCount > 0;
+          <div className="space-y-2">
+            {seasons.map((season) => {
+              const teamCount = teamCounts.get(season.id) ?? 0;
+              const gameAgg = gameCounts.get(season.id);
+              const gameTotal = gameAgg?.n ?? 0;
+              const finalCount = gameAgg?.final ?? 0;
+              const regularFinalCount = gameAgg?.regular_final ?? 0;
+              const canDelete = !season.is_current && gameTotal === 0;
+              const bracket = bracketBySeason.get(season.id) ?? [];
+              const sf1 = bracket.find((b) => b.playoff_round === "sf1") ?? null;
+              const sf2 = bracket.find((b) => b.playoff_round === "sf2") ?? null;
+              const finalSlot =
+                bracket.find((b) => b.playoff_round === "final") ?? null;
+              const hasPlayoffStubs = bracket.length > 0;
+              const canSeed = hasPlayoffStubs && regularFinalCount > 0;
 
-            return (
-              <details
-                key={season.id}
-                className="group border border-rule rounded"
-              >
-                <summary className="flex flex-wrap items-center gap-3 px-3 py-2.5 cursor-pointer list-none select-none hover:bg-board-3 transition-colors rounded">
-                  <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
-                    ▶
-                  </span>
-                  <span className="font-display text-[14px] tracking-[0.04em] text-ink flex-1 min-w-[160px]">
-                    {season.name.toUpperCase()}
-                  </span>
-                  {season.is_current && (
-                    <span className="chip chip-live text-[10px] px-1.5 py-0.5 shrink-0">
-                      CURRENT
+              return (
+                <details
+                  key={season.id}
+                  className={`group rounded-lg border ${season.is_current ? "border-ice/40" : "border-rule"} bg-board-2/40 overflow-hidden`}
+                >
+                  <summary className="flex flex-wrap items-center gap-3 px-4 py-3 cursor-pointer list-none select-none hover:bg-board-3 transition-colors">
+                    <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
+                      ▶
                     </span>
-                  )}
-                  <span className="font-mono text-[11px] text-ink-faint shrink-0">
-                    {teamCount} TEAMS · {gameTotal} GAMES
-                  </span>
-                </summary>
-
-                <div className="border-t border-rule p-4 space-y-4">
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
-                    <dt className="eyebrow">Type</dt>
-                    <dd className="font-mono text-ink-dim">
-                      {season.season_type} · {season.year}
-                    </dd>
-                    <dt className="eyebrow">Start</dt>
-                    <dd className="font-mono text-ink-dim">
-                      {season.start_date}
-                    </dd>
-                    <dt className="eyebrow">End</dt>
-                    <dd className="font-mono text-ink-dim">
-                      {season.end_date ?? "—"}
-                    </dd>
-                    <dt className="eyebrow">Period</dt>
-                    <dd className="font-mono text-ink-dim">
-                      {season.period_length_minutes} min
-                    </dd>
-                    <dt className="eyebrow">Final games</dt>
-                    <dd className="font-mono text-ink-dim">
-                      {finalCount} of {gameTotal}
-                    </dd>
-                  </dl>
-
-                  {/* Edit dates */}
-                  <form
-                    action={updateSeasonDates}
-                    className="border-t border-rule/50 pt-3 space-y-3"
-                  >
-                    <input type="hidden" name="id" value={season.id} />
-                    <div className="flex flex-wrap gap-3">
-                      <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                        <span className="eyebrow">Start date</span>
-                        <input
-                          type="date"
-                          name="start_date"
-                          required
-                          defaultValue={season.start_date}
-                          className={`mt-1 ${inputCls}`}
-                        />
-                      </label>
-                      <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                        <span className="eyebrow">End date</span>
-                        <input
-                          type="date"
-                          name="end_date"
-                          defaultValue={season.end_date ?? ""}
-                          className={`mt-1 ${inputCls}`}
-                        />
-                      </label>
-                      <label className="block w-full sm:w-auto sm:min-w-[110px]">
-                        <span className="eyebrow">Weeks</span>
-                        <input
-                          type="number"
-                          name="weeks"
-                          min={1}
-                          max={52}
-                          placeholder="from start"
-                          className={`mt-1 ${inputCls}`}
-                        />
-                      </label>
-                    </div>
-                    <p className="text-ink-faint text-[11px]">
-                      Set an end date, or enter weeks to set it from the start
-                      date. One is required.
-                    </p>
-                    <button
-                      type="submit"
-                      className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-                    >
-                      SAVE DATES
-                    </button>
-                    {gameTotal > 0 && (
-                      <p className="text-ink-faint text-[11px]">
-                        Editing dates here does not move the {gameTotal} existing
-                        games — regenerate the schedule to reschedule them.
-                      </p>
+                    <span className="font-display text-[15px] tracking-[0.04em] text-ink flex-1 min-w-[160px]">
+                      {season.name.toUpperCase()}
+                    </span>
+                    {season.is_current && (
+                      <span className="chip chip-live text-[10px] px-1.5 py-0.5 shrink-0">
+                        CURRENT
+                      </span>
                     )}
-                  </form>
+                    <span className="font-mono text-[11px] text-ink-faint shrink-0">
+                      {teamCount} teams · {gameTotal} games
+                    </span>
+                  </summary>
 
-                  {/* Activate */}
-                  {!season.is_current && (
-                    <form
-                      action={activateSeason}
-                      className="border-t border-rule/50 pt-3"
-                    >
-                      <input type="hidden" name="id" value={season.id} />
-                      <button
-                        type="submit"
-                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+                  <div className="border-t border-rule px-4 py-4 sm:px-5 sm:py-5 space-y-6">
+                    {/* Overview */}
+                    <div className="flex flex-wrap gap-2">
+                      <StatTile
+                        label="Type"
+                        value={`${cap(season.season_type)} · ${season.year}`}
+                      />
+                      <StatTile label="Start" value={season.start_date} />
+                      <StatTile label="End" value={season.end_date ?? "—"} />
+                      <StatTile
+                        label="Period"
+                        value={`${season.period_length_minutes} min`}
+                      />
+                      <StatTile label="Teams" value={teamCount} />
+                      <StatTile
+                        label="Games"
+                        value={`${finalCount}/${gameTotal} final`}
+                      />
+                    </div>
+
+                    {/* Activate — the primary action for an inactive season */}
+                    {!season.is_current && (
+                      <form
+                        action={activateSeason}
+                        className="flex flex-wrap items-center gap-x-4 gap-y-2 panel-bare rounded-lg p-3"
                       >
-                        ACTIVATE {season.name.toUpperCase()}
-                      </button>
-                      <p className="text-ink-faint text-[11px] mt-2">
-                        Switches the public site (standings, schedule, stats)
-                        to this season.
-                      </p>
-                    </form>
-                  )}
-
-                  {/* Playoff bracket */}
-                  {hasPlayoffStubs && (
-                    <div className="border-t border-rule/50 pt-3 space-y-3">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-display text-[13px] tracking-[0.14em] text-ice">
-                          PLAYOFFS
-                        </span>
-                        <span className="chip chip-playoff text-[10px] px-1.5 py-0.5">
-                          BRACKET
-                        </span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
-                        <BracketRow label="SF2 (#2 v #3)" slot={sf2} />
-                        <BracketRow label="Final" slot={finalSlot} />
-                      </div>
-                      <form action={seedPlayoffs} className="flex flex-wrap items-center gap-3">
-                        <input type="hidden" name="season_id" value={season.id} />
-                        <button
-                          type="submit"
-                          disabled={!canSeed}
-                          className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          title={
-                            !canSeed
-                              ? "Need final regular-season games to seed the bracket"
-                              : undefined
-                          }
-                        >
-                          SEED PLAYOFFS
+                        <input type="hidden" name="id" value={season.id} />
+                        <button type="submit" className={primaryBtn}>
+                          ACTIVATE
                         </button>
-                        <p className="text-ink-faint text-[11px]">
-                          Idempotent — only fills rounds that aren&apos;t
-                          already final. Final fills automatically once both
-                          SFs are decided.
+                        <p className="text-ink-faint text-[12px] flex-1 min-w-[200px]">
+                          Point the public site (standings, schedule, stats) at
+                          this season.
                         </p>
                       </form>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Generate schedule */}
-                  <details className="border-t border-rule/50 pt-3">
-                    <summary className="cursor-pointer list-none select-none">
-                      <span className="font-display text-[13px] tracking-[0.14em] text-ice">
-                        ▸ GENERATE SCHEDULE
-                      </span>
-                    </summary>
-                    <form
-                      action={generateSchedule}
-                      className="mt-3 space-y-3 panel-bare p-3"
+                    {/* Dates */}
+                    <FieldGroup
+                      label="Dates"
+                      hint="Set an end date, or weeks to set it from the start. One is required. Editing dates does not move existing games — regenerate to reschedule."
                     >
-                      <input type="hidden" name="season_id" value={season.id} />
-
-                      {gameTotal > 0 && (
-                        <p className="text-goal/80 text-[12px]">
-                          ⚠ This season already has {gameTotal} games.
-                          Generating will delete all <em>scheduled</em> games
-                          and replace them. Live and final games are kept.
-                        </p>
-                      )}
-                      {teamCount < 2 && (
-                        <p className="text-goal/80 text-[12px]">
-                          Add at least 2 teams in /admin/teams before
-                          generating.
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap gap-3">
-                        <label className="block w-full sm:w-auto sm:min-w-[140px]">
-                          <span className="eyebrow">Weekday</span>
-                          <select
-                            name="weekday"
-                            defaultValue="6"
+                      <form
+                        action={updateSeasonDates}
+                        className="flex flex-wrap items-end gap-3"
+                      >
+                        <input type="hidden" name="id" value={season.id} />
+                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
+                          <span className="eyebrow">Start date</span>
+                          <input
+                            type="date"
+                            name="start_date"
+                            required
+                            defaultValue={season.start_date}
                             className={`mt-1 ${inputCls}`}
-                          >
-                            {WEEKDAYS.map((w) => (
-                              <option key={w} value={w}>
-                                {weekdayLabel(w)}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </label>
-                        <label className="block w-full sm:w-auto sm:min-w-[100px]">
+                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
+                          <span className="eyebrow">End date</span>
+                          <input
+                            type="date"
+                            name="end_date"
+                            defaultValue={season.end_date ?? ""}
+                            className={`mt-1 ${inputCls}`}
+                          />
+                        </label>
+                        <label className="block w-full sm:w-auto sm:min-w-[110px]">
                           <span className="eyebrow">Weeks</span>
                           <input
                             type="number"
                             name="weeks"
-                            defaultValue={10}
                             min={1}
                             max={52}
+                            placeholder="from start"
                             className={`mt-1 ${inputCls}`}
                           />
                         </label>
-                        <label className="block flex-1 min-w-[180px]">
-                          <span className="eyebrow">Location (optional)</span>
-                          <input
-                            type="text"
-                            name="location"
-                            placeholder="Ice Plex Rink 1"
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                      </div>
+                        <button type="submit" className={primaryBtn}>
+                          SAVE DATES
+                        </button>
+                      </form>
+                    </FieldGroup>
 
-                      <TimeSlotsField
-                        teamCount={teamCount}
-                        defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
-                      />
+                    {/* Playoffs */}
+                    {hasPlayoffStubs && (
+                      <FieldGroup label="Playoffs" accent="ice">
+                        <div className="space-y-1.5">
+                          <BracketRow label="SF1 (#1 v #4)" slot={sf1} />
+                          <BracketRow label="SF2 (#2 v #3)" slot={sf2} />
+                          <BracketRow label="Final" slot={finalSlot} />
+                        </div>
+                        <form
+                          action={seedPlayoffs}
+                          className="flex flex-wrap items-center gap-3 mt-3"
+                        >
+                          <input type="hidden" name="season_id" value={season.id} />
+                          <button
+                            type="submit"
+                            disabled={!canSeed}
+                            className={primaryBtn}
+                            title={
+                              !canSeed
+                                ? "Need final regular-season games to seed the bracket"
+                                : undefined
+                            }
+                          >
+                            SEED PLAYOFFS
+                          </button>
+                          <p className="text-ink-faint text-[11px] flex-1 min-w-[220px]">
+                            Idempotent — only fills rounds that aren&apos;t already
+                            final. The Final fills once both semis are decided.
+                          </p>
+                        </form>
+                      </FieldGroup>
+                    )}
 
-                      <label className="inline-flex items-center gap-2 min-h-11">
-                        <input
-                          type="checkbox"
-                          name="with_playoffs"
-                          defaultChecked
-                          className="size-4 accent-ice"
-                        />
-                        <span className="font-mono text-[13px] text-ink">
-                          Reserve last 2 weeks for playoffs (top 4 → SF + Final)
-                        </span>
-                      </label>
-
-                      <p className="text-ink-faint text-[12px]">
-                        <strong>Weeks</strong> = how many game nights to schedule.
-                        Each week fills the time slots below (one night), and teams
-                        cycle through a balanced round-robin, repeating as needed
-                        when the season runs longer than one round-robin. Playoffs
-                        add 3 more games (SF1, SF2, Final) as TBD-vs-TBD stubs after
-                        the final week.
-                      </p>
-
-                      <button
-                        type="submit"
-                        disabled={teamCount < 2}
-                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    {/* Generate schedule — collapsed */}
+                    <Disclosure label="Generate schedule" accent="ice">
+                      <form
+                        action={generateSchedule}
+                        className="mt-3 space-y-3 panel-bare rounded-lg p-3"
                       >
-                        GENERATE
-                      </button>
-                    </form>
-                  </details>
+                        <input type="hidden" name="season_id" value={season.id} />
 
-                  {/* Reset — wipe all games + results, keep teams/rosters */}
-                  {gameTotal > 0 && (
-                    <div className="border-t border-rule/50 pt-3">
-                      <ResetSeasonButton
-                        action={resetSeason}
-                        seasonId={season.id}
-                        seasonName={season.name}
-                        gameTotal={gameTotal}
-                      />
-                      <p className="text-ink-faint text-[11px] mt-2">
-                        Deletes all {gameTotal} games and their scores/stats for
-                        this season. Teams and rosters are kept — regenerate the
-                        schedule afterward.
-                      </p>
-                    </div>
-                  )}
+                        {gameTotal > 0 && (
+                          <p className="text-goal/80 text-[12px]">
+                            ⚠ This season already has {gameTotal} games. Generating
+                            deletes all <em>scheduled</em> games and replaces them;
+                            live and final games are kept.
+                          </p>
+                        )}
+                        {teamCount < 2 && (
+                          <p className="text-goal/80 text-[12px]">
+                            Add at least 2 teams in /admin/teams before generating.
+                          </p>
+                        )}
 
-                  {/* Delete */}
-                  <form
-                    action={deleteSeason}
-                    className="border-t border-rule/50 pt-3"
-                  >
-                    <input type="hidden" name="id" value={season.id} />
-                    <button
-                      type="submit"
-                      disabled={!canDelete}
-                      className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors disabled:opacity-30 disabled:hover:text-goal/60 disabled:cursor-not-allowed"
-                      title={
-                        !canDelete
-                          ? "Season must be inactive and have no games"
-                          : undefined
-                      }
-                    >
-                      DELETE SEASON
-                    </button>
-                  </form>
-                </div>
-              </details>
-            );
-          })
+                        <div className="flex flex-wrap gap-3">
+                          <label className="block w-full sm:w-auto sm:min-w-[140px]">
+                            <span className="eyebrow">Weekday</span>
+                            <select
+                              name="weekday"
+                              defaultValue="6"
+                              className={`mt-1 ${inputCls}`}
+                            >
+                              {WEEKDAYS.map((w) => (
+                                <option key={w} value={w}>
+                                  {weekdayLabel(w)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block w-full sm:w-auto sm:min-w-[100px]">
+                            <span className="eyebrow">Weeks</span>
+                            <input
+                              type="number"
+                              name="weeks"
+                              defaultValue={10}
+                              min={1}
+                              max={52}
+                              className={`mt-1 ${inputCls}`}
+                            />
+                          </label>
+                          <label className="block flex-1 min-w-[180px]">
+                            <span className="eyebrow">Location (optional)</span>
+                            <input
+                              type="text"
+                              name="location"
+                              placeholder="Ice Plex Rink 1"
+                              className={`mt-1 ${inputCls}`}
+                            />
+                          </label>
+                        </div>
+
+                        <TimeSlotsField
+                          teamCount={teamCount}
+                          defaultTimes={COMMON_GAME_TIMES.map((t) => t.value)}
+                        />
+
+                        <label className="inline-flex items-center gap-2 min-h-11">
+                          <input
+                            type="checkbox"
+                            name="with_playoffs"
+                            defaultChecked
+                            className="size-4 accent-ice"
+                          />
+                          <span className="font-mono text-[13px] text-ink">
+                            Reserve last 2 weeks for playoffs (top 4 → SF + Final)
+                          </span>
+                        </label>
+
+                        <p className="text-ink-faint text-[12px]">
+                          <strong>Weeks</strong> = how many game nights to schedule.
+                          Each week fills the time slots (one night) and teams cycle
+                          through a balanced round-robin, repeating as needed.
+                          Playoffs add SF1, SF2 &amp; Final as TBD stubs after the
+                          final week.
+                        </p>
+
+                        <button
+                          type="submit"
+                          disabled={teamCount < 2}
+                          className={primaryBtn}
+                        >
+                          GENERATE
+                        </button>
+                      </form>
+                    </Disclosure>
+
+                    {/* Danger zone — collapsed by default */}
+                    <Disclosure label="Danger zone" accent="goal" hint="reset or delete">
+                      <div className="mt-3 space-y-4 panel-bare rounded-lg p-3">
+                        {gameTotal > 0 && (
+                          <div>
+                            <ResetSeasonButton
+                              action={resetSeason}
+                              seasonId={season.id}
+                              seasonName={season.name}
+                              gameTotal={gameTotal}
+                            />
+                            <p className="text-ink-faint text-[11px] mt-2">
+                              Deletes all {gameTotal} games and their scores/stats.
+                              Teams and rosters are kept — regenerate afterward.
+                            </p>
+                          </div>
+                        )}
+
+                        <form
+                          action={deleteSeason}
+                          className={gameTotal > 0 ? "border-t border-rule/50 pt-3" : ""}
+                        >
+                          <input type="hidden" name="id" value={season.id} />
+                          <button
+                            type="submit"
+                            disabled={!canDelete}
+                            className="text-goal/70 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors disabled:opacity-30 disabled:hover:text-goal/70 disabled:cursor-not-allowed"
+                            title={
+                              !canDelete
+                                ? "Season must be inactive and have no games"
+                                : undefined
+                            }
+                          >
+                            DELETE SEASON
+                          </button>
+                          <p className="text-ink-faint text-[11px] mt-2">
+                            Removes the season entirely. Only allowed when inactive
+                            and game-free — reset first if it has games.
+                          </p>
+                        </form>
+                      </div>
+                    </Disclosure>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
         )}
       </section>
+    </div>
+  );
+}
+
+/** Labeled group of form fields with an optional hint below. */
+function FieldGroup({
+  label,
+  hint,
+  accent = "ink",
+  children,
+}: {
+  label: string;
+  hint?: string;
+  accent?: "ink" | "ice";
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-3">
+        <span className={`eyebrow ${accent === "ice" ? "text-ice" : "text-ink-dim"}`}>
+          {label}
+        </span>
+        <span className="flex-1 h-px bg-rule/60" />
+      </div>
+      {children}
+      {hint && <p className="text-ink-faint text-[11px] leading-relaxed">{hint}</p>}
+    </div>
+  );
+}
+
+/** Collapsible section with an eyebrow-styled toggle. */
+function Disclosure({
+  label,
+  hint,
+  accent = "ink",
+  children,
+}: {
+  label: string;
+  hint?: string;
+  accent?: "ink" | "ice" | "goal";
+  children: ReactNode;
+}) {
+  const color =
+    accent === "ice"
+      ? "text-ice hover:text-ink"
+      : accent === "goal"
+        ? "text-ink-faint hover:text-goal"
+        : "text-ink-dim hover:text-ink";
+  return (
+    <details className="group/d border-t border-rule/50 pt-3">
+      <summary
+        className={`flex items-center gap-1.5 cursor-pointer list-none select-none eyebrow min-h-9 transition-colors ${color}`}
+      >
+        <span className="text-[10px] transition-transform duration-150 group-open/d:rotate-90 inline-block">
+          ▶
+        </span>
+        {label}
+        {hint && (
+          <span className="text-ink-faint/60 normal-case tracking-normal ml-1">
+            — {hint}
+          </span>
+        )}
+      </summary>
+      {children}
+    </details>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="panel-bare rounded-lg px-3 py-2 min-w-[88px]">
+      <div className="eyebrow text-[9px] text-ink-faint">{label}</div>
+      <div className="font-mono text-[13px] text-ink mt-0.5">{value}</div>
     </div>
   );
 }
@@ -614,7 +659,7 @@ function BracketRow({
 }) {
   const isFinal = slot?.status === "final";
   return (
-    <div className="flex flex-wrap items-center gap-3 panel-bare px-3 py-2">
+    <div className="flex flex-wrap items-center gap-3 panel-bare rounded px-3 py-2">
       <span className="eyebrow text-[10px] shrink-0 w-24">{label}</span>
       <span className="flex items-center gap-1.5 flex-1 min-w-[180px]">
         <span

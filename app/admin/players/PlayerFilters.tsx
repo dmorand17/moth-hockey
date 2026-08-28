@@ -351,10 +351,10 @@ export function PlayerFilters({
                     </span>
                     <span className="flex items-center gap-3 shrink-0">
                       <a
-                        href="/admin/teams"
+                        href="/admin/seasons"
                         className="eyebrow hover:text-ink transition-colors"
                       >
-                        Manage on Teams →
+                        Manage on Seasons →
                       </a>
                       <a
                         href={`/players/${player.id}`}

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function AdminRostersPage() {
-  redirect("/admin/teams");
+  redirect("/admin/seasons");
 }

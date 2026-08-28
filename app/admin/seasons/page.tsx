@@ -566,7 +566,6 @@ export default async function AdminSeasonsPage({
                                   {/* Name / Color */}
                                   <form action={updateTeam} className="space-y-3">
                                     <input type="hidden" name="id" value={team.id} />
-                                    <input type="hidden" name="slug" value={team.slug} />
                                     <div className="flex items-end gap-3">
                                       <label className="block flex-1">
                                         <span className="eyebrow">Name</span>

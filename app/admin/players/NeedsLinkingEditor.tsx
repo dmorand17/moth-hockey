@@ -121,18 +121,15 @@ export function NeedsLinkingEditor({
                 )}
               </label>
 
-              <label className="block flex-1 min-w-0">
-                <span className="eyebrow">Link to player</span>
-                <div className="mt-1">
-                  <PlayerCombobox
-                    options={options}
-                    value={d.playerId}
-                    onChange={(v) => setRow(acct.user_id, { playerId: v })}
-                    allowClear
-                    placeholder="Search players…"
-                  />
-                </div>
-              </label>
+              <div className="flex-1 min-w-0">
+                <PlayerCombobox
+                  options={options}
+                  value={d.playerId}
+                  onChange={(v) => setRow(acct.user_id, { playerId: v })}
+                  allowClear
+                  placeholder="Search player to link…"
+                />
+              </div>
             </li>
           );
         })}

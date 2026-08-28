@@ -80,7 +80,6 @@ export async function createSeason(formData: FormData) {
   );
   const pointSystemRaw = String(formData.get("point_system") ?? "").trim();
   const point_system = pointSystemRaw === "2-1-0" ? "2-1-0" : "3-2-1";
-  const copyFrom = String(formData.get("copy_from_season_id") ?? "").trim();
 
   if (!seasonType || isNaN(year) || !name || !startDate) {
     back("error=invalid_input");
@@ -108,29 +107,46 @@ export async function createSeason(formData: FormData) {
     back(`error=${encodeURIComponent(error?.message ?? "insert failed")}`);
   }
 
-  if (copyFrom) {
-    const { data: srcTeams } = await supabase
-      .from("teams")
-      .select("name, slug, color, logo_url")
-      .eq("season_id", copyFrom);
-
-    if (srcTeams && srcTeams.length > 0) {
-      const rows = srcTeams.map((t) => ({
-        season_id: created.id,
-        name: t.name,
-        slug: t.slug,
-        color: t.color,
-        logo_url: t.logo_url,
-      }));
-      const { error: teamErr } = await supabase.from("teams").insert(rows);
-      if (teamErr) {
-        back(`error=${encodeURIComponent(`teams copy: ${teamErr.message}`)}`);
-      }
-    }
-  }
-
   revalidatePath("/admin/seasons");
   redirect("/admin/seasons?saved=created");
+}
+
+// Copy team rows (name, slug, color, logo) from another season into this one.
+// Rosters/captains are per-season and are NOT copied. Used from the season's
+// Teams section instead of a create-time carryover.
+export async function copyTeamsInto(formData: FormData) {
+  await requireRole(["admin"]);
+
+  const seasonId = String(formData.get("season_id") ?? "").trim();
+  const sourceId = String(formData.get("source_season_id") ?? "").trim();
+  if (!seasonId || !sourceId || seasonId === sourceId) {
+    back("error=invalid_input");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: srcTeams } = await supabase
+    .from("teams")
+    .select("name, slug, color, logo_url")
+    .eq("season_id", sourceId);
+
+  if (!srcTeams || srcTeams.length === 0) back("error=no_source_teams");
+
+  const { error } = await supabase.from("teams").insert(
+    srcTeams.map((t) => ({
+      season_id: seasonId,
+      name: t.name,
+      slug: t.slug,
+      color: t.color,
+      logo_url: t.logo_url,
+    })),
+  );
+  if (error) {
+    if (error.code === "23505") back("error=teams_exist");
+    back(`error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePublicSeasonPaths();
+  redirect("/admin/seasons?saved=teams_copied");
 }
 
 export async function updateSeasonDates(formData: FormData) {

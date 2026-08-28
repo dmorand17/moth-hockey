@@ -9,6 +9,7 @@ import { SeasonIdentityFields } from "./SeasonIdentityFields";
 import {
   activateSeason,
   assignTeamCaptain,
+  copyTeamsInto,
   createSeason,
   createTeam,
   deleteSeason,
@@ -41,6 +42,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   playoffs_need_four: "Need at least 4 teams with standings to seed playoffs.",
   invalid_color: "Color must be a hex like #ef4444.",
   already_rostered: "That player is already on a team this season.",
+  no_source_teams: "That season has no teams to copy.",
+  teams_exist: "Some of those team names already exist in this season.",
 };
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
@@ -205,7 +208,9 @@ export default async function AdminSeasonsPage({
                             ? "Roster entry updated."
                             : params.saved === "removed"
                               ? "Player removed from roster."
-                              : null;
+                              : params.saved === "teams_copied"
+                                ? "Teams copied."
+                                : null;
   const error = params.error
     ? (ERROR_MESSAGES[params.error] ?? params.error)
     : null;
@@ -288,54 +293,11 @@ export default async function AdminSeasonsPage({
             </div>
           </FieldGroup>
 
-          <FieldGroup label="Scoring">
-            <fieldset className="space-y-1.5">
-              <legend className="eyebrow text-ink-dim mb-1">Point system</legend>
-              <label className="flex items-start gap-2 text-[13px] text-ink">
-                <input
-                  type="radio"
-                  name="point_system"
-                  value="3-2-1"
-                  defaultChecked
-                  className="mt-0.5 size-4 accent-ice"
-                />
-                <span>
-                  <strong>3-2-1</strong>
-                  <span className="text-ink-faint"> — reg win 3 · OT win 2 · OT loss 1</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 text-[13px] text-ink">
-                <input
-                  type="radio"
-                  name="point_system"
-                  value="2-1-0"
-                  className="mt-0.5 size-4 accent-ice"
-                />
-                <span>
-                  <strong>2-1-0</strong>
-                  <span className="text-ink-faint"> — win 2 · OT loss 1</span>
-                </span>
-              </label>
-            </fieldset>
-          </FieldGroup>
-
-          <FieldGroup
-            label="Teams"
-            hint="Carryover copies team rows (name, color, slug) only — rosters and captains are reassigned each season. New seasons start inactive; activate from the list below."
-          >
-            <label className="block">
-              <span className="eyebrow">Copy teams from (optional)</span>
-              <select name="copy_from_season_id" className={`mt-1 ${inputCls}`}>
-                <option value="">— No carryover —</option>
-                {seasons.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                    {s.is_current ? " (current)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </FieldGroup>
+          <p className="text-ink-faint text-[12px]">
+            New seasons start inactive and use the <strong>3-2-1</strong> point
+            system. Set the point system, tie-breakers, and teams after creating
+            it — expand the season below.
+          </p>
 
           <button type="submit" className={primaryBtn}>
             CREATE SEASON
@@ -523,6 +485,51 @@ export default async function AdminSeasonsPage({
                           />
                         </div>
                       </form>
+
+                      {/* Copy teams from another season — rarely used, collapsed */}
+                      {seasons.length > 1 && (
+                        <details className="group/ct">
+                          <summary className="flex items-center gap-1.5 cursor-pointer list-none select-none eyebrow text-ink-faint hover:text-ink transition-colors min-h-9">
+                            <span className="text-[10px] transition-transform duration-150 group-open/ct:rotate-90 inline-block">
+                              ▶
+                            </span>
+                            Copy teams from another season
+                          </summary>
+                          <form
+                            action={copyTeamsInto}
+                            className="mt-2 flex flex-wrap items-end gap-3 panel-bare rounded p-3"
+                          >
+                            <input type="hidden" name="season_id" value={season.id} />
+                            <label className="block flex-1 min-w-[180px]">
+                              <span className="eyebrow">Source season</span>
+                              <select
+                                name="source_season_id"
+                                required
+                                defaultValue=""
+                                className={`mt-1 ${inputCls}`}
+                              >
+                                <option value="" disabled>
+                                  — select season —
+                                </option>
+                                {seasons
+                                  .filter((s) => s.id !== season.id)
+                                  .map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                            <button type="submit" className={primaryBtn}>
+                              COPY TEAMS
+                            </button>
+                            <p className="text-ink-faint text-[11px] w-full">
+                              Copies team names/colors only — rosters &amp;
+                              captains stay per-season.
+                            </p>
+                          </form>
+                        </details>
+                      )}
 
                       {/* Team list */}
                       {(teamsBySeason.get(season.id) ?? []).length === 0 ? (

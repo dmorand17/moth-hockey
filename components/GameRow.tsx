@@ -15,7 +15,7 @@ type Props = {
   away_score?: number | null;
   decided_in?: "regulation" | "ot" | "shootout" | null;
   kind?: "regular" | "playoff";
-  playoff_round?: "sf1" | "sf2" | "final" | null;
+  playoff_round?: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
 };
 
 function TbdBadge() {

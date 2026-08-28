@@ -772,7 +772,7 @@ export type Database = {
       game_status: "scheduled" | "live" | "final"
       penalty_shot_result: "goal" | "saved"
       player_position: "forward" | "defense" | "goalie"
-      playoff_round: "sf1" | "sf2" | "final"
+      playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final"
       season_type: "spring" | "summer" | "fall" | "winter"
       user_role: "admin" | "scorekeeper" | "team_captain" | "player"
     }
@@ -914,7 +914,7 @@ export const Constants = {
       game_status: ["scheduled", "live", "final"],
       penalty_shot_result: ["goal", "saved"],
       player_position: ["forward", "defense", "goalie"],
-      playoff_round: ["sf1", "sf2", "final"],
+      playoff_round: ["qf1", "qf2", "qf3", "qf4", "sf1", "sf2", "final"],
       season_type: ["spring", "summer", "fall", "winter"],
       user_role: ["admin", "scorekeeper", "team_captain", "player"],
     },

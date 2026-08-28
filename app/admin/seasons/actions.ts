@@ -314,7 +314,7 @@ export async function generateSchedule(formData: FormData) {
     scheduled_at: string;
     location: string | null;
     kind: "regular" | "playoff";
-    playoff_round?: "sf1" | "sf2" | "final" | null;
+    playoff_round?: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
   };
 
   const rows: GameInsert[] = pairs.map(([home, away], i) => ({

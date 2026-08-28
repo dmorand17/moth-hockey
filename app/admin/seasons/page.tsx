@@ -123,7 +123,7 @@ export default async function AdminSeasonsPage({
   }
 
   type BracketSlot = {
-    playoff_round: "sf1" | "sf2" | "final" | null;
+    playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
     status: "scheduled" | "live" | "final";
     home_score: number;
     away_score: number;

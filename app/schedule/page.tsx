@@ -43,15 +43,7 @@ export default async function SchedulePage() {
   ]);
   const games = (gamesRaw ?? []) as unknown as ScheduleGame[];
 
-  const groups: Record<string, ScheduleGame[]> = {};
-  for (const g of games) {
-    const key = new Date(g.scheduled_at).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-    });
-    (groups[key] ||= []).push(g);
-  }
-
+  // Bye team(s) per regular-season game night.
   const byesByDate = byeTeamNamesByDate(
     (teams ?? []).map((t) => ({ id: t.id, name: t.name })),
     games
@@ -63,34 +55,31 @@ export default async function SchedulePage() {
       })),
   );
 
-  // Group byes + postponements by the same "Month YYYY" key used for games.
-  const dateLabel = (isoDate: string) => {
+  // Group games by game night (local date = one week of play).
+  const gamesByDate = new Map<string, ScheduleGame[]>();
+  for (const g of games) {
+    const k = localDateKey(g.scheduled_at);
+    const arr = gamesByDate.get(k);
+    if (arr) arr.push(g);
+    else gamesByDate.set(k, [g]);
+  }
+
+  const skipByDate = new Map<string, string>();
+  for (const s of skips ?? []) skipByDate.set(s.skip_date, s.reason);
+
+  // Every week that has games or was skipped, oldest first.
+  const weekDates = Array.from(
+    new Set([...gamesByDate.keys(), ...skipByDate.keys()]),
+  ).sort();
+
+  const weekLabel = (isoDate: string) => {
     const [y, m, d] = isoDate.split("-").map(Number);
     return new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-US", {
-      month: "short",
+      weekday: "long",
+      month: "long",
       day: "numeric",
     });
   };
-
-  const byesByMonth: Record<string, string[]> = {};
-  for (const [date, names] of Object.entries(byesByDate)) {
-    const [y, m, d] = date.split("-").map(Number);
-    const k = new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-    });
-    (byesByMonth[k] ||= []).push(`${dateLabel(date)}: ${names.join(", ")}`);
-  }
-
-  const skipsByMonth: Record<string, string[]> = {};
-  for (const s of skips ?? []) {
-    const [y, m, d] = s.skip_date.split("-").map(Number);
-    const k = new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-    });
-    (skipsByMonth[k] ||= []).push(`${dateLabel(s.skip_date)}: ${s.reason}`);
-  }
 
   return (
     <div className="space-y-4 sm:space-y-8">
@@ -104,44 +93,56 @@ export default async function SchedulePage() {
         />
       </div>
 
-      {Object.entries(groups).map(([month, monthGames], i) => (
-        <section key={month} className={`rise delay-${Math.min(i + 1, 4)}`}>
-          <div className="flex items-center gap-3 mb-3">
-            <span className="eyebrow text-goal">{month}</span>
-            <span className="flex-1 h-px bg-rule" />
-            <span className="eyebrow">
-              {monthGames.length} {monthGames.length === 1 ? "game" : "games"}
-            </span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {monthGames.map((g) => (
-              <GameRow
-                key={g.id}
-                id={g.id}
-                scheduled_at={g.scheduled_at}
-                status={g.status}
-                home_team={g.home_team}
-                away_team={g.away_team}
-                home_score={g.home_score}
-                away_score={g.away_score}
-                decided_in={g.decided_in}
-                kind={g.kind}
-                playoff_round={g.playoff_round}
-              />
-            ))}
-          </div>
-            {byesByMonth[month] && (
-              <p className="mt-3 text-[12px] text-ink-faint">
-                <span className="eyebrow text-ink-dim">Byes</span> — {byesByMonth[month].join(" · ")}
-              </p>
-            )}
-            {skipsByMonth[month] && (
-              <p className="mt-1 text-[12px] text-goal/80">
-                <span className="eyebrow">Postponed</span> — {skipsByMonth[month].join(" · ")}
-              </p>
-            )}
-        </section>
-      ))}
+      {weekDates.length === 0 ? (
+        <p className="text-ink-dim text-sm panel-bare p-4">
+          No games scheduled yet.
+        </p>
+      ) : (
+        weekDates.map((date, i) => {
+          const weekGames = gamesByDate.get(date) ?? [];
+          const byes = byesByDate[date] ?? [];
+          const skipReason = skipByDate.get(date);
+          return (
+            <section key={date} className={`rise delay-${Math.min(i + 1, 4)}`}>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="eyebrow text-goal">{weekLabel(date)}</span>
+                <span className="flex-1 h-px bg-rule" />
+                {byes.length > 0 && (
+                  <span className="eyebrow text-ink-faint">
+                    Bye: {byes.join(", ")}
+                  </span>
+                )}
+              </div>
+
+              {skipReason && (
+                <p className="mb-3 text-[13px] text-goal/80 panel-bare px-4 py-2.5">
+                  <span className="eyebrow">Postponed</span> — {skipReason}
+                </p>
+              )}
+
+              {weekGames.length > 0 && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {weekGames.map((g) => (
+                    <GameRow
+                      key={g.id}
+                      id={g.id}
+                      scheduled_at={g.scheduled_at}
+                      status={g.status}
+                      home_team={g.home_team}
+                      away_team={g.away_team}
+                      home_score={g.home_score}
+                      away_score={g.away_score}
+                      decided_in={g.decided_in}
+                      kind={g.kind}
+                      playoff_round={g.playoff_round}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }

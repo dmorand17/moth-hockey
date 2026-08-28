@@ -6,6 +6,7 @@ import { weekdayLabel, playoffLabel, playoffRoundsFor, type WeekdayIdx, type Pla
 import { TimeSlotsField } from "./TimeSlotsField";
 import { ResetSeasonButton } from "./ResetSeasonButton";
 import { SeasonIdentityFields } from "./SeasonIdentityFields";
+import { SeasonDurationFields } from "./SeasonDurationFields";
 import {
   activateSeason,
   assignTeamCaptain,
@@ -34,7 +35,7 @@ const primaryBtn =
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_input: "Check all required fields.",
-  need_end: "Set an end date or a number of weeks.",
+  need_end: "Set the number of regular season weeks.",
   not_enough_teams: "Need at least 2 teams in this season to generate a schedule.",
   cannot_delete_current: "Cannot delete the current season. Activate another first.",
   has_games: "Delete or move games before deleting the season.",
@@ -49,6 +50,16 @@ const ERROR_MESSAGES: Record<string, string> = {
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Whole weeks between a season's start and end (end = start + weeks×7), for
+// pre-filling the weeks field and the overview. Empty string when indeterminate.
+function weeksBetween(startDate: string, endDate: string | null): string {
+  if (!startDate || !endDate) return "";
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const weeks = Math.round((end.getTime() - start.getTime()) / (7 * 86400000));
+  return weeks > 0 ? String(weeks) : "";
+}
 
 type SeasonRow = {
   id: string;
@@ -252,33 +263,10 @@ export default async function AdminSeasonsPage({
 
           <FieldGroup
             label="Duration"
-            hint="Set an end date, or a number of weeks (weeks sets the end from the start). One is required."
+            hint="Set the regular season length in weeks — the end date is calculated from the start."
           >
-            <div className="flex flex-wrap gap-3">
-              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                <span className="eyebrow">Start date</span>
-                <input
-                  type="date"
-                  name="start_date"
-                  required
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
-              <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                <span className="eyebrow">End date</span>
-                <input type="date" name="end_date" className={`mt-1 ${inputCls}`} />
-              </label>
-              <label className="block w-full sm:w-auto sm:min-w-[100px]">
-                <span className="eyebrow">Weeks</span>
-                <input
-                  type="number"
-                  name="weeks"
-                  min={1}
-                  max={52}
-                  placeholder="10"
-                  className={`mt-1 ${inputCls}`}
-                />
-              </label>
+            <div className="flex flex-wrap items-end gap-3">
+              <SeasonDurationFields />
               <label className="block w-full sm:w-auto sm:min-w-[130px]">
                 <span className="eyebrow">Period (min)</span>
                 <input
@@ -359,6 +347,10 @@ export default async function AdminSeasonsPage({
                       <StatTile label="Start" value={season.start_date} />
                       <StatTile label="End" value={season.end_date ?? "—"} />
                       <StatTile
+                        label="Weeks"
+                        value={weeksBetween(season.start_date, season.end_date) || "—"}
+                      />
+                      <StatTile
                         label="Period"
                         value={`${season.period_length_minutes} min`}
                       />
@@ -383,47 +375,24 @@ export default async function AdminSeasonsPage({
                     )}
 
                     {/* Dates — collapsed */}
-                    <Disclosure label="Dates" hint="start & end, or weeks">
+                    <Disclosure label="Dates" hint="start & weeks">
                       <p className="text-ink-faint text-[11px] mt-2 mb-2">
-                        End date or weeks (one required). Editing dates
-                        doesn&apos;t move existing games — regenerate to
-                        reschedule.
+                        Set the regular season weeks — the end date is calculated
+                        from the start. Editing dates doesn&apos;t move existing
+                        games — regenerate to reschedule.
                       </p>
                       <form
                         action={updateSeasonDates}
                         className="flex flex-wrap items-end gap-3"
                       >
                         <input type="hidden" name="id" value={season.id} />
-                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                          <span className="eyebrow">Start date</span>
-                          <input
-                            type="date"
-                            name="start_date"
-                            required
-                            defaultValue={season.start_date}
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                        <label className="block w-full sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                          <span className="eyebrow">End date</span>
-                          <input
-                            type="date"
-                            name="end_date"
-                            defaultValue={season.end_date ?? ""}
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
-                        <label className="block w-full sm:w-auto sm:min-w-[110px]">
-                          <span className="eyebrow">Weeks</span>
-                          <input
-                            type="number"
-                            name="weeks"
-                            min={1}
-                            max={52}
-                            placeholder="total"
-                            className={`mt-1 ${inputCls}`}
-                          />
-                        </label>
+                        <SeasonDurationFields
+                          defaultStartDate={season.start_date}
+                          defaultWeeks={weeksBetween(
+                            season.start_date,
+                            season.end_date,
+                          )}
+                        />
                         <button type="submit" className={primaryBtn}>
                           SAVE DATES
                         </button>

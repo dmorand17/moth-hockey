@@ -39,25 +39,19 @@ function parseInt0(raw: string, fallback: number): number {
   return isNaN(n) ? fallback : n;
 }
 
-// A season's end can be given as an explicit end date OR as a number of weeks
-// (which sets end = start + weeks×7 days). Weeks wins when both are provided.
-// Returns null when neither yields a usable end date.
-function resolveEndDate(
-  startDate: string,
-  endDate: string,
-  weeksRaw: string,
-): string | null {
+// A season's end is derived from its regular-season length: end = start +
+// weeks×7 days. Weeks is the single source of truth. Returns null when weeks
+// is missing or not a positive number.
+function resolveEndDate(startDate: string, weeksRaw: string): string | null {
   const weeks = parseInt(weeksRaw, 10);
-  if (!isNaN(weeks) && weeks > 0) {
-    const [y, m, d] = startDate.split("-").map(Number);
-    const end = new Date(y, (m ?? 1) - 1, d ?? 1);
-    end.setDate(end.getDate() + weeks * 7);
-    const yyyy = end.getFullYear();
-    const mm = String(end.getMonth() + 1).padStart(2, "0");
-    const dd = String(end.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  return endDate || null;
+  if (isNaN(weeks) || weeks <= 0) return null;
+  const [y, m, d] = startDate.split("-").map(Number);
+  const end = new Date(y, (m ?? 1) - 1, d ?? 1);
+  end.setDate(end.getDate() + weeks * 7);
+  const yyyy = end.getFullYear();
+  const mm = String(end.getMonth() + 1).padStart(2, "0");
+  const dd = String(end.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function revalidatePublicSeasonPaths() {
@@ -76,7 +70,6 @@ export async function createSeason(formData: FormData) {
   const year = parseInt0(String(formData.get("year") ?? ""), NaN);
   const name = String(formData.get("name") ?? "").trim();
   const startDate = String(formData.get("start_date") ?? "").trim();
-  const endDate = String(formData.get("end_date") ?? "").trim();
   const weeks = String(formData.get("weeks") ?? "").trim();
   const periodLength = parseInt0(
     String(formData.get("period_length_minutes") ?? "17"),
@@ -88,7 +81,7 @@ export async function createSeason(formData: FormData) {
   if (!seasonType || isNaN(year) || !name || !startDate) {
     back("error=invalid_input");
   }
-  const resolvedEnd = resolveEndDate(startDate, endDate, weeks);
+  const resolvedEnd = resolveEndDate(startDate, weeks);
   if (!resolvedEnd) back("error=need_end");
 
   const supabase = await createSupabaseServerClient();
@@ -158,10 +151,9 @@ export async function updateSeasonDates(formData: FormData) {
 
   const id = String(formData.get("id") ?? "").trim();
   const startDate = String(formData.get("start_date") ?? "").trim();
-  const endDate = String(formData.get("end_date") ?? "").trim();
   const weeks = String(formData.get("weeks") ?? "").trim();
   if (!id || !startDate) back("error=invalid_input");
-  const resolvedEnd = resolveEndDate(startDate, endDate, weeks);
+  const resolvedEnd = resolveEndDate(startDate, weeks);
   if (!resolvedEnd) back("error=need_end");
 
   const supabase = await createSupabaseServerClient();

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ActionForm } from "@/components/ActionForm";
+import { SubmitButton } from "@/components/SubmitButton";
+import type { ActionResult } from "@/lib/action-result";
 
 const TIE_LABELS: Record<string, string> = {
   wins: "Wins",
@@ -17,7 +20,7 @@ export function StandingsRulesEditor({
   pointSystem,
   tiebreakers,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   seasonId: string;
   pointSystem: string;
   tiebreakers: string[];
@@ -40,7 +43,7 @@ export function StandingsRulesEditor({
     "px-2 min-h-8 border border-rule rounded text-ink-dim hover:text-ink hover:border-rule-strong transition-colors disabled:opacity-30 disabled:hover:text-ink-dim";
 
   return (
-    <form action={action} className="space-y-4">
+    <ActionForm action={action} className="space-y-4">
       <input type="hidden" name="id" value={seasonId} />
       {order.map((k) => (
         <input key={k} type="hidden" name="tiebreakers" value={k} />
@@ -120,12 +123,9 @@ export function StandingsRulesEditor({
         )}
       </div>
 
-      <button
-        type="submit"
-        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
-      >
+      <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
         SAVE RULES
-      </button>
-    </form>
+      </SubmitButton>
+    </ActionForm>
   );
 }

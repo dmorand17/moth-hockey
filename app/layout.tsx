@@ -3,6 +3,7 @@ import { Bebas_Neue, Inter, JetBrains_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { NavLink } from "@/components/NavLink";
+import { AuthMenu } from "@/components/AuthMenu";
 import { getAuthSession } from "@/lib/auth";
 import { getCurrentSeason } from "@/lib/queries";
 import "./globals.css";
@@ -134,21 +135,9 @@ export default async function RootLayout({
               ))}
             </nav>
 
-            {/* Auth slot — same row as the brand on every breakpoint */}
-            <div className="flex items-stretch shrink-0">
-              {authLinks.map((link, i) => (
-                <NavLink
-                  key={link.href}
-                  href={link.href}
-                  label={link.label}
-                  match={link.match}
-                  className={`relative px-3 sm:px-4 font-display text-[12px] sm:text-[14px] tracking-[0.14em] uppercase text-ice hover:text-ink transition-colors inline-flex items-center min-h-[44px] whitespace-nowrap ${
-                    i > 0 ? "border-l border-rule" : ""
-                  }`}
-                  activeClassName="text-ink after:content-[''] after:absolute after:left-3 sm:after:left-4 after:right-3 sm:after:right-4 after:bottom-0 after:h-[2px] after:bg-ice"
-                />
-              ))}
-            </div>
+            {/* Auth slot — a hamburger menu (Admin / Scorekeeper / Account),
+                same row as the brand on every breakpoint. */}
+            <AuthMenu links={authLinks} />
           </div>
           {/* Mobile primary nav — auth lives in the brand row above.
               The whole header is sticky, so this row pins along with the brand. */}

@@ -1,5 +1,19 @@
 import { createSupabaseServerClient } from "./supabase/server";
 
+export type PointSystem = "2-1-0" | "3-2-1";
+export type TieKey = "wins" | "diff" | "gf" | "ga" | "h2h";
+const VALID_TIE_KEYS: TieKey[] = ["wins", "diff", "gf", "ga", "h2h"];
+
+/** Points a team earns for one decided game under the season's point system. */
+export function computeGamePoints(
+  system: PointSystem,
+  won: boolean,
+  otOrSo: boolean,
+): number {
+  if (won) return system === "3-2-1" ? (otOrSo ? 2 : 3) : 2;
+  return otOrSo ? 1 : 0;
+}
+
 type TeamRef = { name: string; slug: string; color: string };
 export type PlayoffRound = "sf1" | "sf2" | "final";
 export type GameKind = "regular" | "playoff";
@@ -41,7 +55,7 @@ export async function getCurrentSeason() {
 export type SeasonOption = {
   id: string;
   name: string;
-  season_type: "spring" | "fall" | "winter";
+  season_type: "spring" | "summer" | "fall" | "winter";
   year: number;
   is_current: boolean;
 };
@@ -74,18 +88,31 @@ export type StandingsRow = {
 
 export async function getStandings(seasonId: string): Promise<StandingsRow[]> {
   const supabase = await createSupabaseServerClient();
-  const [{ data: teams, error: tErr }, { data: games, error: gErr }] =
-    await Promise.all([
-      supabase.from("teams").select("id, name, slug, color").eq("season_id", seasonId),
-      supabase
-        .from("games")
-        .select("home_team_id, away_team_id, home_score, away_score, status, decided_in")
-        .eq("season_id", seasonId)
-        .eq("status", "final")
-        .eq("kind", "regular"),
-    ]);
+  const [
+    { data: season },
+    { data: teams, error: tErr },
+    { data: games, error: gErr },
+  ] = await Promise.all([
+    supabase
+      .from("seasons")
+      .select("point_system, tiebreakers")
+      .eq("id", seasonId)
+      .maybeSingle(),
+    supabase.from("teams").select("id, name, slug, color").eq("season_id", seasonId),
+    supabase
+      .from("games")
+      .select("home_team_id, away_team_id, home_score, away_score, status, decided_in")
+      .eq("season_id", seasonId)
+      .eq("status", "final")
+      .eq("kind", "regular"),
+  ]);
   if (tErr) throw tErr;
   if (gErr) throw gErr;
+
+  const system: PointSystem = season?.point_system === "2-1-0" ? "2-1-0" : "3-2-1";
+  const tieKeys: TieKey[] = (season?.tiebreakers ?? ["wins", "diff", "gf"]).filter(
+    (k): k is TieKey => VALID_TIE_KEYS.includes(k as TieKey),
+  );
 
   const rows: Record<string, StandingsRow> = {};
   for (const t of teams ?? []) {
@@ -108,34 +135,89 @@ export async function getStandings(seasonId: string): Promise<StandingsRow[]> {
     away.gf += g.away_score; away.ga += g.home_score;
 
     const homeWon = g.home_score > g.away_score;
-    const decided = g.decided_in;
-    if (homeWon) {
-      home.w++; home.pts += 2;
-      if (decided === "ot" || decided === "shootout") {
-        away.otl++; away.pts += 1;
-      } else {
-        away.l++;
-      }
-    } else {
-      away.w++; away.pts += 2;
-      if (decided === "ot" || decided === "shootout") {
-        home.otl++; home.pts += 1;
-      } else {
-        home.l++;
-      }
-    }
+    const otOrSo = g.decided_in === "ot" || g.decided_in === "shootout";
+    const winner = homeWon ? home : away;
+    const loser = homeWon ? away : home;
+    winner.w++;
+    winner.pts += computeGamePoints(system, true, otOrSo);
+    loser.pts += computeGamePoints(system, false, otOrSo);
+    if (otOrSo) loser.otl++;
+    else loser.l++;
   }
 
   const result = Object.values(rows).map((r) => ({ ...r, diff: r.gf - r.ga }));
-  // Tiebreakers: pts → wins → diff → gf
-  result.sort((a, b) =>
-    b.pts - a.pts ||
-    b.w - a.w ||
-    b.diff - a.diff ||
-    b.gf - a.gf ||
-    a.name.localeCompare(b.name),
-  );
-  return result;
+
+  const num = (key: Exclude<TieKey, "h2h">, a: StandingsRow, b: StandingsRow): number => {
+    switch (key) {
+      case "wins": return b.w - a.w;
+      case "diff": return b.diff - a.diff;
+      case "gf": return b.gf - a.gf;
+      case "ga": return a.ga - b.ga;
+    }
+  };
+  const chain =
+    (keys: Exclude<TieKey, "h2h">[]) =>
+    (a: StandingsRow, b: StandingsRow): number => {
+      for (const k of keys) {
+        const c = num(k, a, b);
+        if (c) return c;
+      }
+      return 0;
+    };
+  const byName = (a: StandingsRow, b: StandingsRow) => a.name.localeCompare(b.name);
+
+  const hIdx = tieKeys.indexOf("h2h");
+  const before = (hIdx === -1 ? tieKeys : tieKeys.slice(0, hIdx)).filter(
+    (k) => k !== "h2h",
+  ) as Exclude<TieKey, "h2h">[];
+  const after = (hIdx === -1 ? [] : tieKeys.slice(hIdx + 1)).filter(
+    (k) => k !== "h2h",
+  ) as Exclude<TieKey, "h2h">[];
+
+  if (hIdx === -1) {
+    result.sort((a, b) => b.pts - a.pts || chain(before)(a, b) || byName(a, b));
+    return result;
+  }
+
+  // Head-to-head: sort by points + pre-h2h criteria, group ties, resolve each
+  // group by head-to-head points, then post-h2h criteria, then name.
+  const cmpBefore = chain(before);
+  result.sort((a, b) => b.pts - a.pts || cmpBefore(a, b));
+
+  const groups: StandingsRow[][] = [];
+  for (const row of result) {
+    const g = groups[groups.length - 1];
+    if (g && g[0].pts === row.pts && cmpBefore(g[0], row) === 0) g.push(row);
+    else groups.push([row]);
+  }
+
+  const ordered: StandingsRow[] = [];
+  for (const g of groups) {
+    if (g.length === 1) {
+      ordered.push(g[0]);
+      continue;
+    }
+    const set = new Set(g.map((r) => r.team_id));
+    const hp = new Map<string, number>(g.map((r) => [r.team_id, 0]));
+    for (const gm of games ?? []) {
+      if (!gm.home_team_id || !gm.away_team_id) continue;
+      if (!set.has(gm.home_team_id) || !set.has(gm.away_team_id)) continue;
+      const homeWon = gm.home_score > gm.away_score;
+      const otOrSo = gm.decided_in === "ot" || gm.decided_in === "shootout";
+      const winId = homeWon ? gm.home_team_id : gm.away_team_id;
+      const loseId = homeWon ? gm.away_team_id : gm.home_team_id;
+      hp.set(winId, (hp.get(winId) ?? 0) + computeGamePoints(system, true, otOrSo));
+      hp.set(loseId, (hp.get(loseId) ?? 0) + computeGamePoints(system, false, otOrSo));
+    }
+    g.sort(
+      (a, b) =>
+        (hp.get(b.team_id) ?? 0) - (hp.get(a.team_id) ?? 0) ||
+        chain(after)(a, b) ||
+        byName(a, b),
+    );
+    ordered.push(...g);
+  }
+  return ordered;
 }
 
 export type HistoricalStandingsRow = {

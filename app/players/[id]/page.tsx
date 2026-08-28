@@ -12,7 +12,7 @@ import { AWARD_LABELS, AWARD_ORDER } from "@/lib/awards";
 type SeasonStatsRow = {
   season_id: string;
   season_name: string;
-  season_type: "spring" | "fall" | "winter";
+  season_type: "spring" | "summer" | "fall" | "winter";
   year: number;
   position: "forward" | "defense" | "goalie";
   team?: { name: string; slug: string; color: string };

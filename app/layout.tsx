@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Inter, JetBrains_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
+import { Toaster } from "sonner";
 import { NavLink } from "@/components/NavLink";
 import { AuthMenu } from "@/components/AuthMenu";
 import { getAuthSession } from "@/lib/auth";
@@ -182,6 +183,7 @@ export default async function RootLayout({
             </div>
           </div>
         </footer>
+        <Toaster richColors position="top-right" theme="dark" />
       </body>
     </html>
   );

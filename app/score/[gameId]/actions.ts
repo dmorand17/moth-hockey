@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { type ActionResult } from "@/lib/action-result";
 import { PENALTY_TYPES, type PenaltyType } from "./penalty-types";
 
 type Position = "forward" | "defense" | "goalie";
-
-export type ActionResult = { ok: true } | { ok: false; error: string };
 
 // Creates a one-off player to use as a sub. Returns the new player so the
 // client can stage them into the check-in list. We do NOT create a

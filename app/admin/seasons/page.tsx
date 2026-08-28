@@ -727,8 +727,8 @@ export default async function AdminSeasonsPage({
                               ))}
                             </select>
                           </label>
-                          <label className="block w-full sm:w-auto sm:min-w-[100px]">
-                            <span className="eyebrow">Weeks</span>
+                          <label className="block w-full sm:w-auto sm:min-w-[140px]">
+                            <span className="eyebrow">Regular season weeks</span>
                             <input
                               type="number"
                               name="weeks"
@@ -765,12 +765,13 @@ export default async function AdminSeasonsPage({
                         </label>
 
                         <p className="text-ink-faint text-[12px]">
-                          <strong>Weeks</strong> = how many game nights to schedule.
-                          Each week fills the time slots (one night) and teams cycle
-                          through a balanced round-robin, repeating as needed. Playoffs
-                          add the chosen rounds as TBD-vs-TBD stubs after the final
-                          week (they show on the schedule right away; seed them from
-                          the Playoffs section).
+                          <strong>Regular season weeks</strong> = how many game
+                          nights to schedule (not counting playoffs). Each week
+                          fills the time slots (one night) and teams cycle through a
+                          balanced round-robin, repeating as needed. Playoffs add the
+                          chosen rounds as TBD-vs-TBD stubs after the final week (they
+                          show on the schedule right away; seed them from the Playoffs
+                          section).
                         </p>
 
                         {teamCount % 2 === 1 && teamCount >= 3 && (

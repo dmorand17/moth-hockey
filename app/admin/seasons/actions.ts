@@ -67,6 +67,7 @@ export async function createSeason(formData: FormData): Promise<ActionResult> {
   const name = String(formData.get("name") ?? "").trim();
   const startDate = String(formData.get("start_date") ?? "").trim();
   const weeks = String(formData.get("weeks") ?? "").trim();
+  const defaultLocation = String(formData.get("default_location") ?? "").trim() || null;
   const periodLength = parseInt0(
     String(formData.get("period_length_minutes") ?? "17"),
     17,
@@ -90,6 +91,7 @@ export async function createSeason(formData: FormData): Promise<ActionResult> {
       start_date: startDate,
       end_date: resolvedEnd,
       regular_weeks: parseInt(weeks, 10),
+      default_location: defaultLocation,
       period_length_minutes: periodLength,
       point_system,
       is_current: false,
@@ -149,6 +151,7 @@ export async function updateSeasonDates(formData: FormData): Promise<ActionResul
   const id = String(formData.get("id") ?? "").trim();
   const startDate = String(formData.get("start_date") ?? "").trim();
   const weeks = String(formData.get("weeks") ?? "").trim();
+  const defaultLocation = String(formData.get("default_location") ?? "").trim() || null;
   if (!id || !startDate) return fail("Check all required fields.");
   const resolvedEnd = resolveEndDate(startDate, weeks);
   if (!resolvedEnd) return fail("Set the number of regular season weeks.");
@@ -160,6 +163,7 @@ export async function updateSeasonDates(formData: FormData): Promise<ActionResul
       start_date: startDate,
       end_date: resolvedEnd,
       regular_weeks: parseInt(weeks, 10),
+      default_location: defaultLocation,
     })
     .eq("id", id);
   if (error) return fail(error.message);
@@ -263,7 +267,7 @@ export async function generateSchedule(formData: FormData): Promise<ActionResult
   const seasonId = String(formData.get("season_id") ?? "").trim();
   const weekday = parseWeekday(String(formData.get("weekday") ?? ""));
   const weeks = parseInt0(String(formData.get("weeks") ?? "1"), 1);
-  const location = String(formData.get("location") ?? "").trim() || null;
+  const formLocation = String(formData.get("location") ?? "").trim();
   const times = formData
     .getAll("times")
     .map((v) => String(v).trim())
@@ -277,10 +281,13 @@ export async function generateSchedule(formData: FormData): Promise<ActionResult
 
   const { data: season } = await supabase
     .from("seasons")
-    .select("id, start_date")
+    .select("id, start_date, default_location")
     .eq("id", seasonId)
     .single();
   if (!season) return fail("Check all required fields.");
+
+  // Fall back to the season's default rink when no location was entered.
+  const location = formLocation || season.default_location || null;
 
   const { data: teams } = await supabase
     .from("teams")

@@ -347,17 +347,20 @@ export async function updateStandingsRules(formData: FormData) {
   await requireRole(["admin"]);
 
   const id = String(formData.get("id") ?? "").trim();
+  const pointSystem = String(formData.get("point_system") ?? "").trim();
   const tiebreakers = formData
     .getAll("tiebreakers")
     .map(String)
     .filter((k) => ["wins", "diff", "gf", "ga", "h2h"].includes(k));
 
-  if (!id) back("error=invalid_input");
+  if (!id || (pointSystem !== "2-1-0" && pointSystem !== "3-2-1")) {
+    back("error=invalid_input");
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("seasons")
-    .update({ tiebreakers })
+    .update({ point_system: pointSystem, tiebreakers })
     .eq("id", id);
   if (error) back(`error=${encodeURIComponent(error.message)}`);
 

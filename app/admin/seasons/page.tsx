@@ -406,12 +406,15 @@ export default async function AdminSeasonsPage({
                       </form>
                     </FieldGroup>
 
-                    {/* Tie-breakers */}
-                    <FieldGroup label="Tie-breakers">
-                      <p className="text-ink-faint text-[12px]">Point system: <span className="font-mono text-ink-dim">{season.point_system}</span> — set at creation.</p>
+                    {/* Standings rules */}
+                    <FieldGroup
+                      label="Standings rules"
+                      hint="Changing these recomputes this season's standings and playoff seeding."
+                    >
                       <StandingsRulesEditor
                         action={updateStandingsRules}
                         seasonId={season.id}
+                        pointSystem={season.point_system}
                         tiebreakers={season.tiebreakers}
                       />
                     </FieldGroup>

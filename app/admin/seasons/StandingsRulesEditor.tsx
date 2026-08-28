@@ -14,12 +14,15 @@ const ALL_KEYS = ["wins", "diff", "gf", "ga", "h2h"];
 export function StandingsRulesEditor({
   action,
   seasonId,
+  pointSystem,
   tiebreakers,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   seasonId: string;
+  pointSystem: string;
   tiebreakers: string[];
 }) {
+  const [ps, setPs] = useState(pointSystem === "2-1-0" ? "2-1-0" : "3-2-1");
   const [order, setOrder] = useState<string[]>(
     tiebreakers.filter((k) => ALL_KEYS.includes(k)),
   );
@@ -42,6 +45,38 @@ export function StandingsRulesEditor({
       {order.map((k) => (
         <input key={k} type="hidden" name="tiebreakers" value={k} />
       ))}
+
+      <fieldset className="space-y-1.5">
+        <legend className="eyebrow text-ink-dim mb-1">Point system</legend>
+        <label className="flex items-start gap-2 text-[13px] text-ink">
+          <input
+            type="radio"
+            name="point_system"
+            value="3-2-1"
+            checked={ps === "3-2-1"}
+            onChange={() => setPs("3-2-1")}
+            className="mt-0.5 size-4 accent-ice"
+          />
+          <span>
+            <strong>3-2-1</strong>
+            <span className="text-ink-faint"> — reg win 3 · OT win 2 · OT loss 1</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-[13px] text-ink">
+          <input
+            type="radio"
+            name="point_system"
+            value="2-1-0"
+            checked={ps === "2-1-0"}
+            onChange={() => setPs("2-1-0")}
+            className="mt-0.5 size-4 accent-ice"
+          />
+          <span>
+            <strong>2-1-0</strong>
+            <span className="text-ink-faint"> — win 2 · OT loss 1</span>
+          </span>
+        </label>
+      </fieldset>
 
       <div className="space-y-1.5">
         <span className="eyebrow text-ink-dim">Tie-breakers (applied after points)</span>

@@ -697,7 +697,7 @@ export default async function AdminSeasonsPage({
                         )}
                         {teamCount < 2 && (
                           <p className="text-goal/80 text-[12px]">
-                            Add at least 2 teams in /admin/teams before generating.
+                            Add at least 2 teams (in this season&apos;s Teams section) before generating.
                           </p>
                         )}
 

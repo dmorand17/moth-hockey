@@ -84,12 +84,28 @@ async function CheckInView({ game }: { game: GameRow }) {
   };
   const rows = (rosterRows ?? []) as unknown as RosterRow[];
 
+  // Player self-check-in for this game so we can pre-uncheck anyone who's OUT.
+  const { data: availRows } = await supabase
+    .from("game_availability")
+    .select("player_id, status")
+    .eq("game_id", game.id);
+  const availability = new Map(
+    ((availRows ?? []) as { player_id: string; status: "in" | "out" }[]).map(
+      (a) => [a.player_id, a.status] as const,
+    ),
+  );
+
   const home = rows
     .filter((r) => r.team_id === game.home_team_id)
-    .map((r) => ({ id: r.player.id, name: `${r.player.first_name} ${r.player.last_name}`, position: r.position }));
+    .map((r) => ({ id: r.player.id, name: `${r.player.first_name} ${r.player.last_name}`, position: r.position, availability: availability.get(r.player.id) ?? null }));
   const away = rows
     .filter((r) => r.team_id === game.away_team_id)
-    .map((r) => ({ id: r.player.id, name: `${r.player.first_name} ${r.player.last_name}`, position: r.position }));
+    .map((r) => ({ id: r.player.id, name: `${r.player.first_name} ${r.player.last_name}`, position: r.position, availability: availability.get(r.player.id) ?? null }));
+
+  // Everyone starts checked except players who explicitly marked themselves OUT.
+  const initiallyChecked = [...home, ...away]
+    .filter((p) => p.availability !== "out")
+    .map((p) => p.id);
 
   // For "Add sub" search, every league player who is NOT already on either roster.
   const rosterIds = new Set(rows.map((r) => r.player.id));
@@ -111,6 +127,7 @@ async function CheckInView({ game }: { game: GameRow }) {
         homeRoster={home}
         awayRoster={away}
         addableSubs={addableSubs}
+        initiallyChecked={initiallyChecked}
       />
     </div>
   );

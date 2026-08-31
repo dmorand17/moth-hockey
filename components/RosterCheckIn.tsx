@@ -7,7 +7,9 @@ import { createNewSub, startGame, updateRoster } from "@/app/score/[gameId]/acti
 
 type Position = "forward" | "defense" | "goalie";
 
-type RosterPlayer = { id: string; name: string; position: Position };
+type Availability = "in" | "out" | null;
+
+type RosterPlayer = { id: string; name: string; position: Position; availability?: Availability };
 
 type Team = { id: string; name: string; color: string };
 
@@ -306,6 +308,26 @@ function TeamRoster({
                 <span className="flex-1 truncate text-[14px]">{p.name}</span>
                 {isLocked && (
                   <span className="eyebrow text-[10px] text-ink-faint" aria-hidden>🔒</span>
+                )}
+                {!p.isSub && (
+                  <span
+                    className={`eyebrow text-[10px] ${
+                      p.availability === "in"
+                        ? "text-ice"
+                        : p.availability === "out"
+                          ? "text-goal"
+                          : "text-ink-faint"
+                    }`}
+                    title={
+                      p.availability === "in"
+                        ? "Marked themselves in"
+                        : p.availability === "out"
+                          ? "Marked themselves out"
+                          : "No response"
+                    }
+                  >
+                    {p.availability === "in" ? "IN" : p.availability === "out" ? "OUT" : "—"}
+                  </span>
                 )}
                 <span
                   className={`eyebrow text-[10px] ${

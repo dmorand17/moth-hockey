@@ -300,6 +300,24 @@ export default async function AccountPage() {
         </section>
       )}
 
+      {!roster?.team && (
+        <section
+          className="panel p-5 space-y-2 mt-5"
+          style={{ borderLeftWidth: 3, borderLeftColor: "var(--goal)" }}
+        >
+          <div className="eyebrow text-goal">Almost there</div>
+          <h2 className="font-display text-xl tracking-[0.06em] text-ink">
+            NOT ON A TEAM YET
+          </h2>
+          <p className="text-ink-dim text-[14px] leading-relaxed">
+            Team features — like setting your availability for upcoming games —
+            unlock once an admin adds you to a team roster. Your account is all
+            set; you&apos;ll see your next game and check-in here as soon as
+            you&apos;re rostered.
+          </p>
+        </section>
+      )}
+
       <form action={signOut} className="mt-5">
         <button
           type="submit"

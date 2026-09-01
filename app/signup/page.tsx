@@ -28,6 +28,10 @@ export default async function SignupPage({ searchParams }: { searchParams: Searc
           <p className="text-ink-dim mt-2 text-sm">
             Click the link to confirm your account. The link expires in an hour.
           </p>
+          <p className="text-ink-faint mt-2 text-sm">
+            No email after a minute? Check your spam or junk folder — and mark it
+            &ldquo;not spam&rdquo; so future links land in your inbox.
+          </p>
         </div>
       ) : (
         <form action={requestSignupLink} className="panel p-5 space-y-4" noValidate>

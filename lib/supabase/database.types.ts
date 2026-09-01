@@ -756,6 +756,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_user_last_sign_in: {
+        Args: never
+        Returns: {
+          last_sign_in_at: string
+          user_id: string
+        }[]
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]

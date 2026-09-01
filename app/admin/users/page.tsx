@@ -37,16 +37,22 @@ export default async function AdminUsersPage() {
   await requireRole(["admin"]);
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: profiles }, { data: roles }, { data: players }] = await Promise.all([
-    supabase
-      .from("user_profiles")
-      .select("user_id, email, full_name, created_at, updated_at")
-      .order("created_at", { ascending: false }),
-    supabase.from("user_roles").select("user_id, role"),
-    supabase.from("players").select("id, first_name, last_name, user_id"),
-  ]);
+  const [{ data: profiles }, { data: roles }, { data: players }, { data: lastSignIns }] =
+    await Promise.all([
+      supabase
+        .from("user_profiles")
+        .select("user_id, email, full_name, created_at, updated_at")
+        .order("created_at", { ascending: false }),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("players").select("id, first_name, last_name, user_id"),
+      // auth.users.last_sign_in_at, exposed to admins via SECURITY DEFINER RPC.
+      supabase.rpc("admin_user_last_sign_in"),
+    ]);
 
   const roleByUser = new Map((roles ?? []).map((r) => [r.user_id, r.role as Role]));
+  const lastSignInByUser = new Map(
+    (lastSignIns ?? []).map((r) => [r.user_id, r.last_sign_in_at]),
+  );
   const playerByUser = new Map(
     (players ?? [])
       .filter((p) => p.user_id)
@@ -61,6 +67,7 @@ export default async function AdminUsersPage() {
     player: playerByUser.get(p.user_id) ?? null,
     created_at: p.created_at,
     updated_at: p.updated_at,
+    last_sign_in_at: lastSignInByUser.get(p.user_id) ?? null,
   }));
 
   return (
@@ -88,6 +95,7 @@ export default async function AdminUsersPage() {
                 <th className="text-left pl-5">Account</th>
                 <th className="text-left">Role</th>
                 <th className="text-left">Player</th>
+                <th className="text-left">Last sign-in</th>
                 <th className="text-left">Created</th>
                 <th className="text-left pr-5">Updated</th>
               </tr>
@@ -134,6 +142,13 @@ export default async function AdminUsersPage() {
                       <span className="text-ink">{u.player.name}</span>
                     ) : (
                       <span className="eyebrow text-goal/80">Unlinked</span>
+                    )}
+                  </td>
+                  <td className="font-mono text-[12px] whitespace-nowrap">
+                    {u.last_sign_in_at ? (
+                      <span className="text-ink-dim">{fmt(u.last_sign_in_at)}</span>
+                    ) : (
+                      <span className="eyebrow text-goal/80">Never</span>
                     )}
                   </td>
                   <td className="text-ink-dim font-mono text-[12px] whitespace-nowrap">

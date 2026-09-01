@@ -6,6 +6,18 @@ import { requestLoginLink } from "./actions";
 
 type SearchParams = Promise<{ sent?: string; error?: string }>;
 
+// Map raw error codes / Supabase messages to friendly, actionable copy.
+// Expired/used links are common when an email scanner pre-opens the one-time
+// link, so we tell the user to just request a fresh one below.
+function friendlyError(error: string): string {
+  if (error === "missing_email") return "Email is required.";
+  const e = error.toLowerCase();
+  if (e.includes("missing_token") || e.includes("invalid") || e.includes("expired")) {
+    return "That sign-in link has expired or was already used. Request a fresh one below — open it on the same device, and it works only once.";
+  }
+  return error;
+}
+
 export default async function LoginPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
@@ -13,7 +25,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
 
   const params = await searchParams;
   const sent = params.sent === "1";
-  const error = params.error;
+  const error = params.error ? friendlyError(params.error) : null;
 
   return (
     <div className="mx-auto max-w-md rise">
@@ -38,12 +50,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
           <p className="text-ink-dim mt-2 text-sm">
             If an account exists for that address, a sign-in link is on its way.
           </p>
+          <p className="text-ink-faint mt-2 text-sm">
+            No email after a minute? Check your spam or junk folder — and mark it
+            &ldquo;not spam&rdquo; so future links land in your inbox.
+          </p>
         </div>
       ) : (
         <form action={requestLoginLink} className="panel p-5 space-y-4" noValidate>
           {error && (
             <p role="alert" className="text-goal text-sm">
-              {error === "missing_email" ? "Email is required." : error}
+              {error}
             </p>
           )}
 

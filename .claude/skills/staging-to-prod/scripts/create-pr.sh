@@ -76,6 +76,7 @@ ${included}
 ${mig_section}## Post-merge
 
 ${mig_checklist}- [ ] Confirm the Vercel production deploy succeeds
-- [ ] Spot-check the changed areas in prod"
+- [ ] Spot-check the changed areas in prod
+- [ ] Tag the release: \`.claude/skills/staging-to-prod/scripts/create-release.sh\`"
 
 gh pr create --base "${BASE}" --head "${HEAD}" --title "${TITLE}" --body "${body}"

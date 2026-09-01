@@ -58,20 +58,7 @@ gh pr create --base main --head staging --title "Staging to Prod" --body "<summa
 
 ## After merging: tag the release
 
-Once the staging-to-prod PR is merged, run the release script to tag `main`
-and create a GitHub release with the same included-PR list:
-
-```bash
-.claude/skills/staging-to-prod/scripts/create-release.sh         # auto-increments patch (e.g. v1.0.1)
-.claude/skills/staging-to-prod/scripts/create-release.sh v2.0.0  # explicit version
-```
-
-The script:
-1. Confirms `staging` has been merged into `main` before proceeding.
-2. Reads the previous semver tag and proposes the next patch version.
-3. Builds the release notes from merged feature PRs since the previous tag.
-4. Creates an annotated git tag on `origin/main` and pushes it.
-5. Creates a GitHub release via `gh release create`.
+Use the `/create-release` skill once the PR is merged.
 
 ## Notes
 

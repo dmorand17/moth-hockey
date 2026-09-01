@@ -4,6 +4,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { PlayoffChip } from "@/components/PlayoffChip";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CheckInToggle } from "@/components/CheckInToggle";
+import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
@@ -80,7 +81,8 @@ export default async function GamePage({
   const homeWon = isFinal && game.home_score > game.away_score;
   const awayWon = isFinal && game.away_score > game.home_score;
 
-  // Availability / check-in — scheduled games with two real teams only.
+  // Availability — show for any game with two real teams.
+  // Interactive controls (check-in, manage) only appear for scheduled games.
   const isScheduled = game.status === "scheduled";
   let availability:
     | {
@@ -89,10 +91,11 @@ export default async function GamePage({
         viewerStatus: "in" | "out" | null;
         viewerCanCheckIn: boolean;
         viewerTeamName: string | null;
+        manageableTeamIds: string[];
       }
     | null = null;
 
-  if (isScheduled && homeTeam && awayTeam) {
+  if (homeTeam && awayTeam) {
     const [{ data: rosterRaw }, { data: availRaw }, { data: userData }] =
       await Promise.all([
         supabase
@@ -114,13 +117,37 @@ export default async function GamePage({
     }
 
     let viewerPlayerId: string | null = null;
+    let manageableTeamIds: string[] = [];
+
     if (userData.user) {
-      const { data: me } = await supabase
-        .from("players")
-        .select("id")
-        .eq("user_id", userData.user.id)
-        .maybeSingle();
+      const [{ data: me }, { data: roleRow }] = await Promise.all([
+        supabase
+          .from("players")
+          .select("id")
+          .eq("user_id", userData.user.id)
+          .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userData.user.id)
+          .maybeSingle(),
+      ]);
       viewerPlayerId = me?.id ?? null;
+
+      if (isScheduled) {
+        if (roleRow?.role === "admin") {
+          manageableTeamIds = [homeTeam.id, awayTeam.id];
+        } else if (roleRow?.role === "team_captain") {
+          const { data: captainRow } = await supabase
+            .from("team_captains")
+            .select("team_id")
+            .eq("user_id", userData.user.id)
+            .eq("season_id", game.season_id)
+            .in("team_id", [homeTeam.id, awayTeam.id])
+            .maybeSingle();
+          if (captainRow) manageableTeamIds = [captainRow.team_id];
+        }
+      }
     }
 
     const byName = (a: AvailPlayer, b: AvailPlayer) => a.name.localeCompare(b.name);
@@ -157,6 +184,7 @@ export default async function GamePage({
       viewerStatus: viewerPlayerId ? (statusBy.get(viewerPlayerId) ?? null) : null,
       viewerCanCheckIn: onHome || onAway,
       viewerTeamName: onHome ? homeTeam.name : onAway ? awayTeam.name : null,
+      manageableTeamIds,
     };
   }
 
@@ -235,8 +263,8 @@ export default async function GamePage({
       {/* AVAILABILITY (scheduled games) */}
       {availability && (
         <section className="rise delay-1 space-y-4">
-          <SectionHeader eyebrow="Roster" title="Availability" subtitle="Who's in for this game" />
-          {availability.viewerCanCheckIn && (
+          <SectionHeader eyebrow="Roster" title="Availability" subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"} />
+          {isScheduled && availability.viewerCanCheckIn && (
             <div className="panel p-4 space-y-3">
               <p className="text-[14px] text-ink">
                 You&apos;re on{" "}
@@ -247,8 +275,24 @@ export default async function GamePage({
             </div>
           )}
           <div className="grid gap-4 md:grid-cols-2">
-            <TeamAvailabilityCard team={awayView} avail={availability.away} />
-            <TeamAvailabilityCard team={homeView} avail={availability.home} />
+            {availability.manageableTeamIds.includes(awayView.id) ? (
+              <AvailabilityManager
+                gameId={game.id}
+                team={awayView}
+                players={toManagedPlayers(availability.away)}
+              />
+            ) : (
+              <TeamAvailabilityCard team={awayView} avail={availability.away} />
+            )}
+            {availability.manageableTeamIds.includes(homeView.id) ? (
+              <AvailabilityManager
+                gameId={game.id}
+                team={homeView}
+                players={toManagedPlayers(availability.home)}
+              />
+            ) : (
+              <TeamAvailabilityCard team={homeView} avail={availability.home} />
+            )}
           </div>
         </section>
       )}
@@ -355,6 +399,14 @@ export default async function GamePage({
       </section>
     </div>
   );
+}
+
+function toManagedPlayers(avail: TeamAvail): ManagedPlayer[] {
+  return [
+    ...avail.in.map((p) => ({ ...p, status: "in" as const })),
+    ...avail.out.map((p) => ({ ...p, status: "out" as const })),
+    ...avail.none.map((p) => ({ ...p, status: null })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function TeamAvailabilityCard({ team, avail }: { team: TeamRef; avail: TeamAvail }) {

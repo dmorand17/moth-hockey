@@ -29,6 +29,15 @@ Uses **bun** (see `bun.lock`). Use `bun install` / `bun add` rather than npm or 
 
 No test runner is configured.
 
+## Git Workflow
+
+This repo uses a `feature → staging → main` branching model:
+
+- **All feature branches and bug fixes must be created off `staging`**, not `main`.
+- Feature PRs merge into `staging`.
+- When ready to release, the `/staging-to-prod` skill creates a `staging → main` PR.
+- After that PR merges, run `.claude/skills/staging-to-prod/scripts/create-release.sh` to tag the release and create a GitHub release.
+
 ## Architecture
 
 App Router project (`app/`) backed by Supabase (Postgres / Auth). Server-first: pages are React Server Components that read via `lib/queries.ts`; mutations live in colocated `actions.ts` server actions gated by `lib/auth.ts`. Tailwind v4 is configured in `app/globals.css`, not `tailwind.config.*`. TypeScript path alias `@/*` → repo root.

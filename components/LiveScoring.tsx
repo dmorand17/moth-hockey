@@ -18,6 +18,19 @@ import {
 import { PENALTY_TYPES, type PenaltyType } from "@/app/score/[gameId]/penalty-types";
 import { formatClock, formatPeriod } from "@/lib/format";
 
+const CLOCK_RE = /^(\d{1,2}):([0-5]?\d)$/;
+
+// Team colors span near-black (#1f2937) to near-white (#e5e7eb), so text laid on
+// a solid team color has to pick its own contrast rather than assume a dark board.
+function readableOn(hex: string): string {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) / 255);
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const luminance = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return luminance > 0.45 ? "var(--board)" : "var(--ink)";
+}
+
 type Position = "forward" | "defense" | "goalie";
 
 type RosterPlayer = { id: string; name: string; position: Position; isSub: boolean };
@@ -73,6 +86,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     | { kind: "penalty"; teamId: string }
     | { kind: "advance" }
     | { kind: "finalize" }
+    | { kind: "clock" }
     | { kind: "eventMenu"; event: EventRow }
     | { kind: "editEvent"; event: EventRow }
   >(null);
@@ -91,12 +105,21 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   // localStorage key scoped to this game for screen-off recovery.
   const clockKey = `sk_clock_${game.id}`;
 
-  // When the server clock changes (refresh after an action), resync.
+  // Resync to the server whenever the period changes or the server clock moves.
+  // Keying on the period matters: every regulation period seeds the same length,
+  // so P1→P2 leaves `clockSeconds` numerically unchanged and a value-only
+  // dependency would never fire — the display would keep counting down from the
+  // old period and then persist that stale value over the reset.
+  const periodRef = useRef(game.period);
   useEffect(() => {
+    const periodChanged = periodRef.current !== game.period;
+    periodRef.current = game.period;
+    // A fresh period starts stopped, at its full length, waiting for puck drop.
+    if (periodChanged) setRunning(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayClock(game.clockSeconds);
     lastPersistedRef.current = game.clockSeconds;
-  }, [game.clockSeconds]);
+  }, [game.period, game.clockSeconds]);
 
   // Tick once per second when running. Persist every 10 ticks (or when
   // we hit 0). This avoids hammering the DB while still keeping the
@@ -153,8 +176,10 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
     if (!shouldPersist) return;
     lastPersistedRef.current = displayClock;
     // Fire-and-forget; we don't router.refresh() to avoid disrupting the tick.
-    setClock({ gameId: game.id, clockSeconds: displayClock }).catch(() => {});
-  }, [displayClock, running, game.id]);
+    // `period` scopes the write so a tick already in flight when the period
+    // changed can't land afterwards and overwrite the new period's reset.
+    setClock({ gameId: game.id, clockSeconds: displayClock, period: game.period }).catch(() => {});
+  }, [displayClock, running, game.id, game.period]);
 
   const run = (fn: () => Promise<{ ok: true; message?: string } | { ok: false; error: string }>) => {
     setError(null);
@@ -172,23 +197,14 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
 
   const onToggleRun = () => setRunning((r) => !r);
 
-  const onEditClock = () => {
-    setRunning(false);
-    const cur = formatClock(displayClock);
-    const input = window.prompt("Set clock (MM:SS)", cur);
-    if (input == null) return;
-    const m = input.match(/^(\d{1,2}):([0-5]?\d)$/);
-    if (!m) {
-      setError("Use MM:SS format, e.g. 14:30");
-      return;
-    }
-    const next = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-    if (next < 0 || next > 99 * 60) {
-      setError("Clock must be between 0:00 and 99:00");
-      return;
-    }
-    setDisplayClock(next);
-    run(() => setClock({ gameId: game.id, clockSeconds: next }));
+  // Apply a new clock value without disturbing whether it's running — a
+  // mid-period correction shouldn't force the scorekeeper to restart the clock.
+  const applyClock = (next: number) => {
+    const clamped = Math.max(0, Math.min(99 * 60, next));
+    setDisplayClock(clamped);
+    lastPersistedRef.current = clamped;
+    if (clamped === 0) setRunning(false);
+    run(() => setClock({ gameId: game.id, clockSeconds: clamped, period: game.period }));
   };
 
   const onUndoSpecific = (eventId: string) => {
@@ -197,11 +213,13 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
   };
 
   const onRevertPeriod = () => {
-    if (!confirm(`Go back to ${formatPeriod(game.period - 1)}? The clock will reset.`)) return;
+    const stuck = events.filter((e) => e.period === game.period).length;
+    const warning = stuck
+      ? `\n\n${stuck} event${stuck === 1 ? "" : "s"} recorded in ${formatPeriod(game.period)} will stay there.`
+      : "";
+    if (!confirm(`Go back to ${formatPeriod(game.period - 1)}? The clock resets.${warning}`)) return;
     run(() => revertPeriod({ gameId: game.id }));
   };
-
-  const hasEventsInCurrentPeriod = events.some((e) => e.period === game.period);
 
   const isP3End = game.period === 3;
   const inOT = game.period === 4;
@@ -217,7 +235,10 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         displayClock={displayClock}
         running={running}
         onToggleRun={onToggleRun}
-        onEditClock={onEditClock}
+        onEditClock={() => setSheet({ kind: "clock" })}
+        onStepBackPeriod={game.period > 1 ? onRevertPeriod : undefined}
+        onStepForwardPeriod={game.period < 5 ? () => setSheet({ kind: "advance" }) : undefined}
+        disabled={pending}
       />
 
       {error && (
@@ -336,17 +357,6 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         </div>
       )}
 
-      {game.period > 1 && !hasEventsInCurrentPeriod && (
-        <button
-          type="button"
-          onClick={onRevertPeriod}
-          disabled={pending}
-          className="w-full min-h-[36px] eyebrow text-[10px] text-ink-faint hover:text-ink-dim disabled:opacity-50"
-        >
-          ← Back to {formatPeriod(game.period - 1)}
-        </button>
-      )}
-
       {/* Events log */}
       <EventsList
         events={events}
@@ -406,6 +416,18 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
         />
       )}
 
+      {sheet?.kind === "clock" && (
+        <ClockSheet
+          clockSeconds={displayClock}
+          running={running}
+          onCancel={() => setSheet(null)}
+          onApply={(next) => {
+            setSheet(null);
+            applyClock(next);
+          }}
+        />
+      )}
+
       {sheet?.kind === "eventMenu" && (
         <Sheet
           title={`${sheet.event.type === "goal" ? "Goal" : "Penalty"} · ${sheet.event.scorer_name ?? ""}`}
@@ -456,12 +478,18 @@ function ScoreBar({
   running,
   onToggleRun,
   onEditClock,
+  onStepBackPeriod,
+  onStepForwardPeriod,
+  disabled,
 }: {
   game: Game;
   displayClock: number;
   running: boolean;
   onToggleRun: () => void;
   onEditClock: () => void;
+  onStepBackPeriod?: () => void;
+  onStepForwardPeriod?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="sticky top-0 z-20 -mx-4 sm:mx-0">
@@ -503,41 +531,49 @@ function ScoreBar({
           }}
         />
         <div className="absolute inset-0 stripes opacity-30 pointer-events-none" />
-        <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <TeamScore team={game.awayTeam} score={game.awayScore} align="left" />
-          <div className="flex flex-col items-center min-w-[96px] gap-1">
-            <span className="chip chip-live whitespace-nowrap">
-              <span className="live-dot" /> {formatPeriod(game.period)}
-            </span>
+          <div className="flex flex-col items-center min-w-[120px] gap-1.5">
+            <PeriodStepper
+              period={game.period}
+              running={running}
+              onBack={onStepBackPeriod}
+              onForward={onStepForwardPeriod}
+              disabled={disabled}
+            />
             <button
               type="button"
               onClick={onEditClock}
-              title="Tap to edit clock"
+              title="Tap to adjust clock"
               aria-label="Edit clock"
-              className={`digit text-[34px] leading-none tabular-nums hover:opacity-80 transition-opacity ${
+              className={`digit text-[38px] leading-none tabular-nums transition-opacity hover:opacity-80 ${
                 running ? "text-ink" : "text-ink-dim"
               }`}
               style={{
-                textShadow: running ? "0 0 12px rgba(255, 56, 56, 0.35)" : undefined,
+                textShadow: running ? "0 0 14px rgba(255, 56, 56, 0.4)" : undefined,
               }}
             >
               {formatClock(displayClock)}
             </button>
-            <button
-              type="button"
-              onClick={onToggleRun}
-              className={`h-7 px-2.5 eyebrow text-[10px] tracking-[0.18em] border rounded-[2px] transition-colors ${
-                running
-                  ? "bg-goal/15 text-goal border-goal/50 hover:bg-goal/25"
-                  : "bg-board-3 text-ink-dim border-rule hover:border-ice hover:text-ice"
-              }`}
-              aria-label={running ? "Pause clock" : "Start clock"}
-            >
-              {running ? "❚❚ PAUSE" : "▶ START"}
-            </button>
           </div>
           <TeamScore team={game.homeTeam} score={game.homeScore} align="right" />
         </div>
+
+        {/* Full-width run control: the most-tapped button on the page, so it
+            gets the whole width rather than a 28px chip between the scores. */}
+        <button
+          type="button"
+          onClick={onToggleRun}
+          disabled={game.period >= 5}
+          className={`relative w-full min-h-[48px] font-display text-[15px] tracking-[0.2em] border rounded-[2px] transition-colors disabled:opacity-40 ${
+            running
+              ? "bg-goal/20 text-goal border-goal/60 hover:bg-goal/30"
+              : "bg-board-3 text-ice border-ice/45 hover:border-ice hover:bg-ice/10"
+          }`}
+          aria-label={running ? "Pause clock" : "Start clock"}
+        >
+          {running ? "❚❚  PAUSE" : "▶  START"}
+        </button>
       </div>
     </div>
   );
@@ -593,19 +629,20 @@ function TeamActionColumn({
   onPenalty: () => void;
   disabled?: boolean;
 }) {
+  const onColor = readableOn(team.color);
   return (
-    <div className="space-y-1.5">
-      {/* Team rail header: ties this column to the score panel above */}
-      <div
-        aria-hidden
-        className="h-1 rounded-[1px]"
-        style={{ background: team.color, boxShadow: `0 0 12px ${team.color}55` }}
-      />
+    <TeamPanel team={team}>
       <button
         type="button"
         onClick={onGoal}
         disabled={disabled}
-        className="w-full min-h-[68px] font-display text-[22px] tracking-[0.14em] rounded-[2px] border bg-goal text-board border-goal hover:bg-goal-glow active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full min-h-[72px] font-display text-[23px] tracking-[0.14em] rounded-[2px] border active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{
+          background: team.color,
+          color: onColor,
+          borderColor: team.color,
+          boxShadow: `0 0 18px ${team.color}44`,
+        }}
       >
         GOAL
       </button>
@@ -613,10 +650,33 @@ function TeamActionColumn({
         type="button"
         onClick={onPenalty}
         disabled={disabled}
-        className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] rounded-[2px] border bg-board/40 active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ color: team.color, borderColor: `${team.color}66` }}
       >
         PENALTY
       </button>
+    </TeamPanel>
+  );
+}
+
+// Shared chrome for the two per-team action columns: a tinted body and a solid
+// team-color header, so each side reads as that team's block at a glance.
+function TeamPanel({ team, children }: { team: Team; children: React.ReactNode }) {
+  return (
+    <div
+      className="rounded-[3px] border overflow-hidden"
+      style={{
+        borderColor: `${team.color}59`,
+        background: `linear-gradient(180deg, ${team.color}2e 0%, ${team.color}0f 100%)`,
+      }}
+    >
+      <div
+        className="px-2 py-1 font-display text-[12px] tracking-[0.14em] uppercase text-center truncate"
+        style={{ background: team.color, color: readableOn(team.color) }}
+      >
+        {team.name}
+      </div>
+      <div className="p-1.5 space-y-1.5">{children}</div>
     </div>
   );
 }
@@ -633,13 +693,8 @@ function ShootoutTallyColumn({
   disabled?: boolean;
 }) {
   return (
-    <div className="space-y-1.5">
-      <div
-        aria-hidden
-        className="h-1 rounded-[1px]"
-        style={{ background: team.color, boxShadow: `0 0 12px ${team.color}55` }}
-      />
-      <div className="bg-board-3 border border-rule rounded-[2px] p-2 flex flex-col items-center gap-2">
+    <TeamPanel team={team}>
+      <div className="flex flex-col items-center gap-1 pt-1">
         <span className="eyebrow text-[10px] text-ink-faint">SO TALLY</span>
         <span
           className="digit text-[44px] leading-none tabular-nums"
@@ -668,7 +723,7 @@ function ShootoutTallyColumn({
           </button>
         </div>
       </div>
-    </div>
+    </TeamPanel>
   );
 }
 
@@ -784,6 +839,157 @@ function prettyPenalty(t: string | null): string {
     .split("_")
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
+}
+
+// Period display doubling as a two-way stepper. Replaces the old single
+// "← Back to P1" link below the fold — both directions are now one tap, in the
+// place the scorekeeper is already looking.
+function PeriodStepper({
+  period,
+  running,
+  onBack,
+  onForward,
+  disabled,
+}: {
+  period: number;
+  running: boolean;
+  onBack?: () => void;
+  onForward?: () => void;
+  disabled?: boolean;
+}) {
+  const arrowCls =
+    "w-9 min-h-[36px] flex items-center justify-center rounded-[2px] border border-rule bg-board-3/80 text-ink-dim text-[15px] leading-none transition-colors hover:border-ice hover:text-ice disabled:opacity-25 disabled:hover:border-rule disabled:hover:text-ink-dim";
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={disabled || !onBack}
+        className={arrowCls}
+        aria-label="Go back a period"
+      >
+        ◀
+      </button>
+      <span
+        className={`chip whitespace-nowrap min-w-[58px] justify-center ${running ? "chip-live" : ""}`}
+      >
+        {running && <span className="live-dot" />}
+        {formatPeriod(period)}
+      </span>
+      <button
+        type="button"
+        onClick={onForward}
+        disabled={disabled || !onForward}
+        className={arrowCls}
+        aria-label="Advance a period"
+      >
+        ▶
+      </button>
+    </div>
+  );
+}
+
+const CLOCK_NUDGES = [60, 10, 1] as const;
+
+// Clock editor. Replaces window.prompt, which on iOS Safari steals focus, can't
+// be styled, and gave no way to make a small correction without retyping.
+function ClockSheet({
+  clockSeconds,
+  running,
+  onCancel,
+  onApply,
+}: {
+  clockSeconds: number;
+  running: boolean;
+  onCancel: () => void;
+  onApply: (next: number) => void;
+}) {
+  const [value, setValue] = useState(clockSeconds);
+  const [text, setText] = useState(formatClock(clockSeconds));
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const nudge = (delta: number) => {
+    const next = Math.max(0, Math.min(99 * 60, value + delta));
+    setValue(next);
+    setText(formatClock(next));
+    setLocalError(null);
+  };
+
+  const commitText = (raw: string) => {
+    const m = raw.trim().match(CLOCK_RE);
+    if (!m) {
+      setLocalError("Use MM:SS, e.g. 14:30");
+      return;
+    }
+    const next = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    if (next > 99 * 60) {
+      setLocalError("Max is 99:00");
+      return;
+    }
+    setValue(next);
+    setText(formatClock(next));
+    setLocalError(null);
+  };
+
+  const nudgeCls =
+    "min-h-[48px] font-display text-[15px] tracking-[0.08em] rounded-[2px] border border-rule bg-board-3 text-ink-dim hover:border-ice hover:text-ice disabled:opacity-30";
+
+  return (
+    <Sheet title="Adjust clock" onCancel={onCancel}>
+      <div className="flex flex-col items-center gap-1 py-1">
+        <span className="digit text-[52px] leading-none tabular-nums text-ink">
+          {formatClock(value)}
+        </span>
+        <span className="eyebrow text-[10px] text-ink-faint">
+          {running ? "clock keeps running" : "clock stays paused"}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-1.5">
+        {CLOCK_NUDGES.map((n) => (
+          <button key={`minus-${n}`} type="button" onClick={() => nudge(-n)} disabled={value === 0} className={nudgeCls}>
+            −{n === 60 ? "1:00" : `${n}s`}
+          </button>
+        ))}
+        {CLOCK_NUDGES.map((n) => (
+          <button key={`plus-${n}`} type="button" onClick={() => nudge(n)} className={nudgeCls}>
+            +{n === 60 ? "1:00" : `${n}s`}
+          </button>
+        ))}
+      </div>
+
+      <label className="flex items-center gap-3 rounded-[2px] border border-rule px-3 min-h-[48px]">
+        <span className="eyebrow text-[10px] text-ink-faint shrink-0">Set to</span>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={(e) => commitText(e.target.value)}
+          inputMode="numeric"
+          placeholder="MM:SS"
+          aria-label="Set clock to MM:SS"
+          className="digit flex-1 bg-transparent text-[18px] tabular-nums text-ink outline-none placeholder:text-ink-faint"
+        />
+      </label>
+
+      {localError && <p className="text-goal text-[13px]">{localError}</p>}
+
+      <button
+        type="button"
+        onClick={() => {
+          const m = text.trim().match(CLOCK_RE);
+          const finalValue = m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : value;
+          if (finalValue > 99 * 60) {
+            setLocalError("Max is 99:00");
+            return;
+          }
+          onApply(finalValue);
+        }}
+        className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice"
+      >
+        APPLY
+      </button>
+    </Sheet>
+  );
 }
 
 // =============================================================================
@@ -1221,8 +1427,6 @@ function FinalizeSheet({
     </Sheet>
   );
 }
-
-const CLOCK_RE = /^(\d{1,2}):([0-5]?\d)$/;
 
 function FieldRow({
   label,

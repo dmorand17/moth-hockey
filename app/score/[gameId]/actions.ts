@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type ActionResult } from "@/lib/action-result";
+import { formatPeriod } from "@/lib/format";
 import { PENALTY_TYPES, type PenaltyType } from "./penalty-types";
 
 type Position = "forward" | "defense" | "goalie";
@@ -235,6 +236,29 @@ export async function updateRoster(input: {
 // LIVE SCORING (Wave 3)
 // =============================================================================
 
+// Seconds a given period starts with: regulation → the season's period length,
+// OT → 5:00, shootout → no clock.
+async function seedClockForPeriod(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  gameId: string,
+  period: number,
+): Promise<number> {
+  if (period === 4) return 5 * 60;
+  if (period >= 5) return 0;
+  const { data: gameMeta } = await supabase
+    .from("games")
+    .select("season_id")
+    .eq("id", gameId)
+    .single();
+  if (!gameMeta) return 17 * 60;
+  const { data: seasonRow } = await supabase
+    .from("seasons")
+    .select("period_length_minutes")
+    .eq("id", gameMeta.season_id)
+    .single();
+  return (seasonRow?.period_length_minutes ?? 17) * 60;
+}
+
 async function ensureLiveAccess(gameId: string) {
   await requireRole(["admin", "scorekeeper"]);
   const supabase = await createSupabaseServerClient();
@@ -250,15 +274,23 @@ async function ensureLiveAccess(gameId: string) {
   return { ok: true as const, supabase, game: data };
 }
 
-// Set the clock to a specific seconds value. Used by manual +/- buttons in the UI.
-export async function setClock(input: { gameId: string; clockSeconds: number }): Promise<ActionResult> {
+// Set the clock to a specific seconds value. Used by the clock editor and by
+// the running clock's periodic persist.
+//
+// `period` is the period the client believed it was in. The write is scoped to
+// it so a tick that was already in flight when the period changed can't land
+// afterwards and clobber the fresh period's reset clock.
+export async function setClock(input: {
+  gameId: string;
+  clockSeconds: number;
+  period?: number;
+}): Promise<ActionResult> {
   const guard = await ensureLiveAccess(input.gameId);
   if (!guard.ok) return guard;
   const clock = Math.max(0, Math.min(60 * 99, Math.floor(input.clockSeconds)));
-  const { error } = await guard.supabase
-    .from("games")
-    .update({ clock_seconds: clock })
-    .eq("id", input.gameId);
+  let q = guard.supabase.from("games").update({ clock_seconds: clock }).eq("id", input.gameId);
+  if (input.period != null) q = q.eq("period", input.period);
+  const { error } = await q;
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath(`/games/${input.gameId}`);
@@ -275,26 +307,7 @@ export async function advancePeriod(input: { gameId: string }): Promise<ActionRe
   if (cur >= 5) return { ok: false, error: "Already at shootout." };
   const next = cur + 1;
 
-  // Period clock seed.
-  let clock = 0;
-  if (next <= 3) {
-    const { data: gameMeta, error: metaErr } = await guard.supabase
-      .from("games")
-      .select("season_id")
-      .eq("id", input.gameId)
-      .single();
-    if (metaErr || !gameMeta) return { ok: false, error: metaErr?.message ?? "Game not found." };
-    const { data: seasonRow } = await guard.supabase
-      .from("seasons")
-      .select("period_length_minutes")
-      .eq("id", gameMeta.season_id)
-      .single();
-    clock = (seasonRow?.period_length_minutes ?? 17) * 60;
-  } else if (next === 4) {
-    clock = 5 * 60;
-  } else {
-    clock = 0;
-  }
+  const clock = await seedClockForPeriod(guard.supabase, input.gameId, next);
 
   const { error } = await guard.supabase
     .from("games")
@@ -506,34 +519,17 @@ export async function revertPeriod(input: { gameId: string }): Promise<ActionRes
 
   if (game.period <= 1) return { ok: false, error: "Already at period 1." };
 
-  const { count, error: countErr } = await supabase
+  // Events already recorded in the period we're leaving keep the period they
+  // were logged under — stepping back is for correcting a mis-tapped advance,
+  // not for erasing play. The client warns when the period isn't empty.
+  const { count } = await supabase
     .from("game_events")
     .select("id", { count: "exact", head: true })
     .eq("game_id", input.gameId)
     .eq("period", game.period);
-  if (countErr) return { ok: false, error: countErr.message };
-  if ((count ?? 0) > 0) {
-    return { ok: false, error: "Can't go back — events are recorded in this period. Undo them first." };
-  }
 
   const prev = game.period - 1;
-  let clock = 0;
-  if (prev <= 3) {
-    const { data: gameMeta, error: metaErr } = await supabase
-      .from("games")
-      .select("season_id")
-      .eq("id", input.gameId)
-      .single();
-    if (metaErr || !gameMeta) return { ok: false, error: metaErr?.message ?? "Game not found." };
-    const { data: seasonRow } = await supabase
-      .from("seasons")
-      .select("period_length_minutes")
-      .eq("id", gameMeta.season_id)
-      .single();
-    clock = (seasonRow?.period_length_minutes ?? 17) * 60;
-  } else if (prev === 4) {
-    clock = 5 * 60;
-  }
+  const clock = await seedClockForPeriod(supabase, input.gameId, prev);
 
   const { error } = await supabase
     .from("games")
@@ -543,7 +539,14 @@ export async function revertPeriod(input: { gameId: string }): Promise<ActionRes
 
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath(`/games/${input.gameId}`);
-  return { ok: true };
+  const left = count ?? 0;
+  return {
+    ok: true,
+    message:
+      left > 0
+        ? `Back to ${formatPeriod(prev)} — ${left} event${left === 1 ? "" : "s"} stayed in ${formatPeriod(game.period)}.`
+        : undefined,
+  };
 }
 
 // Undo a specific event by id. Reverses any score increment it caused.

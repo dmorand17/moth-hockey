@@ -31,9 +31,9 @@
   --color-ice: var(--ice);
   --color-goal: var(--goal);
   --color-goal-glow: var(--goal-glow);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-atkinson);
   --font-display: var(--font-bebas);
-  --font-mono: var(--font-jetbrains);
+  --font-mono: var(--font-atkinson);
 }
 
 html {
@@ -42,7 +42,7 @@ html {
 
 body {
   color: var(--ink);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-atkinson), system-ui, sans-serif;
   background:
     radial-gradient(1200px 600px at 50% -200px, rgba(124, 227, 240, 0.06), transparent 70%),
     radial-gradient(900px 500px at 100% 100%, rgba(255, 56, 56, 0.04), transparent 60%),
@@ -69,8 +69,8 @@ body::before {
   letter-spacing: 0.02em;
 }
 .font-mono {
-  font-family: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
-  font-feature-settings: "tnum" 1, "ss01" 1;
+  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 .tnum { font-variant-numeric: tabular-nums; }
 
@@ -100,9 +100,10 @@ body::before {
 
 /* Eyebrow tag — small monospace label */
 .eyebrow {
-  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-family: var(--font-atkinson), system-ui, sans-serif;
   font-size: 11px;
-  letter-spacing: 0.18em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-dim);
 }
@@ -134,8 +135,7 @@ body::before {
 }
 
 .digit {
-  font-family: var(--font-jetbrains), monospace;
-  font-feature-settings: "tnum" 1;
+  font-family: var(--font-atkinson), system-ui, sans-serif;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -147,9 +147,10 @@ body::before {
   gap: 0.4rem;
   padding: 0.18rem 0.5rem;
   border-radius: 2px;
-  font-family: var(--font-jetbrains), monospace;
+  font-family: var(--font-atkinson), system-ui, sans-serif;
   font-size: 10.5px;
-  letter-spacing: 0.16em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   background: var(--board-3);
   border: 1px solid var(--rule);
@@ -286,12 +287,12 @@ table.board-table {
   border-collapse: collapse;
 }
 table.board-table thead th {
-  font-family: var(--font-jetbrains), monospace;
+  font-family: var(--font-atkinson), system-ui, sans-serif;
   font-size: 10.5px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-dim);
-  font-weight: 500;
+  font-weight: 600;
   padding: 0.6rem 0.5rem;
   border-bottom: 1px solid var(--rule);
   background: color-mix(in srgb, var(--board-2) 70%, var(--board));

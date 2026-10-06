@@ -26,6 +26,10 @@ type SeasonStatsRow = {
   ga: number | null;
   ps_faced: number | null;
   ps_saved: number | null;
+  // Goalie record — only tracked for live seasons; null for imported history.
+  w: number | null;
+  l: number | null;
+  otl: number | null;
   isCurrent: boolean;
 };
 
@@ -160,7 +164,7 @@ export default async function PlayerPage({
   const currentSeason = (seasons ?? []).find((s) => s.is_current);
   const currentSeasonStats = {
     gp: 0, goals: 0, assists: 0, penalties: 0, ps_taken: 0, ps_made: 0,
-    ga: 0, ps_faced: 0, ps_saved: 0,
+    ga: 0, ps_faced: 0, ps_saved: 0, w: 0, l: 0, otl: 0,
   };
   if (currentSeason) {
     currentSeasonStats.gp = finalAppearances.length;
@@ -180,6 +184,16 @@ export default async function PlayerPage({
     if (isGoalie) {
       for (const a of finalAppearances) {
         const myTeam = myCurrentTeamByGame.get(a.game_id);
+        const g = a.game as unknown as {
+          home_score: number; away_score: number; decided_in: string | null;
+          home_team: { id: string } | null;
+        };
+        const isHome = g.home_team?.id === myTeam;
+        const myScore = isHome ? g.home_score : g.away_score;
+        const oppScore = isHome ? g.away_score : g.home_score;
+        if (myScore > oppScore) currentSeasonStats.w++;
+        else if (g.decided_in === "ot" || g.decided_in === "shootout") currentSeasonStats.otl++;
+        else currentSeasonStats.l++;
         for (const e of events ?? []) {
           if (e.game_id !== a.game_id) continue;
           if (e.type === "goal" && e.team_id !== myTeam) currentSeasonStats.ga++;
@@ -290,6 +304,9 @@ export default async function PlayerPage({
       ga: isGoalie ? currentSeasonStats.ga : null,
       ps_faced: isGoalie ? currentSeasonStats.ps_faced : null,
       ps_saved: isGoalie ? currentSeasonStats.ps_saved : null,
+      w: isGoalie ? currentSeasonStats.w : null,
+      l: isGoalie ? currentSeasonStats.l : null,
+      otl: isGoalie ? currentSeasonStats.otl : null,
       isCurrent: true,
     });
   }
@@ -314,6 +331,9 @@ export default async function PlayerPage({
       ga: h.goals_against,
       ps_faced: h.penalty_shots_faced,
       ps_saved: h.penalty_shots_saved,
+      w: null,
+      l: null,
+      otl: null,
       isCurrent: false,
     });
   }
@@ -335,8 +355,11 @@ export default async function PlayerPage({
       ga: acc.ga + (r.ga ?? 0),
       ps_faced: acc.ps_faced + (r.ps_faced ?? 0),
       ps_saved: acc.ps_saved + (r.ps_saved ?? 0),
+      w: acc.w + (r.w ?? 0),
+      l: acc.l + (r.l ?? 0),
+      otl: acc.otl + (r.otl ?? 0),
     }),
-    { gp: 0, goals: 0, assists: 0, points: 0, penalties: 0, ps_taken: 0, ps_made: 0, ga: 0, ps_faced: 0, ps_saved: 0 },
+    { gp: 0, goals: 0, assists: 0, points: 0, penalties: 0, ps_taken: 0, ps_made: 0, ga: 0, ps_faced: 0, ps_saved: 0, w: 0, l: 0, otl: 0 },
   );
 
   // Awards: group by type with the season names where each was earned
@@ -497,6 +520,7 @@ export default async function PlayerPage({
                     <CardStat label="GP" value={r.gp} />
                     {isGoalie ? (
                       <>
+                        <CardStat label="W-L-OTL" value={r.w === null ? "—" : `${r.w}-${r.l}-${r.otl}`} />
                         <CardStat label="GA" value={r.ga ?? "—"} />
                         <CardStat label="PSV" value={r.ps_saved ?? "—"} accent="text-ink" />
                         <CardStat label="PSF" value={r.ps_faced ?? "—"} />
@@ -528,6 +552,7 @@ export default async function PlayerPage({
                   <CardStat label="GP" value={totals.gp} accent="text-ink" />
                   {isGoalie ? (
                     <>
+                      <CardStat label="W-L-OTL" value={`${totals.w}-${totals.l}-${totals.otl}`} accent="text-ink" />
                       <CardStat label="GA" value={totals.ga} accent="text-ink" />
                       <CardStat label="PSV" value={totals.ps_saved} accent="text-ink" />
                       <CardStat label="PSF" value={totals.ps_faced} accent="text-ink" />
@@ -554,6 +579,9 @@ export default async function PlayerPage({
                     <th className="text-right">GP</th>
                     {isGoalie ? (
                       <>
+                        <th className="text-right">W</th>
+                        <th className="text-right">L</th>
+                        <th className="text-right">OTL</th>
                         <th className="text-right">GA</th>
                         <th className="text-right">PSF</th>
                         <th className="text-right pr-5">PSV</th>
@@ -585,6 +613,9 @@ export default async function PlayerPage({
                       <td className="text-right tnum text-ink-dim">{r.gp}</td>
                       {isGoalie ? (
                         <>
+                          <td className="text-right tnum text-ink">{r.w ?? "—"}</td>
+                          <td className="text-right tnum text-ink-dim">{r.l ?? "—"}</td>
+                          <td className="text-right tnum text-ink-dim">{r.otl ?? "—"}</td>
                           <td className="text-right tnum text-ink-dim">{r.ga ?? "—"}</td>
                           <td className="text-right tnum text-ink-dim">{r.ps_faced ?? "—"}</td>
                           <td className="text-right pr-5 tnum text-ink">{r.ps_saved ?? "—"}</td>
@@ -610,6 +641,9 @@ export default async function PlayerPage({
                     <td className="text-right tnum text-ink">{totals.gp}</td>
                     {isGoalie ? (
                       <>
+                        <td className="text-right tnum text-ink">{totals.w}</td>
+                        <td className="text-right tnum text-ink">{totals.l}</td>
+                        <td className="text-right tnum text-ink">{totals.otl}</td>
                         <td className="text-right tnum text-ink">{totals.ga}</td>
                         <td className="text-right tnum text-ink">{totals.ps_faced}</td>
                         <td className="text-right pr-5 digit text-lg text-ink">{totals.ps_saved}</td>
@@ -630,7 +664,7 @@ export default async function PlayerPage({
             </div>
             <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
               {isGoalie
-                ? "GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved."
+                ? "W-L-OTL is tracked for live seasons only (— for imported seasons). GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved."
                 : "PEN = penalties committed. PS = penalty shots taken; PSG = penalty shots scored."}
             </p>
           </>

@@ -16,18 +16,47 @@ if ! git merge-base --is-ancestor "origin/${HEAD}" "origin/${BASE}" 2>/dev/null;
   exit 1
 fi
 
-# Determine the previous release tag and propose the next patch version.
+# Determine the previous release tag and compute all three version candidates.
 prev_tag=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
 if [[ -z "${prev_tag}" ]]; then
-  suggested="v1.0.0"
+  patch_bump="v1.0.0"
+  minor_bump="v1.0.0"
+  major_bump="v1.0.0"
 else
   IFS='.' read -r major minor patch <<< "${prev_tag#v}"
-  suggested="v${major}.${minor}.$((patch + 1))"
+  patch_bump="v${major}.${minor}.$((patch + 1))"
+  minor_bump="v${major}.$((minor + 1)).0"
+  major_bump="v$((major + 1)).0.0"
 fi
 
-# Allow override via first argument.
-tag="${1:-${suggested}}"
+# If an explicit version was passed as the first argument, skip the prompt.
+if [[ -n "${1:-}" ]]; then
+  tag="$1"
+else
+  echo "Previous release : ${prev_tag:-none}"
+  echo ""
+  echo "What kind of release is this?"
+  echo "  1) Patch  — bug fixes / minor tweaks  (${patch_bump})"
+  echo "  2) Minor  — new features, no breaking changes  (${minor_bump})"
+  echo "  3) Major  — significant new features or breaking changes  (${major_bump})"
+  echo "  4) Custom — I'll type the version myself"
+  echo ""
+  read -rp "Choice [1-4]: " choice
+  case "${choice}" in
+    1) tag="${patch_bump}" ;;
+    2) tag="${minor_bump}" ;;
+    3) tag="${major_bump}" ;;
+    4)
+      read -rp "Version (e.g. v2.1.0): " tag
+      ;;
+    *)
+      echo "Invalid choice. Exiting."
+      exit 1
+      ;;
+  esac
+fi
 
+echo ""
 echo "Previous tag : ${prev_tag:-none}"
 echo "New tag      : ${tag}"
 
@@ -59,7 +88,7 @@ ${included}"
 
 # Create an annotated tag on origin/main HEAD.
 git tag -a "${tag}" "origin/${BASE}" -m "Release ${tag}"
-git push origin "${tag}"
+git-c push origin "${tag}"
 
 # Create the GitHub release.
 gh release create "${tag}" \

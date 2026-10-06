@@ -96,19 +96,30 @@ After merging the `staging → main` PR:
 
 3. **Spot-check the changed areas in prod.**
 
-4. **Tag the release:**
+4. **Tag the release** — use the `/create-release` skill, or run directly:
 
    ```bash
-   # Auto-increments the patch version (e.g. v1.0.1 → v1.0.2)
-   .claude/skills/staging-to-prod/scripts/create-release.sh
-
-   # Or specify the version explicitly
-   .claude/skills/staging-to-prod/scripts/create-release.sh v2.0.0
+   .claude/skills/create-release/scripts/create-release.sh
    ```
 
-   This creates an annotated git tag on `main` and a GitHub release with the
-   included-PR list as release notes. The script refuses to run if `staging`
-   hasn't been merged into `main` yet.
+   The script prompts you to choose the release type:
+
+   ```
+   What kind of release is this?
+     1) Patch  — bug fixes / minor tweaks     (v2.0.1)
+     2) Minor  — new features, no breaking changes  (v2.1.0)
+     3) Major  — significant new features or breaking changes  (v3.0.0)
+     4) Custom — I'll type the version myself
+   ```
+
+   Pass an explicit version to skip the prompt:
+   ```bash
+   .claude/skills/staging-to-prod/scripts/create-release.sh v2.1.0
+   ```
+
+   The script creates an annotated git tag on `main` and a GitHub release with
+   the included-PR list as release notes. It refuses to run if `staging` hasn't
+   been merged into `main` yet.
 
 ## Versioning
 
@@ -137,4 +148,4 @@ Pass the version as the first argument to override the suggestion:
 | Push migrations to staging | `supabase link --project-ref <staging-ref> && supabase db push` |
 | Create staging → main PR | `.claude/skills/staging-to-prod/scripts/create-pr.sh` |
 | Push migrations to prod | `supabase link --project-ref <prod-ref> && supabase db push` |
-| Tag + create GitHub release | `.claude/skills/staging-to-prod/scripts/create-release.sh` |
+| Tag + create GitHub release | `.claude/skills/create-release/scripts/create-release.sh` |

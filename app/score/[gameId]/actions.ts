@@ -102,15 +102,24 @@ export async function startGame(input: {
   const { error: insertErr } = await supabase.from("game_appearances").insert(appearances);
   if (insertErr) return { ok: false, error: insertErr.message };
 
-  const { error: updateErr } = await supabase
+  // `.select()` so an RLS-filtered update shows up as zero rows: PostgREST
+  // reports that as success, which previously left the game "scheduled" with
+  // its lineup already written and the UI silently doing nothing.
+  const { data: started, error: updateErr } = await supabase
     .from("games")
     .update({
       status: "live",
       period: 1,
       clock_seconds: seasonRow.period_length_minutes * 60,
     })
-    .eq("id", input.gameId);
-  if (updateErr) return { ok: false, error: updateErr.message };
+    .eq("id", input.gameId)
+    .eq("status", "scheduled")
+    .select("id");
+  if (updateErr || !started?.length) {
+    // Roll back the lineup so a retry doesn't collide with these rows.
+    await supabase.from("game_appearances").delete().eq("game_id", input.gameId);
+    return { ok: false, error: updateErr?.message ?? "Couldn't start the game. Refresh and try again." };
+  }
 
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath("/score");

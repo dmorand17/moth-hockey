@@ -68,6 +68,35 @@ no real mail is ever sent and you never need a real inbox.
 Links are single-use and expire, so always click the newest message. If a link
 seems dead, request a fresh one from `/login`.
 
+## Testing from your phone (same Wi-Fi)
+
+`bun dev` only listens on localhost, so a phone can't reach it. Use:
+
+```bash
+bun run dev:lan
+```
+
+It prints the URL to open on the phone, e.g. `http://192.168.68.57:3001`. Two
+things it changes versus `bun dev`:
+
+- Next binds to `0.0.0.0` instead of localhost.
+- `NEXT_PUBLIC_SUPABASE_URL` is rewritten to this machine's LAN IP, because a
+  browser on the phone resolves `127.0.0.1` to the phone itself.
+
+The IP is detected from whichever interface holds the default route, so a new
+DHCP lease needs no config edit. Override it with `--ip` if detection picks
+wrong. Nothing is written to `.env.local`.
+
+Signed-in pages don't work from the phone: Supabase builds magic links from
+`site_url` (`http://127.0.0.1:3001` in `supabase/config.toml`), so the link
+points back at the phone itself. Use this for public pages only. Networks with
+client isolation (many corporate and guest Wi-Fi setups) block LAN traffic
+entirely; in that case, use a mobile-sized browser window on the Mac instead.
+
+If the page loads but data is missing, macOS likely blocked incoming connections
+to Supabase — allow them when prompted, or check
+`curl http://<your-lan-ip>:54321/rest/v1/` from the Mac.
+
 ## Resetting & reseeding data
 
 ```bash

@@ -97,6 +97,9 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
           ga: r.goals_against ?? 0,
           ps_faced: r.penalty_shots_faced ?? 0,
           ps_saved: r.penalty_shots_saved ?? 0,
+          w: null,
+          l: null,
+          otl: null,
         });
       } else {
         skaters.push({
@@ -151,7 +154,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
         ),
       supabase
         .from("games")
-        .select("id, season_id, status")
+        .select("id, season_id, status, home_team_id, home_score, away_score, decided_in")
         .eq("season_id", season.id)
         .eq("status", "final"),
     ]);
@@ -177,6 +180,10 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
   const games = (gamesRaw ?? []).map((g) => ({
     id: g.id,
     kind: kindByGameId.get(g.id) ?? ("regular" as const),
+    home_team_id: g.home_team_id,
+    home_score: g.home_score,
+    away_score: g.away_score,
+    decided_in: g.decided_in,
   }));
   const seasonFinalGameIds = new Set(games.map((g) => g.id));
 

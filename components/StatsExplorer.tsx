@@ -14,7 +14,14 @@ import {
 
 type Team = { id: string; name: string; slug: string; color: string };
 
-type GameMeta = { id: string; kind: "regular" | "playoff" };
+type GameMeta = {
+  id: string;
+  kind: "regular" | "playoff";
+  home_team_id: string | null;
+  home_score: number;
+  away_score: number;
+  decided_in: string | null;
+};
 
 type SeasonOption = { id: string; name: string };
 
@@ -110,10 +117,10 @@ export function StatsExplorer({
       return { skaters: skatersOut, goalies: goaliesOut };
     }
 
-    const gameKindById = new Map(games.map((g) => [g.id, g.kind]));
+    const gameById = new Map(games.map((g) => [g.id, g]));
     const includeGame = (gid: string) => {
       if (kind === "all") return true;
-      return gameKindById.get(gid) === kind;
+      return gameById.get(gid)?.kind === kind;
     };
 
     // Player → their season roster team id. Used to drop appearances where the
@@ -153,7 +160,20 @@ export function StatsExplorer({
       if (r.position === "goalie") {
         let ga = 0,
           ps_faced = 0,
-          ps_saved = 0;
+          ps_saved = 0,
+          w = 0,
+          l = 0,
+          otl = 0;
+        for (const [gid, myTeam] of myGames) {
+          const g = gameById.get(gid);
+          if (!g) continue;
+          const isHome = g.home_team_id === myTeam;
+          const myScore = isHome ? g.home_score : g.away_score;
+          const oppScore = isHome ? g.away_score : g.home_score;
+          if (myScore > oppScore) w++;
+          else if (g.decided_in === "ot" || g.decided_in === "shootout") otl++;
+          else l++;
+        }
         for (const e of events) {
           if (!myGames.has(e.game_id)) continue;
           const myTeam = myGames.get(e.game_id);
@@ -164,7 +184,7 @@ export function StatsExplorer({
             else if (e.penalty_shot_result === "goal") ga++;
           }
         }
-        goaliesOut.push({ id: r.id, name: r.name, team: teamObj, gp, ga, ps_faced, ps_saved });
+        goaliesOut.push({ id: r.id, name: r.name, team: teamObj, gp, w, l, otl, ga, ps_faced, ps_saved });
       } else {
         if (position !== "all" && r.position !== position) continue;
         let goals = 0,
@@ -291,7 +311,7 @@ export function StatsExplorer({
         <SectionHeader eyebrow="Between The Pipes" title="Goalies" accent="goal" />
         <GoalieTable rows={goalies} />
         <Legend>
-          GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
+          W-L-OTL is tracked for live seasons only. GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
         </Legend>
       </section>
     </>

@@ -26,13 +26,17 @@ export type Goalie = {
   team?: Team;
   isChampion?: boolean;
   gp: number;
+  // Null for imported (historical) seasons, which don't track game results.
+  w: number | null;
+  l: number | null;
+  otl: number | null;
   ga: number;
   ps_faced: number;
   ps_saved: number;
 };
 
 type SkaterKey = "name" | "team" | "gp" | "goals" | "assists" | "points" | "penalties" | "ps_taken" | "ps_made";
-type GoalieKey = "name" | "team" | "gp" | "ga" | "ps_faced" | "ps_saved";
+type GoalieKey = "name" | "team" | "gp" | "w" | "l" | "otl" | "ga" | "ps_faced" | "ps_saved";
 
 type Direction = "asc" | "desc";
 
@@ -55,6 +59,9 @@ const goalieCols: { key: GoalieKey; label: string; align: "left" | "right"; defa
   { key: "name", label: "Goalie", align: "left", defaultDir: "asc", numeric: false },
   { key: "team", label: "Team", align: "left", defaultDir: "asc", numeric: false },
   { key: "gp", label: "GP", align: "right", defaultDir: "desc", numeric: true },
+  { key: "w", label: "W", align: "right", defaultDir: "desc", numeric: true },
+  { key: "l", label: "L", align: "right", defaultDir: "asc", numeric: true },
+  { key: "otl", label: "OTL", align: "right", defaultDir: "asc", numeric: true },
   { key: "ga", label: "GA", align: "right", defaultDir: "asc", numeric: true },
   { key: "ps_faced", label: "PSF", align: "right", defaultDir: "desc", numeric: true },
   { key: "ps_saved", label: "PSV", align: "right", defaultDir: "desc", numeric: true },
@@ -311,11 +318,13 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
                   <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
                     {g.team && <TeamBadge {...g.team} size="sm" asChild />}
                     {g.isChampion && <span title="Season champion">🏆</span>}
-                    <span>{g.gp}GP · {g.ga}GA · {g.ps_faced}PSF</span>
+                    <span>
+                      {g.gp}GP · {g.w !== null && `${g.w}-${g.l}-${g.otl} · `}{g.ga}GA · {g.ps_faced}PSF
+                    </span>
                   </div>
                 </div>
                 <span className="digit text-2xl text-ink shrink-0 tnum">
-                  {(g[sortKey as keyof Goalie] as number) ?? 0}
+                  {(g[sortKey as keyof Goalie] as number | null) ?? "—"}
                 </span>
               </Link>
               );
@@ -376,6 +385,9 @@ export function GoalieTable({ rows }: { rows: Goalie[] }) {
                     )}
                   </td>
                   <td className="text-right tnum text-ink-dim">{g.gp}</td>
+                  <td className="text-right tnum text-ink-dim">{g.w ?? "—"}</td>
+                  <td className="text-right tnum text-ink-dim">{g.l ?? "—"}</td>
+                  <td className="text-right tnum text-ink-dim">{g.otl ?? "—"}</td>
                   <td className="text-right tnum text-ink-dim">{g.ga}</td>
                   <td className="text-right tnum text-ink-dim">{g.ps_faced}</td>
                   <td className="text-right pr-5 tnum digit text-lg text-ink">{g.ps_saved}</td>

@@ -7,7 +7,8 @@
     "dev:lan": "./scripts/dev-lan.sh",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "bun test lib"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

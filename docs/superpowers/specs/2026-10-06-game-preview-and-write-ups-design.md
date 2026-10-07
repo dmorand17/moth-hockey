@@ -25,8 +25,8 @@ Admins can edit or hide any write-up.
 
 ## Out of scope
 
-- Captain-added subs (separate feature, separate spec). Previews list lined-up
-  subs once that ships; recaps already see subs via `game_appearances`.
+- Building captain-added subs — shipped separately in #121 (`game_subs`).
+  Previews read lined-up subs from it; recaps see subs via `game_appearances`.
 - Betting of any kind. Projections are presented for fun.
 - Write-ups for imported historical seasons (no event data).
 - Playoff-specific framing beyond what the data says (a later increment).
@@ -43,6 +43,8 @@ Admins can edit or hide any write-up.
 | Recap timing | `after()` in `finalizeGame`, daily cron as backstop | Recap is up before players leave the rink; a failed call retries next day. |
 | Publishing | Auto-publish; admins can edit/hide | Low effort, with an escape hatch. |
 | Re-runs | Never overwrite an existing write-up | Admin edits survive. Regeneration is an explicit admin action. |
+| Absent players | Counts only; names passed to the model only for an absent top scorer or rostered goalie | The model can't name anyone else who's out, because it never sees their names. |
+| League timezone | **`America/New_York`** — *assumption, confirm before merge* | Write-ups say "Sunday at 7:00 PM". Nothing in the app pins a timezone, and server-rendered dates otherwise follow the host (UTC on Vercel). |
 
 ## Architecture
 
@@ -130,15 +132,22 @@ client: it must be imported only from server code (`import "server-only"`).
 Inserts use `on conflict (game_id, kind) do nothing`, which enforces "never
 overwrite" at the database level.
 
-### 4. Generation — `lib/write-ups.ts`
+### 4. Generation — `lib/write-ups/`
 
-- `buildPreviewInput(gameId)` / `buildRecapInput(gameId)` → the JSON contract
-  below, built from `lib/matchup.ts`.
-- `generateWriteUp(kind, input)` → one `POST
+| File | Job |
+|---|---|
+| `prompt.ts` | System prompt, `LEAGUE_TIME_ZONE`, pure `buildPreviewInput` / `buildRecapInput` |
+| `parse.ts` | Split headline/body and validate length |
+| `data.ts` | Supabase reads → `PreviewSource` / `RecapSource` (shared with the game page) |
+| `openrouter.ts` | One model call with fallback |
+| `generate.ts` | Load → build → call → parse → insert; never throws |
+
+- `generateText(system, user)` → one `POST
   https://openrouter.ai/api/v1/chat/completions` with `fetch` (OpenRouter is
   OpenAI-compatible; no SDK needed). Body: `model`, system + user messages,
-  `max_tokens: 1000`, `reasoning: { effort: "low" }`, `usage: { include: true }`.
-  On failure, retry once on `WRITE_UP_FALLBACK_MODEL`.
+  `max_tokens: 1000`, `usage: { include: true }`, and `reasoning: { effort: "low" }`
+  for `openai/*` models only (others ignore or reject it). On failure, retry once on
+  `WRITE_UP_FALLBACK_MODEL`.
 - Output parsing: first line is the headline, the rest is the body. Reject and
   log (don't store) output that is empty, under 60 words, or over 250 words.
 - Logs model, token counts and the `usage.cost` returned by OpenRouter.
@@ -243,12 +252,11 @@ Without these, local testing of recaps produces confusing output.
 
 ## Verification
 
-No test runner is configured, so:
-
-- `lib/matchup.ts` and output validation are pure functions, checked with a
-  small Bun script against fixed seeded inputs. Expected values (records,
-  last-3 order, Poisson numbers) are asserted against SQL computed
-  independently, as in the bake-off.
+- `bun test` (built into Bun, no new dependency) covers the pure modules:
+  `lib/matchup.ts`, the prompt builders, the output parser, and the OpenRouter
+  fallback (with a mocked `fetch`). Exposed as `bun run test`, the repo's first
+  test command. Expected values (records, last-3 order, Poisson numbers) match
+  what the bake-off computed independently in SQL.
 - End-to-end locally: run the cron route with the secret and check the
   preview row; finalize a game in `/score` and check the recap row appears
   within a minute; confirm admin edit/hide/regenerate; confirm a hidden

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { StandingsRow } from "@/lib/queries";
 import {
+  availableGoalie,
+  availableTopScorer,
   gameLineup,
   keyMatchup,
   moneyline,
@@ -10,6 +12,7 @@ import {
   topScorers,
   type FinalGame,
   type GoalEvent,
+  type RosterEntry,
   type TeamForm,
 } from "@/lib/matchup";
 
@@ -157,5 +160,71 @@ describe("gameLineup", () => {
       { name: "Kai Hale", position: "forward", isSub: true },
       { name: "Jordan Shaw", position: "goalie", isSub: false },
     ])).toEqual({ skatersDressed: 3, goalie: "Jordan Shaw", subs: ["Kai Hale"] });
+  });
+});
+
+describe("availableTopScorer", () => {
+  const scorers = [
+    { playerId: "a", name: "Taylor Groh", goals: 5 },
+    { playerId: "b", name: "Sam Lund", goals: 3 },
+  ];
+
+  test("returns first scorer when nobody is out", () => {
+    const status = new Map<string, "in" | "out">([["a", "in"], ["b", "in"]]);
+    expect(availableTopScorer(scorers, status)).toEqual(scorers[0]);
+  });
+
+  test("skips the top scorer when they are out and returns the next", () => {
+    const status = new Map<string, "in" | "out">([["a", "out"], ["b", "in"]]);
+    expect(availableTopScorer(scorers, status)).toEqual(scorers[1]);
+  });
+
+  test("returns null when all scorers are out", () => {
+    const status = new Map<string, "in" | "out">([["a", "out"], ["b", "out"]]);
+    expect(availableTopScorer(scorers, status)).toBeNull();
+  });
+
+  test("returns first scorer when status has no entry (no response)", () => {
+    const status = new Map<string, "in" | "out">();
+    expect(availableTopScorer(scorers, status)).toEqual(scorers[0]);
+  });
+});
+
+describe("availableGoalie", () => {
+  const roster: RosterEntry[] = [
+    { playerId: "g1", name: "Jordan Shaw", teamId: "R", position: "goalie" },
+    { playerId: "f1", name: "Marlow Fenn", teamId: "R", position: "forward" },
+  ];
+
+  test("returns rostered goalie when they are not out", () => {
+    const status = new Map<string, "in" | "out">([["g1", "in"]]);
+    expect(availableGoalie(roster, status, [])).toBe("Jordan Shaw");
+  });
+
+  test("returns rostered goalie when their status is unknown (no response)", () => {
+    const status = new Map<string, "in" | "out">();
+    expect(availableGoalie(roster, status, [])).toBe("Jordan Shaw");
+  });
+
+  test("returns sub goalie when rostered goalie is out and a sub goalie is lined up", () => {
+    const status = new Map<string, "in" | "out">([["g1", "out"]]);
+    const subs = [
+      { name: "Quinn Cross", position: "forward" as const },
+      { name: "Casey Blake", position: "goalie" as const },
+    ];
+    expect(availableGoalie(roster, status, subs)).toBe("Casey Blake");
+  });
+
+  test("returns null when rostered goalie is out and no sub goalie is lined up", () => {
+    const status = new Map<string, "in" | "out">([["g1", "out"]]);
+    const subs = [{ name: "Quinn Cross", position: "forward" as const }];
+    expect(availableGoalie(roster, status, subs)).toBeNull();
+  });
+
+  test("returns null when there is no rostered goalie and no sub goalie", () => {
+    const noGoalieRoster: RosterEntry[] = [
+      { playerId: "f1", name: "Marlow Fenn", teamId: "R", position: "forward" },
+    ];
+    expect(availableGoalie(noGoalieRoster, new Map(), [])).toBeNull();
   });
 });

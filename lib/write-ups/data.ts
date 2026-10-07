@@ -5,6 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { getStandings, type StandingsRow } from "@/lib/queries";
 import {
+  availableGoalie,
+  availableTopScorer,
   gameLineup,
   keyMatchup,
   projectMatchup,
@@ -149,14 +151,23 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
 
   const home = side(game.home_team_id);
   const away = side(game.away_team_id);
+
+  // Compute available scorer/goalie per team respecting game_availability status.
+  const teamSubs = (teamId: string) =>
+    (subRows ?? [])
+      .filter((s) => s.team_id === teamId)
+      .map((s) => ({ name: full(s.player as unknown as Name), position: s.position as Position }));
+  const homeRoster = roster.filter((r) => r.teamId === game.home_team_id);
+  const awayRoster = roster.filter((r) => r.teamId === game.away_team_id);
+
   return {
     scheduledAt: game.scheduled_at,
     home,
     away,
     projection: projectMatchup(home.form, away.form),
     keyMatchup: keyMatchup(
-      { team: home.name, topScorer: home.topScorers[0] ?? null, goalie: home.roster.rosteredGoalie, form: home.form },
-      { team: away.name, topScorer: away.topScorers[0] ?? null, goalie: away.roster.rosteredGoalie, form: away.form },
+      { team: home.name, topScorer: availableTopScorer(home.topScorers, status), goalie: availableGoalie(homeRoster, status, teamSubs(game.home_team_id)), form: home.form },
+      { team: away.name, topScorer: availableTopScorer(away.topScorers, status), goalie: availableGoalie(awayRoster, status, teamSubs(game.away_team_id)), form: away.form },
     ),
   };
 }

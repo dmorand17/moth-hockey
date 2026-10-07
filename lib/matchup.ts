@@ -171,6 +171,30 @@ export function projectMatchup(home: TeamForm, away: TeamForm): Projection | nul
   };
 }
 
+/** First scorer (already sorted by goals) whose status is not "out". */
+export function availableTopScorer(
+  scorers: Scorer[],
+  status: Map<string, "in" | "out">,
+): Scorer | null {
+  return scorers.find((s) => status.get(s.playerId) !== "out") ?? null;
+}
+
+/**
+ * The rostered goalie's name, unless they're marked "out", in which case the
+ * first lined-up sub with position "goalie" is returned. Returns null when
+ * neither is available.
+ */
+export function availableGoalie(
+  roster: RosterEntry[],
+  status: Map<string, "in" | "out">,
+  subs: { name: string; position: Position }[],
+): string | null {
+  const goalie = roster.find((r) => r.position === "goalie");
+  if (!goalie) return subs.find((s) => s.position === "goalie")?.name ?? null;
+  if (status.get(goalie.playerId) !== "out") return goalie.name;
+  return subs.find((s) => s.position === "goalie")?.name ?? null;
+}
+
 export function keyMatchup(home: TeamSide, away: TeamSide): KeyMatchup | null {
   // The stronger of the two top scorers takes on the other team's goalie;
   // ties go to the home side.

@@ -118,6 +118,16 @@ function teamBox(teamId: string, input: Parameters<typeof buildBoxScore>[0]): Te
   return { teamId, skaters, goalies, totals };
 }
 
+// Resolves which position a player occupies in a specific game.
+// Precedence: per-game appearance position → lined-up sub position (game_subs) → season roster → "forward".
+export function resolvePosition(
+  appearance: Position | null | undefined,
+  lineUpSub: Position | null | undefined,
+  roster: Position | null | undefined,
+): Position {
+  return appearance ?? lineUpSub ?? roster ?? "forward";
+}
+
 export function buildBoxScore(input: {
   lineup: LineupPlayer[];
   events: BoxEvent[];

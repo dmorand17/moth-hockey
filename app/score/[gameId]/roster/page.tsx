@@ -67,7 +67,7 @@ export default async function ScoreGameRosterPage({ params }: { params: Params }
       .in("team_id", [game.home_team_id, game.away_team_id]),
     supabase
       .from("game_appearances")
-      .select("team_id, is_sub, player:player_id(id, first_name, last_name)")
+      .select("team_id, is_sub, position, player:player_id(id, first_name, last_name)")
       .eq("game_id", gameId),
     supabase
       .from("game_events")
@@ -88,17 +88,18 @@ export default async function ScoreGameRosterPage({ params }: { params: Params }
   type AppRow = {
     team_id: string;
     is_sub: boolean;
+    position: Position | null;
     player: { id: string; first_name: string; last_name: string };
   };
   const rRows = (rosterRows ?? []) as unknown as RosterRow[];
   const aRows = (appsRows ?? []) as unknown as AppRow[];
 
   // Subs may have a team_players row in another team for this season. Look those
-  // up so we can show their actual position; otherwise default to forward.
+  // up as a fallback when no per-game position is stored yet (pre-0025 rows).
   const subPlayerIds = aRows
     .filter((a) => a.is_sub)
     .map((a) => a.player.id);
-  const subPositions = new Map<string, Position>();
+  const subRosterPositions = new Map<string, Position>();
   if (subPlayerIds.length > 0) {
     const { data: subTp, error: subTpErr } = await supabase
       .from("team_players")
@@ -107,27 +108,32 @@ export default async function ScoreGameRosterPage({ params }: { params: Params }
       .in("player_id", subPlayerIds);
     if (subTpErr) throw subTpErr;
     for (const row of (subTp ?? []) as { player_id: string; position: Position }[]) {
-      subPositions.set(row.player_id, row.position);
+      subRosterPositions.set(row.player_id, row.position);
     }
   }
 
   // Build per-team display lists. Start from the season roster, then append
-  // any subs already in this game's appearances.
+  // any subs already in this game's appearances. Per-game position (0025+)
+  // takes precedence over the sub's roster position or the default "forward".
+  const appByPlayer = new Map(aRows.map((a) => [a.player.id, a]));
   const buildTeam = (teamId: string) => {
     const seasonRoster = rRows
       .filter((r) => r.team_id === teamId)
-      .map((r) => ({
-        id: r.player.id,
-        name: `${r.player.first_name} ${r.player.last_name}`,
-        position: r.position,
-      }));
+      .map((r) => {
+        const app = appByPlayer.get(r.player.id);
+        return {
+          id: r.player.id,
+          name: `${r.player.first_name} ${r.player.last_name}`,
+          position: (app?.position ?? r.position) as Position,
+        };
+      });
     const seasonIds = new Set(seasonRoster.map((p) => p.id));
     const subs = aRows
       .filter((a) => a.team_id === teamId && a.is_sub && !seasonIds.has(a.player.id))
       .map((a) => ({
         id: a.player.id,
         name: `${a.player.first_name} ${a.player.last_name}`,
-        position: subPositions.get(a.player.id) ?? "forward",
+        position: (a.position ?? subRosterPositions.get(a.player.id) ?? "forward") as Position,
       }));
     return [...seasonRoster, ...subs];
   };

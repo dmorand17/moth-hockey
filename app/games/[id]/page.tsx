@@ -13,7 +13,7 @@ import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
 import type { PreviewSource } from "@/lib/write-ups/prompt";
 import { BoxScore } from "@/components/BoxScore";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { buildBoxScore, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
+import { buildBoxScore, resolvePosition, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionIfRole } from "@/lib/auth";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
@@ -275,7 +275,7 @@ export default async function GamePage({
     const [{ data: appRows }, { data: rosterRows }, { data: subRows }] = await Promise.all([
       supabase
         .from("game_appearances")
-        .select("player_id, team_id, is_sub, player:player_id(first_name, last_name)")
+        .select("player_id, team_id, is_sub, position, player:player_id(first_name, last_name)")
         .eq("game_id", id),
       supabase
         .from("team_players")
@@ -291,6 +291,7 @@ export default async function GamePage({
       player_id: string;
       team_id: string;
       is_sub: boolean;
+      position: Position | null;
       player: { first_name: string; last_name: string } | null;
     }[];
     hasLineup = apps.length > 0;
@@ -299,7 +300,7 @@ export default async function GamePage({
       name: a.player ? `${a.player.first_name} ${a.player.last_name}` : "Unknown",
       jersey: rosterBy.get(a.player_id)?.jersey ?? null,
       teamId: a.team_id,
-      position: subPosition.get(a.player_id) ?? rosterBy.get(a.player_id)?.position ?? "forward",
+      position: resolvePosition(a.position, subPosition.get(a.player_id), rosterBy.get(a.player_id)?.position),
       isSub: a.is_sub,
     }));
     box = buildBoxScore({

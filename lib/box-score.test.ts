@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildBoxScore, type BoxEvent, type LineupPlayer } from "@/lib/box-score";
+import { buildBoxScore, resolvePosition, type BoxEvent, type LineupPlayer } from "@/lib/box-score";
 
 const H = "home";
 const A = "away";
@@ -61,6 +61,27 @@ describe("buildBoxScore", () => {
   test("players who recorded nothing still appear", () => {
     expect(box.away.skaters).toHaveLength(1);
     expect(box.away.skaters[0]).toMatchObject({ playerId: "a1", g: 1, pts: 1, pen: 1, ps: 1, psg: 0 });
+  });
+});
+
+describe("resolvePosition", () => {
+  test("prefers appearance position when set", () => {
+    expect(resolvePosition("goalie", "forward", "defense")).toBe("goalie");
+  });
+  test("falls back to lined-up sub position when appearance is null", () => {
+    expect(resolvePosition(null, "defense", "forward")).toBe("defense");
+  });
+  test("falls back to lined-up sub position when appearance is undefined", () => {
+    expect(resolvePosition(undefined, "defense", "forward")).toBe("defense");
+  });
+  test("falls back to roster position when appearance and sub are null", () => {
+    expect(resolvePosition(null, null, "defense")).toBe("defense");
+  });
+  test("defaults to forward when all are null", () => {
+    expect(resolvePosition(null, null, null)).toBe("forward");
+  });
+  test("defaults to forward when all are undefined", () => {
+    expect(resolvePosition(undefined, undefined, undefined)).toBe("forward");
   });
 });
 

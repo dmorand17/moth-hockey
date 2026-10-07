@@ -18,6 +18,7 @@ import {
   type Position,
   type RosterEntry,
 } from "@/lib/matchup";
+import { resolvePosition } from "@/lib/box-score";
 import type { PreviewSource, PreviewTeam, RecapGoal, RecapPenalty, RecapSource } from "@/lib/write-ups/prompt";
 
 export type Db = SupabaseClient<Database>;
@@ -193,7 +194,7 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
       .eq("game_id", gameId)
       .order("period")
       .order("clock_seconds", { ascending: false }),
-    db.from("game_appearances").select("player_id, team_id, is_sub, player:player_id(first_name, last_name)").eq("game_id", gameId),
+    db.from("game_appearances").select("player_id, team_id, is_sub, position, player:player_id(first_name, last_name)").eq("game_id", gameId),
     db.from("team_players").select("player_id, position").eq("season_id", game.season_id),
     db.from("game_subs").select("player_id, position").eq("game_id", gameId),
   ]);
@@ -208,13 +209,17 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
   // A lined-up sub's chosen position wins over their own team's roster spot.
   for (const s of subRows ?? []) positionOf.set(s.player_id, s.position as Position);
 
-  const apps = (appRows ?? []) as unknown as { player_id: string; team_id: string; is_sub: boolean; player: Name | null }[];
+  const apps = (appRows ?? []) as unknown as { player_id: string; team_id: string; is_sub: boolean; position: Position | null; player: Name | null }[];
   const subIds = new Set(apps.filter((a) => a.is_sub).map((a) => a.player_id));
   const lineup = (teamId: string) =>
     gameLineup(
       apps
         .filter((a) => a.team_id === teamId)
-        .map((a) => ({ name: full(a.player), position: positionOf.get(a.player_id) ?? "forward", isSub: a.is_sub })),
+        .map((a) => ({
+          name: full(a.player),
+          position: resolvePosition(a.position, positionOf.get(a.player_id), undefined),
+          isSub: a.is_sub,
+        })),
     );
 
   type Ev = {

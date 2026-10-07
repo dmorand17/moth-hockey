@@ -1964,6 +1964,7 @@ In `app/games/[id]/page.tsx`, add imports:
 import { MatchupPanel } from "@/components/MatchupPanel";
 import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
+import type { PreviewSource } from "@/lib/write-ups/prompt";
 ```
 
 After the `const awayView = awayTeam ?? tbdTeam;` line, add:
@@ -1978,10 +1979,17 @@ After the `const awayView = awayTeam ?? tbdTeam;` line, add:
   const previewWriteUp = writeUps.find((w) => w.kind === "preview") ?? null;
   const recapWriteUp = writeUps.find((w) => w.kind === "recap") ?? null;
 
-  const previewSource =
-    game.status === "scheduled" && homeTeam && awayTeam
-      ? await loadPreviewSource(supabase as unknown as Db, id)
-      : null;
+  // loadPreviewSource throws on a query error (so the generator never publishes
+  // from bad data). On the page, a failed load just means no matchup panel —
+  // the rest of the game page must still render.
+  let previewSource: PreviewSource | null = null;
+  if (game.status === "scheduled" && homeTeam && awayTeam) {
+    try {
+      previewSource = await loadPreviewSource(supabase as unknown as Db, id);
+    } catch (e) {
+      console.error("[game page] matchup panel unavailable", e);
+    }
+  }
 ```
 
 - [ ] **Step 4: Render the panel and write-ups**

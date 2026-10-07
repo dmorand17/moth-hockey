@@ -13,8 +13,10 @@ export type GenerateResult = {
 };
 
 // Generate one write-up and store it. Never throws: callers (cron, after())
-// log the result and move on. Never overwrites — admin edits survive re-runs.
-export async function generateAndStore(kind: WriteUpKind, gameId: string): Promise<GenerateResult> {
+// log the result and move on. Default: never overwrites — admin edits survive re-runs.
+// With opts.replace=true: skips the exists check; only replaces the row after the model
+// call succeeds and parses cleanly. On any failure the old row is untouched.
+export async function generateAndStore(kind: WriteUpKind, gameId: string, opts?: { replace?: boolean }): Promise<GenerateResult> {
   const result = (status: GenerateResult["status"], detail?: string): GenerateResult => {
     const r = { gameId, kind, status, detail };
     (status === "failed" ? console.error : console.info)("[write-ups]", JSON.stringify(r));
@@ -23,13 +25,16 @@ export async function generateAndStore(kind: WriteUpKind, gameId: string): Promi
 
   try {
     const db = createSupabaseServiceClient();
-    const { data: existing } = await db
-      .from("game_write_ups")
-      .select("game_id")
-      .eq("game_id", gameId)
-      .eq("kind", kind)
-      .maybeSingle();
-    if (existing) return result("exists");
+
+    if (!opts?.replace) {
+      const { data: existing } = await db
+        .from("game_write_ups")
+        .select("game_id")
+        .eq("game_id", gameId)
+        .eq("kind", kind)
+        .maybeSingle();
+      if (existing) return result("exists");
+    }
 
     const input =
       kind === "preview"
@@ -41,11 +46,29 @@ export async function generateAndStore(kind: WriteUpKind, gameId: string): Promi
     const parsed = parseWriteUp(out.text);
     if (!parsed.ok) return result("failed", `${out.model}: ${parsed.reason}`);
 
-    const { error } = await db.from("game_write_ups").upsert(
-      { game_id: gameId, kind, headline: parsed.headline, body: parsed.body, model: out.model },
-      { onConflict: "game_id,kind", ignoreDuplicates: true },
-    );
-    if (error) return result("failed", error.message);
+    if (opts?.replace) {
+      const { error } = await db.from("game_write_ups").upsert(
+        {
+          game_id: gameId,
+          kind,
+          headline: parsed.headline,
+          body: parsed.body,
+          model: out.model,
+          generated_at: new Date().toISOString(),
+          edited_at: null,
+          edited_by: null,
+        },
+        { onConflict: "game_id,kind" },
+      );
+      if (error) return result("failed", error.message);
+    } else {
+      const { error } = await db.from("game_write_ups").upsert(
+        { game_id: gameId, kind, headline: parsed.headline, body: parsed.body, model: out.model },
+        { onConflict: "game_id,kind", ignoreDuplicates: true },
+      );
+      if (error) return result("failed", error.message);
+    }
+
     const cost = out.costUsd != null ? ` $${out.costUsd.toFixed(5)}` : "";
     return result("created", `${out.model} in=${out.promptTokens ?? "?"} out=${out.completionTokens ?? "?"}${cost}`);
   } catch (e) {

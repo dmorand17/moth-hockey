@@ -60,7 +60,16 @@ export function WriteUpAdminControls({
           >
             Save
           </button>
-          <button type="button" disabled={pending} className={btn} onClick={() => setEditing(false)}>
+          <button
+            type="button"
+            disabled={pending}
+            className={btn}
+            onClick={() => {
+              setHeadline(writeUp.headline);
+              setBody(writeUp.body);
+              setEditing(false);
+            }}
+          >
             Cancel
           </button>
         </div>
@@ -70,7 +79,16 @@ export function WriteUpAdminControls({
 
   return (
     <div className="flex flex-wrap gap-2 border-t border-rule pt-3">
-      <button type="button" disabled={pending} className={btn} onClick={() => setEditing(true)}>
+      <button
+        type="button"
+        disabled={pending}
+        className={btn}
+        onClick={() => {
+          setHeadline(writeUp.headline);
+          setBody(writeUp.body);
+          setEditing(true);
+        }}
+      >
         Edit
       </button>
       <button

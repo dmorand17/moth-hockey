@@ -8,6 +8,10 @@ import { generateAndStore } from "@/lib/write-ups/generate";
 
 type Kind = "preview" | "recap";
 
+function isValidKind(kind: string): kind is Kind {
+  return kind === "preview" || kind === "recap";
+}
+
 // Edits go through the request client, so RLS ("admins manage write-ups")
 // enforces the same rule the check below reports.
 async function adminOnly() {
@@ -25,9 +29,12 @@ export async function updateWriteUp(input: {
 }): Promise<ActionResult> {
   const auth = await adminOnly();
   if (!auth.ok) return fail(auth.error);
+  if (!isValidKind(input.kind)) return fail("Invalid write-up type.");
   const headline = input.headline.trim();
   const body = input.body.trim();
   if (!headline || !body) return fail("Headline and body are required.");
+  if (headline.length > 200) return fail("Headline must be 200 characters or fewer.");
+  if (body.length > 5000) return fail("Body must be 5000 characters or fewer.");
 
   const { error } = await auth.supabase
     .from("game_write_ups")
@@ -42,6 +49,7 @@ export async function updateWriteUp(input: {
 export async function setWriteUpHidden(input: { gameId: string; kind: Kind; hidden: boolean }): Promise<ActionResult> {
   const auth = await adminOnly();
   if (!auth.ok) return fail(auth.error);
+  if (!isValidKind(input.kind)) return fail("Invalid write-up type.");
   const { error } = await auth.supabase
     .from("game_write_ups")
     .update({ hidden: input.hidden })
@@ -52,28 +60,21 @@ export async function setWriteUpHidden(input: { gameId: string; kind: Kind; hidd
   return ok(input.hidden ? "Hidden" : "Visible");
 }
 
-// Discards the current text (including edits) and writes a fresh one. Refuses
-// when the game is no longer in the right state, so a click can't delete a
-// preview for a game that has already started and leave nothing behind.
+// Regenerates by calling the model first; only replaces the row after a successful
+// generation. On failure the old row (including any admin edits) is preserved.
 export async function regenerateWriteUp(input: { gameId: string; kind: Kind }): Promise<ActionResult> {
   const auth = await adminOnly();
   if (!auth.ok) return fail(auth.error);
+  if (!isValidKind(input.kind)) return fail("Invalid write-up type.");
 
   const { data: game } = await auth.supabase.from("games").select("status").eq("id", input.gameId).maybeSingle();
   const wanted = input.kind === "preview" ? "scheduled" : "final";
   if (game?.status !== wanted) return fail(`A ${input.kind} can only be regenerated for a ${wanted} game.`);
 
-  const { error } = await auth.supabase
-    .from("game_write_ups")
-    .delete()
-    .eq("game_id", input.gameId)
-    .eq("kind", input.kind);
-  if (error) return fail(error.message);
-
-  const result = await generateAndStore(input.kind, input.gameId);
+  const result = await generateAndStore(input.kind, input.gameId, { replace: true });
   revalidatePath(`/games/${input.gameId}`);
   if (result.status !== "created") {
-    return fail(`Couldn't regenerate (${result.detail ?? result.status}). The next daily run will try again.`);
+    return fail(`Couldn't regenerate (${result.detail ?? result.status}). The current write-up was kept.`);
   }
   return ok("Regenerated");
 }

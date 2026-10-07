@@ -15,7 +15,7 @@ function TeamTable({ team, box }: { team: TeamRef; box: TeamBox }) {
       <TeamBadge name={team.name} slug={team.slug} color={team.color} size="sm" />
 
       <div className="overflow-x-auto">
-        <table className="board-table stats-table w-full text-[14px]">
+        <table className="board-table w-full text-[14px]">
           <thead>
             <tr>
               <th className="text-left">#</th>

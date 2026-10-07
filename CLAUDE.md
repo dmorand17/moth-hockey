@@ -27,7 +27,7 @@ Uses **bun** (see `bun.lock`). Use `bun install` / `bun add` rather than npm or 
 - `bun start` — run the production build
 - `bun run lint` — ESLint (flat config in `eslint.config.mjs`, extends `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`)
 
-No test runner is configured.
+- `bun run test` — `bun test` over `lib/` (pure modules: matchup stats, write-up prompts/parsing). UI and DB behavior are verified in the browser against the local stack.
 
 ## Git Workflow
 

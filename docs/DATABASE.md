@@ -62,6 +62,10 @@ value be used in the same transaction that adds it.
   `game_id`, `team_id`, `player_id`, `position`, `added_by`. PK `(game_id, player_id)`.
   The scorekeeper's check-in starts with these pre-checked; `startGame` turns them
   into `is_sub` appearances.
+- **`game_write_ups`** (`0023`) — AI-written `preview` / `recap` per game: `headline`,
+  `body`, `model`, `generated_at`, `edited_at`/`edited_by`, `hidden`. PK `(game_id, kind)`.
+  Written by the server with the service role (daily cron + after finalize); never
+  overwritten by re-runs.
 - **`game_events`** — `type` (`goal`|`penalty`), `period`, `clock_seconds`,
   scorer/assists or penalty fields. A CHECK constraint enforces shape per type
   (goals have a `player_id`, no penalty fields; penalties require
@@ -124,6 +128,7 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | `user_profiles` | self, admin, **team_captain** | self (own), admin |
 | `team_captains` | public | admin |
 | `game_subs` | public | admin; **team_captain** for their own team, that season, while the game is scheduled |
+| `game_write_ups` | public when not `hidden`; admins see all | admin (service role writes generated rows) |
 | `account_requests` | admin | anyone may INSERT; admin update |
 
 Anonymous queries never return `user_profiles` rows — no public select policy

@@ -46,6 +46,9 @@ yarn-error.log*
 # scratch/verification artifacts (e.g. screenshots from /verify)
 .tmp/
 
+# playwright-cli session data
+.playwright-cli/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

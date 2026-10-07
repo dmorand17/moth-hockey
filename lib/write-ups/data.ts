@@ -23,8 +23,14 @@ export type Db = SupabaseClient<Database>;
 type Name = { first_name: string; last_name: string };
 const full = (p: Name | null | undefined) => (p ? `${p.first_name} ${p.last_name}` : "Unknown");
 
+/** Throws if the Supabase response carries an error; otherwise returns data (may be null). */
+function must<T>(res: { data: T | null; error: { message: string } | null }, what: string): T | null {
+  if (res.error) throw new Error(`${what}: ${res.error.message}`);
+  return res.data;
+}
+
 async function loadGame(db: Db, gameId: string) {
-  const { data } = await db
+  const { data, error } = await db
     .from("games")
     .select(
       "id, season_id, scheduled_at, status, home_team_id, away_team_id, home_score, away_score, decided_in, " +
@@ -32,6 +38,7 @@ async function loadGame(db: Db, gameId: string) {
     )
     .eq("id", gameId)
     .maybeSingle();
+  if (error) throw new Error(`loadGame(${gameId}): games: ${error.message}`);
   const raw = data as unknown as {
     id: string; season_id: string; scheduled_at: string; status: string;
     home_team_id: string | null; away_team_id: string | null; home_score: number; away_score: number;
@@ -61,7 +68,7 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
   if (!game || game.status !== "scheduled") return null;
   const teamIds = [game.home_team_id, game.away_team_id];
 
-  const [standings, { data: finals }, { data: goalRows }, { data: rosterRows }, { data: availRows }, { data: subRows }, { data: teamRows }] =
+  const [standings, finalsRes, goalRowsRes, rosterRowsRes, availRowsRes, subRowsRes, teamRowsRes] =
     await Promise.all([
       getStandings(game.season_id),
       db.from("games")
@@ -77,6 +84,12 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
       db.from("game_subs").select("team_id, position, player:player_id(first_name, last_name)").eq("game_id", gameId),
       db.from("teams").select("id, name").eq("season_id", game.season_id),
     ]);
+  const finals = must(finalsRes, `loadPreviewSource(${gameId}): games`);
+  const goalRows = must(goalRowsRes, `loadPreviewSource(${gameId}): game_events`);
+  const rosterRows = must(rosterRowsRes, `loadPreviewSource(${gameId}): team_players`);
+  const availRows = must(availRowsRes, `loadPreviewSource(${gameId}): game_availability`);
+  const subRows = must(subRowsRes, `loadPreviewSource(${gameId}): game_subs`);
+  const teamRows = must(teamRowsRes, `loadPreviewSource(${gameId}): teams`);
 
   const teamNames = new Map((teamRows ?? []).map((t) => [t.id, t.name]));
   const games: FinalGame[] = (finals ?? []).flatMap((g) =>
@@ -101,7 +114,10 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
   const names = new Map(roster.map((r) => [r.playerId, r.name]));
   const missing = [...new Set(goals.map((g) => g.playerId))].filter((id) => !names.has(id));
   if (missing.length) {
-    const { data: extra } = await db.from("players").select("id, first_name, last_name").in("id", missing);
+    const extra = must(
+      await db.from("players").select("id, first_name, last_name").in("id", missing),
+      `loadPreviewSource(${gameId}): players`,
+    );
     for (const p of extra ?? []) names.set(p.id, full(p));
   }
   const nameOf = (id: string) => names.get(id) ?? "Unknown";
@@ -149,7 +165,7 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
   const game = await loadGame(db, gameId);
   if (!game || game.status !== "final") return null;
 
-  const [standings, { data: eventRows }, { data: appRows }, { data: rosterRows }, { data: subRows }] = await Promise.all([
+  const [standings, eventRowsRes, appRowsRes, rosterRowsRes, subRowsRes] = await Promise.all([
     getStandings(game.season_id),
     db.from("game_events")
       .select(
@@ -163,6 +179,10 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
     db.from("team_players").select("player_id, position").eq("season_id", game.season_id),
     db.from("game_subs").select("player_id, position").eq("game_id", gameId),
   ]);
+  const eventRows = must(eventRowsRes, `loadRecapSource(${gameId}): game_events`);
+  const appRows = must(appRowsRes, `loadRecapSource(${gameId}): game_appearances`);
+  const rosterRows = must(rosterRowsRes, `loadRecapSource(${gameId}): team_players`);
+  const subRows = must(subRowsRes, `loadRecapSource(${gameId}): game_subs`);
 
   const teamName = (id: string) => (id === game.home_team_id ? game.home_team.name : game.away_team.name);
   const positionOf = new Map<string, Position>();

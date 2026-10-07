@@ -11,6 +11,9 @@ import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
 import { WriteUpAdminControls } from "@/components/WriteUpAdminControls";
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
 import type { PreviewSource } from "@/lib/write-ups/prompt";
+import { BoxScore } from "@/components/BoxScore";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { buildBoxScore, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionIfRole } from "@/lib/auth";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
@@ -263,6 +266,65 @@ export default async function GamePage({
     };
   }
 
+  // Box score: who played (the scorekeeper's check-in, i.e. game_appearances)
+  // and their stat lines. Positions come from the season roster, overridden by
+  // a lined-up sub's chosen position; anyone else defaults to forward.
+  let box: { home: TeamBox; away: TeamBox } | null = null;
+  let hasLineup = false;
+  if ((isLive || isFinal) && homeTeam && awayTeam) {
+    const [{ data: appRows }, { data: rosterRows }, { data: subRows }] = await Promise.all([
+      supabase
+        .from("game_appearances")
+        .select("player_id, team_id, is_sub, player:player_id(first_name, last_name)")
+        .eq("game_id", id),
+      supabase
+        .from("team_players")
+        .select("player_id, position, jersey_number")
+        .eq("season_id", game.season_id),
+      supabase.from("game_subs").select("player_id, position").eq("game_id", id),
+    ]);
+    const rosterBy = new Map(
+      (rosterRows ?? []).map((r) => [r.player_id, { position: r.position as Position, jersey: r.jersey_number }]),
+    );
+    const subPosition = new Map((subRows ?? []).map((s) => [s.player_id, s.position as Position]));
+    const apps = (appRows ?? []) as unknown as {
+      player_id: string;
+      team_id: string;
+      is_sub: boolean;
+      player: { first_name: string; last_name: string } | null;
+    }[];
+    hasLineup = apps.length > 0;
+    const lineup: LineupPlayer[] = apps.map((a) => ({
+      playerId: a.player_id,
+      name: a.player ? `${a.player.first_name} ${a.player.last_name}` : "Unknown",
+      jersey: rosterBy.get(a.player_id)?.jersey ?? null,
+      teamId: a.team_id,
+      position: subPosition.get(a.player_id) ?? rosterBy.get(a.player_id)?.position ?? "forward",
+      isSub: a.is_sub,
+    }));
+    box = buildBoxScore({
+      lineup,
+      events: events.map((e) => ({
+        type: e.type,
+        teamId: e.team_id,
+        playerId: e.scorer?.id ?? null,
+        assist1Id: e.assist1?.id ?? null,
+        assist2Id: e.assist2?.id ?? null,
+        shotTakerId: e.shooter?.id ?? null,
+        shotResult: e.penalty_shot_result,
+      })),
+      homeTeamId: homeTeam.id,
+      awayTeamId: awayTeam.id,
+      final: isFinal
+        ? {
+            homeScore: game.home_score,
+            awayScore: game.away_score,
+            decidedIn: game.decided_in as "regulation" | "ot" | "shootout" | null,
+          }
+        : null,
+    });
+  }
+
   return (
     <div className="space-y-5 sm:space-y-8">
       <Link href="/schedule" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
@@ -347,10 +409,26 @@ export default async function GamePage({
         </section>
       )}
 
+      {/* BOX SCORE (live and final games) */}
+      {(isLive || isFinal) && box && (
+        <CollapsibleSection eyebrow="Box score" title="Player stats" defaultOpen className="rise delay-1 space-y-4">
+          {hasLineup ? (
+            <BoxScore box={box} home={homeView} away={awayView} />
+          ) : (
+            <p className="text-[14px] text-ink-dim">No lineup recorded for this game.</p>
+          )}
+        </CollapsibleSection>
+      )}
+
       {/* AVAILABILITY (scheduled games) */}
       {availability && (
-        <section className="rise delay-1 space-y-4">
-          <SectionHeader eyebrow="Roster" title="Availability" subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"} />
+        <CollapsibleSection
+          eyebrow="Roster"
+          title="Availability"
+          subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
+          defaultOpen={isScheduled}
+          className="rise delay-1 space-y-4"
+        >
           {isScheduled && availability.viewerCanCheckIn && (
             <div className="panel p-4 space-y-3">
               <p className="text-[14px] text-ink">
@@ -403,7 +481,7 @@ export default async function GamePage({
               />
             )}
           </div>
-        </section>
+        </CollapsibleSection>
       )}
 
       {/* MATCHUP (scheduled games) */}
@@ -415,8 +493,7 @@ export default async function GamePage({
       )}
 
       {/* EVENTS LOG */}
-      <section className="rise delay-1">
-        <SectionHeader eyebrow="Play-by-play" title="Scoring & Penalties" />
+      <CollapsibleSection eyebrow="Play-by-play" title="Scoring & Penalties" defaultOpen className="rise delay-1">
         {events.length === 0 ? (
           <p className="eyebrow">No events recorded.</p>
         ) : (
@@ -513,7 +590,7 @@ export default async function GamePage({
             })}
           </ol>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

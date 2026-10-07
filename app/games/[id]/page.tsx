@@ -5,7 +5,17 @@ import { PlayoffChip } from "@/components/PlayoffChip";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CheckInToggle } from "@/components/CheckInToggle";
 import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
+import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
+import { MatchupPanel } from "@/components/MatchupPanel";
+import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
+import { WriteUpAdminControls } from "@/components/WriteUpAdminControls";
+import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
+import type { PreviewSource } from "@/lib/write-ups/prompt";
+import { BoxScore } from "@/components/BoxScore";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { buildBoxScore, resolvePosition, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSessionIfRole } from "@/lib/auth";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
 type PlayerRef = { id: string; first_name: string; last_name: string };
@@ -76,6 +86,38 @@ export default async function GamePage({
   const tbdTeam = { id: "tbd", name: "TBD", slug: "", color: "#6b7280" };
   const homeView = homeTeam ?? tbdTeam;
   const awayView = awayTeam ?? tbdTeam;
+
+  // Write-ups: RLS already hides hidden rows from everyone but admins.
+  const { data: writeUpRows } = await supabase
+    .from("game_write_ups")
+    .select("kind, headline, body, model, hidden, edited_at")
+    .eq("game_id", id);
+  const writeUps = (writeUpRows ?? []) as WriteUp[];
+  const previewWriteUp = writeUps.find((w) => w.kind === "preview") ?? null;
+  const recapWriteUp = writeUps.find((w) => w.kind === "recap") ?? null;
+
+  const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
+  const adminSlot = (w: WriteUp) =>
+    viewerIsAdmin ? (
+      <WriteUpAdminControls
+        gameId={id}
+        writeUp={w}
+        canRegenerate={w.kind === "preview" ? game.status === "scheduled" : game.status === "final"}
+      />
+    ) : undefined;
+
+  // loadPreviewSource throws on a query error (so the generator never publishes
+  // from bad data). On the page, a failed load just means no matchup panel —
+  // the rest of the game page must still render.
+  let previewSource: PreviewSource | null = null;
+  if (game.status === "scheduled" && homeTeam && awayTeam) {
+    try {
+      previewSource = await loadPreviewSource(supabase as unknown as Db, id);
+    } catch (e) {
+      console.error("[game page] matchup panel unavailable", e);
+    }
+  }
+
   const isFinal = game.status === "final";
   const isLive = game.status === "live";
   const homeWon = isFinal && game.home_score > game.away_score;
@@ -92,11 +134,13 @@ export default async function GamePage({
         viewerCanCheckIn: boolean;
         viewerTeamName: string | null;
         manageableTeamIds: string[];
+        subsByTeam: Map<string, GameSub[]>;
+        addableSubs: { id: string; name: string }[];
       }
     | null = null;
 
   if (homeTeam && awayTeam) {
-    const [{ data: rosterRaw }, { data: availRaw }, { data: userData }] =
+    const [{ data: rosterRaw }, { data: availRaw }, { data: userData }, { data: subsRaw }] =
       await Promise.all([
         supabase
           .from("team_players")
@@ -108,9 +152,23 @@ export default async function GamePage({
           .select("player_id, status")
           .eq("game_id", id),
         supabase.auth.getUser(),
+        supabase
+          .from("game_subs")
+          .select("team_id, position, player:player_id(id, first_name, last_name)")
+          .eq("game_id", id),
       ]);
 
     const roster = (rosterRaw ?? []) as unknown as RosterPlayerRow[];
+
+    const subsByTeam = new Map<string, GameSub[]>();
+    for (const row of subsRaw ?? []) {
+      const pl = row.player as unknown as { id: string; first_name: string; last_name: string } | null;
+      if (!pl) continue;
+      const list = subsByTeam.get(row.team_id) ?? [];
+      list.push({ id: pl.id, name: `${pl.first_name} ${pl.last_name}`, position: row.position });
+      subsByTeam.set(row.team_id, list);
+    }
+    for (const list of subsByTeam.values()) list.sort((a, b) => a.name.localeCompare(b.name));
     const statusBy = new Map<string, "in" | "out">();
     for (const a of availRaw ?? []) {
       statusBy.set(a.player_id, a.status as "in" | "out");
@@ -178,6 +236,24 @@ export default async function GamePage({
       viewerPlayerId != null &&
       roster.some((r) => r.player?.id === viewerPlayerId && r.team_id === awayTeam.id);
 
+    // Sub search pool, only for viewers who can manage a team: every league
+    // player except both teams' rosters (they're already in this game's
+    // check-in) and anyone already lined up as a sub.
+    let addableSubs: { id: string; name: string }[] = [];
+    if (manageableTeamIds.length > 0) {
+      const taken = new Set([
+        ...roster.map((r) => r.player?.id).filter((x): x is string => !!x),
+        ...[...subsByTeam.values()].flat().map((s) => s.id),
+      ]);
+      const { data: allPlayers } = await supabase
+        .from("players")
+        .select("id, first_name, last_name")
+        .order("last_name");
+      addableSubs = (allPlayers ?? [])
+        .filter((p) => !taken.has(p.id))
+        .map((p) => ({ id: p.id, name: `${p.first_name} ${p.last_name}` }));
+    }
+
     availability = {
       home: bucket(homeTeam.id),
       away: bucket(awayTeam.id),
@@ -185,7 +261,69 @@ export default async function GamePage({
       viewerCanCheckIn: onHome || onAway,
       viewerTeamName: onHome ? homeTeam.name : onAway ? awayTeam.name : null,
       manageableTeamIds,
+      subsByTeam,
+      addableSubs,
     };
+  }
+
+  // Box score: who played (the scorekeeper's check-in, i.e. game_appearances)
+  // and their stat lines. Positions come from the season roster, overridden by
+  // a lined-up sub's chosen position; anyone else defaults to forward.
+  let box: { home: TeamBox; away: TeamBox } | null = null;
+  let hasLineup = false;
+  if ((isLive || isFinal) && homeTeam && awayTeam) {
+    const [{ data: appRows }, { data: rosterRows }, { data: subRows }] = await Promise.all([
+      supabase
+        .from("game_appearances")
+        .select("player_id, team_id, is_sub, position, player:player_id(first_name, last_name)")
+        .eq("game_id", id),
+      supabase
+        .from("team_players")
+        .select("player_id, position, jersey_number")
+        .eq("season_id", game.season_id),
+      supabase.from("game_subs").select("player_id, position").eq("game_id", id),
+    ]);
+    const rosterBy = new Map(
+      (rosterRows ?? []).map((r) => [r.player_id, { position: r.position as Position, jersey: r.jersey_number }]),
+    );
+    const subPosition = new Map((subRows ?? []).map((s) => [s.player_id, s.position as Position]));
+    const apps = (appRows ?? []) as unknown as {
+      player_id: string;
+      team_id: string;
+      is_sub: boolean;
+      position: Position | null;
+      player: { first_name: string; last_name: string } | null;
+    }[];
+    hasLineup = apps.length > 0;
+    const lineup: LineupPlayer[] = apps.map((a) => ({
+      playerId: a.player_id,
+      name: a.player ? `${a.player.first_name} ${a.player.last_name}` : "Unknown",
+      jersey: rosterBy.get(a.player_id)?.jersey ?? null,
+      teamId: a.team_id,
+      position: resolvePosition(a.position, subPosition.get(a.player_id), rosterBy.get(a.player_id)?.position),
+      isSub: a.is_sub,
+    }));
+    box = buildBoxScore({
+      lineup,
+      events: events.map((e) => ({
+        type: e.type,
+        teamId: e.team_id,
+        playerId: e.scorer?.id ?? null,
+        assist1Id: e.assist1?.id ?? null,
+        assist2Id: e.assist2?.id ?? null,
+        shotTakerId: e.shooter?.id ?? null,
+        shotResult: e.penalty_shot_result,
+      })),
+      homeTeamId: homeTeam.id,
+      awayTeamId: awayTeam.id,
+      final: isFinal
+        ? {
+            homeScore: game.home_score,
+            awayScore: game.away_score,
+            decidedIn: game.decided_in as "regulation" | "ot" | "shootout" | null,
+          }
+        : null,
+    });
   }
 
   return (
@@ -260,10 +398,38 @@ export default async function GamePage({
         </div>
       </section>
 
+      {/* WRITE-UP (right after scoreboard for visibility) */}
+      {isScheduled && previewWriteUp && (
+        <section className="rise">
+          <WriteUpCard writeUp={previewWriteUp} admin={adminSlot(previewWriteUp)} />
+        </section>
+      )}
+      {isFinal && recapWriteUp && (
+        <section className="rise">
+          <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
+        </section>
+      )}
+
+      {/* BOX SCORE (live and final games) */}
+      {(isLive || isFinal) && box && (
+        <CollapsibleSection eyebrow="Box score" title="Player stats" defaultOpen className="rise delay-1 space-y-4">
+          {hasLineup ? (
+            <BoxScore box={box} home={homeView} away={awayView} />
+          ) : (
+            <p className="text-[14px] text-ink-dim">No lineup recorded for this game.</p>
+          )}
+        </CollapsibleSection>
+      )}
+
       {/* AVAILABILITY (scheduled games) */}
       {availability && (
-        <section className="rise delay-1 space-y-4">
-          <SectionHeader eyebrow="Roster" title="Availability" subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"} />
+        <CollapsibleSection
+          eyebrow="Roster"
+          title="Availability"
+          subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
+          defaultOpen={isScheduled}
+          className="rise delay-1 space-y-4"
+        >
           {isScheduled && availability.viewerCanCheckIn && (
             <div className="panel p-4 space-y-3">
               <p className="text-[14px] text-ink">
@@ -280,26 +446,55 @@ export default async function GamePage({
                 gameId={game.id}
                 team={awayView}
                 players={toManagedPlayers(availability.away)}
-              />
+              >
+                <SubsManager
+                  gameId={game.id}
+                  teamId={awayView.id}
+                  subs={availability.subsByTeam.get(awayView.id) ?? []}
+                  addableSubs={availability.addableSubs}
+                />
+              </AvailabilityManager>
             ) : (
-              <TeamAvailabilityCard team={awayView} avail={availability.away} />
+              <TeamAvailabilityCard
+                team={awayView}
+                avail={availability.away}
+                subs={availability.subsByTeam.get(awayView.id) ?? []}
+              />
             )}
             {availability.manageableTeamIds.includes(homeView.id) ? (
               <AvailabilityManager
                 gameId={game.id}
                 team={homeView}
                 players={toManagedPlayers(availability.home)}
-              />
+              >
+                <SubsManager
+                  gameId={game.id}
+                  teamId={homeView.id}
+                  subs={availability.subsByTeam.get(homeView.id) ?? []}
+                  addableSubs={availability.addableSubs}
+                />
+              </AvailabilityManager>
             ) : (
-              <TeamAvailabilityCard team={homeView} avail={availability.home} />
+              <TeamAvailabilityCard
+                team={homeView}
+                avail={availability.home}
+                subs={availability.subsByTeam.get(homeView.id) ?? []}
+              />
             )}
           </div>
+        </CollapsibleSection>
+      )}
+
+      {/* MATCHUP (scheduled games) */}
+      {previewSource && (
+        <section className="rise delay-1 space-y-4">
+          <SectionHeader eyebrow="Preview" title="Matchup" />
+          <MatchupPanel source={previewSource} />
         </section>
       )}
 
       {/* EVENTS LOG */}
-      <section className="rise delay-1">
-        <SectionHeader eyebrow="Play-by-play" title="Scoring & Penalties" />
+      <CollapsibleSection eyebrow="Play-by-play" title="Scoring & Penalties" defaultOpen className="rise delay-1">
         {events.length === 0 ? (
           <p className="eyebrow">No events recorded.</p>
         ) : (
@@ -396,7 +591,7 @@ export default async function GamePage({
             })}
           </ol>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }
@@ -409,7 +604,15 @@ function toManagedPlayers(avail: TeamAvail): ManagedPlayer[] {
   ].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function TeamAvailabilityCard({ team, avail }: { team: TeamRef; avail: TeamAvail }) {
+function TeamAvailabilityCard({
+  team,
+  avail,
+  subs,
+}: {
+  team: TeamRef;
+  avail: TeamAvail;
+  subs: GameSub[];
+}) {
   return (
     <div
       className="panel p-4 space-y-3"
@@ -424,6 +627,7 @@ function TeamAvailabilityCard({ team, avail }: { team: TeamRef; avail: TeamAvail
       <AvailGroup label="In" color="text-goal" players={avail.in} />
       <AvailGroup label="Out" color="text-ice" players={avail.out} />
       <AvailGroup label="No response" color="text-ink-faint" players={avail.none} />
+      <SubsList subs={subs} />
       {avail.in.length + avail.out.length + avail.none.length === 0 && (
         <p className="text-ink-faint text-[13px]">No roster set for this season.</p>
       )}

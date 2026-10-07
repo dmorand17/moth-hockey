@@ -7,7 +7,8 @@
     "dev:lan": "./scripts/dev-lan.sh",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "bun test lib"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -18,10 +19,12 @@
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bun": "^1.4.2",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",

@@ -57,7 +57,17 @@ value be used in the same transaction that adds it.
   `home_score`/`away_score`, `period`, `clock_seconds` (default 1020 = 17:00),
   `decided_in` (null until final), `shootout_home_goals`/`shootout_away_goals`.
 - **`game_appearances`** — one row per player who played; PK `(game_id, player_id)`;
-  `is_sub`. Games-played is `COUNT(*)` over this.
+  `is_sub`; `position` (`player_position`, nullable — added in `0025`; null on pre-`0025`
+  rows). Callers resolve final position via `resolvePosition` (appearance → `game_subs`
+  → `team_players` → `"forward"`). Games-played is `COUNT(*)` over this.
+- **`game_subs`** (`0022`) — subs lined up *before* a game by a captain or admin:
+  `game_id`, `team_id`, `player_id`, `position`, `added_by`. PK `(game_id, player_id)`.
+  The scorekeeper's check-in starts with these pre-checked; `startGame` turns them
+  into `is_sub` appearances.
+- **`game_write_ups`** (`0023`) — AI-written `preview` / `recap` per game: `headline`,
+  `body`, `model`, `generated_at`, `edited_at`/`edited_by`, `hidden`. PK `(game_id, kind)`.
+  Written by the server with the service role (daily cron + after finalize); never
+  overwritten by re-runs.
 - **`game_events`** — `type` (`goal`|`penalty`), `period`, `clock_seconds`,
   scorer/assists or penalty fields. A CHECK constraint enforces shape per type
   (goals have a `player_id`, no penalty fields; penalties require
@@ -89,6 +99,10 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 - `is_admin()` — role is `admin`.
 - `is_scorekeeper_or_admin()` — role in (`scorekeeper`, `admin`).
 - `is_team_captain_or_admin()` — role in (`team_captain`, `admin`).
+- `add_new_game_sub(game_id, team_id, first, last, position)` (`0022`) — creates
+  a player and its `game_subs` row atomically, after checking the caller is an
+  admin or that team's captain for the game's season and the game is scheduled.
+  Lets captains add brand-new subs without INSERT rights on `players`.
 - `current_user_role()` — returns the single role. Legacy from `0001`, still
   present; slated for removal under the multi-role plan.
 
@@ -110,11 +124,14 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | Table(s) | Read | Write |
 | --- | --- | --- |
 | seasons, teams, players, team_players, games, game_appearances, game_events, content_pages, season_player_stats, player_awards | public | admin (all) |
-| games / game_appearances / game_events (live) | public read | **scorekeeper** may manage while `status = 'live'`; admin any time |
+| games / game_appearances / game_events (live) | public read | **scorekeeper** may manage while `status = 'live'`; admin any time. Since `0021`, scorekeepers may also write appearances on scheduled games and move a game `scheduled → live` (needed by `startGame`) |
 | players (insert) | — | scorekeeper/admin (on-the-fly subs) |
 | `user_roles` | own row, or admin | admin |
 | `user_profiles` | self, admin, **team_captain** | self (own), admin |
 | `team_captains` | public | admin |
+| `game_subs` | public | admin; **team_captain** for their own team, that season, while the game is scheduled |
+| `game_availability` (since `0024`) | public | player (own row), captain (own team), admin; **scorekeeper** while the game is scheduled or live — `startGame`/`updateRoster` write the check-in back as in/out |
+| `game_write_ups` | public when not `hidden`; admins see all | admin (service role writes generated rows) |
 | `account_requests` | admin | anyone may INSERT; admin update |
 
 Anonymous queries never return `user_profiles` rows — no public select policy

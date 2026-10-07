@@ -102,18 +102,21 @@ export type Database = {
           game_id: string
           is_sub: boolean
           player_id: string
+          position: Database["public"]["Enums"]["player_position"] | null
           team_id: string
         }
         Insert: {
           game_id: string
           is_sub?: boolean
           player_id: string
+          position?: Database["public"]["Enums"]["player_position"] | null
           team_id: string
         }
         Update: {
           game_id?: string
           is_sub?: boolean
           player_id?: string
+          position?: Database["public"]["Enums"]["player_position"] | null
           team_id?: string
         }
         Relationships: [
@@ -275,6 +278,99 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_subs: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          game_id: string
+          player_id: string
+          position: Database["public"]["Enums"]["player_position"]
+          team_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          game_id: string
+          player_id: string
+          position?: Database["public"]["Enums"]["player_position"]
+          team_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          game_id?: string
+          player_id?: string
+          position?: Database["public"]["Enums"]["player_position"]
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_subs_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_subs_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_subs_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_write_ups: {
+        Row: {
+          body: string
+          edited_at: string | null
+          edited_by: string | null
+          game_id: string
+          generated_at: string
+          headline: string
+          hidden: boolean
+          kind: Database["public"]["Enums"]["write_up_kind"]
+          model: string
+        }
+        Insert: {
+          body: string
+          edited_at?: string | null
+          edited_by?: string | null
+          game_id: string
+          generated_at?: string
+          headline: string
+          hidden?: boolean
+          kind: Database["public"]["Enums"]["write_up_kind"]
+          model: string
+        }
+        Update: {
+          body?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          game_id?: string
+          generated_at?: string
+          headline?: string
+          hidden?: boolean
+          kind?: Database["public"]["Enums"]["write_up_kind"]
+          model?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_write_ups_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
             referencedColumns: ["id"]
           },
         ]
@@ -756,6 +852,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_new_game_sub: {
+        Args: {
+          p_first_name: string
+          p_game_id: string
+          p_last_name: string
+          p_position: Database["public"]["Enums"]["player_position"]
+          p_team_id: string
+        }
+        Returns: string
+      }
       admin_user_last_sign_in: {
         Args: never
         Returns: {
@@ -788,6 +894,7 @@ export type Database = {
       playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final"
       season_type: "spring" | "summer" | "fall" | "winter"
       user_role: "admin" | "scorekeeper" | "team_captain" | "player"
+      write_up_kind: "preview" | "recap"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -930,6 +1037,7 @@ export const Constants = {
       playoff_round: ["qf1", "qf2", "qf3", "qf4", "sf1", "sf2", "final"],
       season_type: ["spring", "summer", "fall", "winter"],
       user_role: ["admin", "scorekeeper", "team_captain", "player"],
+      write_up_kind: ["preview", "recap"],
     },
   },
 } as const

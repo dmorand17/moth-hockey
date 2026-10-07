@@ -61,7 +61,9 @@ for (const t of teams) {
     const p: P = {
       id: crypto.randomUUID(),
       first: FIRST[nameIdx % FIRST.length],
-      last: LAST[(nameIdx * 7 + 3) % LAST.length],
+      // Shift the last-name cycle each time first names wrap, so (first, last)
+      // pairs stay unique. 5 is coprime with 24, so 24×24 players before repeats.
+      last: LAST[(Math.floor(nameIdx / FIRST.length) * 5 + nameIdx * 7 + 3) % LAST.length],
       jersey: JERSEYS[i],
       pos: POSITIONS[i],
       captain: i === 0,
@@ -101,20 +103,33 @@ const games: GameRow[] = pairs.map(([home, away], i) => {
   const as = homeWins ? loseGoals : winGoals;
   const id = crypto.randomUUID();
 
-  // Goals + penalties + appearances for both teams.
+  const winnerId = homeWins ? home : away;
+  // Roughly every 4th played game, one skater from a team not in this game
+  // subs for the home side and scores that side's first goal.
+  const others = teams.filter((t) => t.id !== home && t.id !== away);
+  const sub = i % 4 === 0 && others.length ? pick(rosterByTeam.get(pick(others).id)!.skaters) : null;
+
   for (const [teamId, goals] of [[home, hs], [away, as]] as const) {
     const roster = rosterByTeam.get(teamId)!;
     for (const p of roster.all) {
       appearances.push(`(${q(id)}, ${q(p.id)}, ${q(teamId)}, false)`);
     }
+    if (sub && teamId === home) {
+      appearances.push(`(${q(id)}, ${q(sub.id)}, ${q(teamId)}, true)`);
+    }
     for (let g = 0; g < goals; g++) {
-      const scorer = pick(roster.skaters);
-      const others = roster.skaters.filter((s) => s.id !== scorer.id);
-      const a1 = Math.random() < 0.7 && others.length ? pick(others) : null;
+      const scorer = sub && teamId === home && g === 0 ? sub : pick(roster.skaters);
+      const others2 = roster.skaters.filter((s) => s.id !== scorer.id);
+      const a1 = Math.random() < 0.7 && others2.length ? pick(others2) : null;
       const a2 = a1 && Math.random() < 0.35
-        ? pick(others.filter((s) => s.id !== a1.id)) : null;
+        ? pick(others2.filter((s) => s.id !== a1.id)) : null;
+      // In an OT game the winner's last goal is the OT winner; everything else
+      // is regulation, which leaves regulation tied (loser = winner − 1).
+      const isOtWinner = ot && teamId === winnerId && g === goals - 1;
+      const period = isOtWinner ? 4 : 1 + ri(3);
+      const clock = isOtWinner ? ri(300) : ri(1020); // seeded season uses 17-minute periods
       events.push(
-        `(${q(id)}, ${1 + ri(3)}, ${ri(1200)}, 'goal', ${q(teamId)}, ${q(scorer.id)}, ${a1 ? q(a1.id) : "NULL"}, ${a2 ? q(a2.id) : "NULL"})`,
+        `(${q(id)}, ${period}, ${clock}, 'goal', ${q(teamId)}, ${q(scorer.id)}, ${a1 ? q(a1.id) : "NULL"}, ${a2 ? q(a2.id) : "NULL"})`,
       );
     }
   }

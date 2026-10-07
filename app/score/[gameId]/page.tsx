@@ -107,8 +107,25 @@ async function CheckInView({ game }: { game: GameRow }) {
     .filter((p) => p.availability !== "out")
     .map((p) => p.id);
 
-  // For "Add sub" search, every league player who is NOT already on either roster.
-  const rosterIds = new Set(rows.map((r) => r.player.id));
+  // Subs a captain/admin lined up ahead of time start added and checked.
+  const { data: subRows } = await supabase
+    .from("game_subs")
+    .select("team_id, position, player:player_id(id, first_name, last_name)")
+    .eq("game_id", game.id);
+  const initialSubs = (subRows ?? []).flatMap((r) => {
+    const pl = r.player as unknown as { id: string; first_name: string; last_name: string } | null;
+    if (!pl) return [];
+    return [{
+      side: r.team_id === game.home_team_id ? ("home" as const) : ("away" as const),
+      id: pl.id,
+      name: `${pl.first_name} ${pl.last_name}`,
+      position: r.position as Position,
+    }];
+  });
+
+  // For "Add sub" search, every league player who is NOT already on either
+  // roster or lined up as a sub.
+  const rosterIds = new Set([...rows.map((r) => r.player.id), ...initialSubs.map((s) => s.id)]);
   const { data: allPlayers } = await supabase
     .from("players")
     .select("id, first_name, last_name")
@@ -128,6 +145,7 @@ async function CheckInView({ game }: { game: GameRow }) {
         awayRoster={away}
         addableSubs={addableSubs}
         initiallyChecked={initiallyChecked}
+        initialSubs={initialSubs}
       />
     </div>
   );

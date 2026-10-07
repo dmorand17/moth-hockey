@@ -127,3 +127,34 @@ where user_id = (select id from auth.users where email = 'you@example.com');
 
 After that, role changes flow through `/admin/users`. (Locally, `admin@moth.test`
 is already seeded as admin.)
+
+## Box scores and locked availability (#122)
+
+- Live and final games show a **box score** built from the scorekeeper's check-in (`game_appearances`) and the game's events (`lib/box-score.ts`, tested). Skaters: G · A · PTS · PEN · PS · PSG; goalies: GA · PSF · PSV · result.
+- **Starting a game locks in availability:** every rostered player becomes `in` if checked in and `out` if not, overriding earlier self-reports (`lib/lineup-availability.ts`, called from `startGame` and `updateRoster`). Subs get no availability row. Failures are logged as `[lineup-availability]` and never block a start or a lineup edit. Games played before this shipped were not backfilled.
+- **Availability is locked after puck drop:** `setAvailability` (player self-service) and `setPlayerAvailability` (captain) reject changes once the game is no longer `scheduled`. Admins may still correct availability on started or final games via `setPlayerAvailability`.
+- **Per-game positions** (`0025`): `game_appearances.position` stores the position a player actually plays in that game. `startGame` and `updateRoster` write it from the check-in roster; `resolvePosition` (`lib/box-score.ts`) resolves the final display position (appearance → `game_subs` → `team_players` → `"forward"`). Older games (pre-`0025`) have `null` and fall back through the chain.
+- The game page's Box score, Availability and Play-by-play sections collapse (`components/CollapsibleSection.tsx`, native `<details>`).
+
+## AI write-ups (#19)
+
+Game previews and recaps are written by a model through OpenRouter.
+
+- **Model:** `WRITE_UP_MODEL` (default `openai/gpt-6-luna`), falling back to
+  `WRITE_UP_FALLBACK_MODEL` (default `google/gemini-2.5-flash-lite`). Change either in
+  Vercel's env settings; no deploy needed.
+- **When:** a Vercel Cron job (`vercel.json`, daily 18:00 UTC) calls
+  `/api/cron/write-ups` for previews of games in the next 36h and recaps missing
+  from the last 7 days. Finalizing a game also writes its recap in the background.
+- **Run it locally:**
+  `curl -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3001/api/cron/write-ups`
+- **Env:** `OPENROUTER_API_KEY`, `SUPABASE_SECRET_KEY` (server-only), `CRON_SECRET`,
+  plus the two model vars. See `.env.local.example`.
+- **OpenRouter guardrails:** the workspace must allow the OpenAI and Google
+  providers. With Zero Data Retention on, at least one ZDR-compliant endpoint per
+  model must stay allowed.
+- **Tests:** `bun run test` runs the pure-module tests in `lib/`.
+- **Regenerate (admin):** generates the new text first and only replaces the current
+  write-up if that succeeds; on failure the current write-up is kept.
+- **Generation log line format:**
+  `[write-ups] {"gameId":…,"kind":…,"status":…,"detail":"<model> in=<prompt tokens> out=<completion tokens> $<cost>"}`

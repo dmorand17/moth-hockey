@@ -2,7 +2,13 @@
 // fallback model. Model IDs come from env so they can be swapped in Vercel
 // without a deploy.
 
-export type ModelResult = { text: string; model: string; costUsd: number | null };
+export type ModelResult = {
+  text: string;
+  model: string;
+  costUsd: number | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+};
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-6-luna";
@@ -35,13 +41,19 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
   const json = (await res.json()) as {
     model?: string;
     choices?: { message?: { content?: string } }[];
-    usage?: { cost?: number };
+    usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number };
     error?: { message?: string };
   };
   if (!res.ok || json.error) throw new Error(`${model}: ${json.error?.message ?? `HTTP ${res.status}`}`);
   const text = json.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error(`${model}: empty response`);
-  return { text, model: json.model ?? model, costUsd: json.usage?.cost ?? null };
+  return {
+    text,
+    model: json.model ?? model,
+    costUsd: json.usage?.cost ?? null,
+    promptTokens: json.usage?.prompt_tokens ?? null,
+    completionTokens: json.usage?.completion_tokens ?? null,
+  };
 }
 
 export async function generateText(system: string, user: string): Promise<ModelResult> {

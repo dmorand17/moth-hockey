@@ -46,7 +46,8 @@ export async function generateAndStore(kind: WriteUpKind, gameId: string): Promi
       { onConflict: "game_id,kind", ignoreDuplicates: true },
     );
     if (error) return result("failed", error.message);
-    return result("created", `${out.model}${out.costUsd != null ? ` $${out.costUsd.toFixed(5)}` : ""}`);
+    const cost = out.costUsd != null ? ` $${out.costUsd.toFixed(5)}` : "";
+    return result("created", `${out.model} in=${out.promptTokens ?? "?"} out=${out.completionTokens ?? "?"}${cost}`);
   } catch (e) {
     return result("failed", e instanceof Error ? e.message : String(e));
   }

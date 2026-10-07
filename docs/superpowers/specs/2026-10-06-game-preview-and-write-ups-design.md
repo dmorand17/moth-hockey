@@ -44,7 +44,7 @@ Admins can edit or hide any write-up.
 | Publishing | Auto-publish; admins can edit/hide | Low effort, with an escape hatch. |
 | Re-runs | Never overwrite an existing write-up | Admin edits survive. Regeneration is an explicit admin action. |
 | Absent players | Counts only; names passed to the model only for an absent top scorer or rostered goalie | The model can't name anyone else who's out, because it never sees their names. |
-| League timezone | **`America/New_York`** — *assumption, confirm before merge* | Write-ups say "Sunday at 7:00 PM". Nothing in the app pins a timezone, and server-rendered dates otherwise follow the host (UTC on Vercel). |
+| League timezone | **`America/New_York`** (confirmed 2026-10-06) | Write-ups say "Sunday at 7:00 PM". Nothing in the app pins a timezone, and server-rendered dates otherwise follow the host (UTC on Vercel). |
 
 ## Architecture
 

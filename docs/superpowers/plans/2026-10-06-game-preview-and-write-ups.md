@@ -19,7 +19,7 @@
 - Projections need ≥ **2** games played per team; otherwise omitted.
 - Absent players are named only if they're a team's top scorer or rostered goalie (enforced in the data, not just the prompt).
 - `SUPABASE_SECRET_KEY` is server-only: never `NEXT_PUBLIC_`, only imported from files that `import "server-only"`.
-- League timezone **`America/New_York`** (assumption — confirm with the user before Task 6 ships; nothing in the codebase defines one).
+- League timezone **`America/New_York`** (confirmed by the user 2026-10-06; nothing else in the codebase defines one).
 - Migration number is **`0023`** (`0021`/`0022` were taken by #120/#121).
 - Package manager is bun: `bun add`, `bunx`. Preserve `trustedDependencies` / `ignoreScripts` in `package.json`.
 
@@ -971,8 +971,8 @@ import { formatClock, formatPeriod } from "@/lib/format";
 
 export type WriteUpKind = "preview" | "recap";
 
-// Assumption: the league plays in US Eastern. Nothing else in the app pins a
-// timezone; server-rendered dates otherwise follow the host (UTC on Vercel).
+// The league plays in US Eastern. Nothing else in the app pins a timezone;
+// server-rendered dates otherwise follow the host (UTC on Vercel).
 export const LEAGUE_TIME_ZONE = "America/New_York";
 
 export const SYSTEM_PROMPT = `You write short game write-ups for M.O.T.H. ("Mostly Over The Hill"), a friendly adult rec hockey league. Readers are the players themselves.
@@ -1137,7 +1137,7 @@ export function userMessage(kind: WriteUpKind, input: Record<string, unknown>): 
 Run: `bun test lib/write-ups`
 Expected: PASS (both files).
 
-Note: `2026-04-26T23:00:00Z` is 7:00 PM EDT. If the league timezone assumption changes, update `LEAGUE_TIME_ZONE` and the two date expectations together.
+Note: `2026-04-26T23:00:00Z` is 7:00 PM EDT. If the league timezone ever changes, update `LEAGUE_TIME_ZONE` and the two date expectations together.
 
 - [ ] **Step 9: Typecheck and commit**
 
@@ -2396,4 +2396,3 @@ git commit -m "docs: AI write-ups workflow, table and test command"
   `select policyname from pg_policies where tablename = 'game_write_ups'` rather than `migration list`.
 - Set in Vercel (Preview + Production): `OPENROUTER_API_KEY`, `SUPABASE_SECRET_KEY`, `CRON_SECRET`, `WRITE_UP_MODEL`, `WRITE_UP_FALLBACK_MODEL`.
 - Vercel Cron runs only on the production deployment; on staging, trigger the route by hand with the `curl` above.
-- Confirm the league timezone (`LEAGUE_TIME_ZONE` in `lib/write-ups/prompt.ts`) before merging.

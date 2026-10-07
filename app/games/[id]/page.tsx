@@ -5,6 +5,7 @@ import { PlayoffChip } from "@/components/PlayoffChip";
 import { TeamBadge } from "@/components/TeamBadge";
 import { CheckInToggle } from "@/components/CheckInToggle";
 import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
+import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
@@ -92,11 +93,13 @@ export default async function GamePage({
         viewerCanCheckIn: boolean;
         viewerTeamName: string | null;
         manageableTeamIds: string[];
+        subsByTeam: Map<string, GameSub[]>;
+        addableSubs: { id: string; name: string }[];
       }
     | null = null;
 
   if (homeTeam && awayTeam) {
-    const [{ data: rosterRaw }, { data: availRaw }, { data: userData }] =
+    const [{ data: rosterRaw }, { data: availRaw }, { data: userData }, { data: subsRaw }] =
       await Promise.all([
         supabase
           .from("team_players")
@@ -108,9 +111,23 @@ export default async function GamePage({
           .select("player_id, status")
           .eq("game_id", id),
         supabase.auth.getUser(),
+        supabase
+          .from("game_subs")
+          .select("team_id, position, player:player_id(id, first_name, last_name)")
+          .eq("game_id", id),
       ]);
 
     const roster = (rosterRaw ?? []) as unknown as RosterPlayerRow[];
+
+    const subsByTeam = new Map<string, GameSub[]>();
+    for (const row of subsRaw ?? []) {
+      const pl = row.player as unknown as { id: string; first_name: string; last_name: string } | null;
+      if (!pl) continue;
+      const list = subsByTeam.get(row.team_id) ?? [];
+      list.push({ id: pl.id, name: `${pl.first_name} ${pl.last_name}`, position: row.position });
+      subsByTeam.set(row.team_id, list);
+    }
+    for (const list of subsByTeam.values()) list.sort((a, b) => a.name.localeCompare(b.name));
     const statusBy = new Map<string, "in" | "out">();
     for (const a of availRaw ?? []) {
       statusBy.set(a.player_id, a.status as "in" | "out");
@@ -178,6 +195,24 @@ export default async function GamePage({
       viewerPlayerId != null &&
       roster.some((r) => r.player?.id === viewerPlayerId && r.team_id === awayTeam.id);
 
+    // Sub search pool, only for viewers who can manage a team: every league
+    // player except both teams' rosters (they're already in this game's
+    // check-in) and anyone already lined up as a sub.
+    let addableSubs: { id: string; name: string }[] = [];
+    if (manageableTeamIds.length > 0) {
+      const taken = new Set([
+        ...roster.map((r) => r.player?.id).filter((x): x is string => !!x),
+        ...[...subsByTeam.values()].flat().map((s) => s.id),
+      ]);
+      const { data: allPlayers } = await supabase
+        .from("players")
+        .select("id, first_name, last_name")
+        .order("last_name");
+      addableSubs = (allPlayers ?? [])
+        .filter((p) => !taken.has(p.id))
+        .map((p) => ({ id: p.id, name: `${p.first_name} ${p.last_name}` }));
+    }
+
     availability = {
       home: bucket(homeTeam.id),
       away: bucket(awayTeam.id),
@@ -185,6 +220,8 @@ export default async function GamePage({
       viewerCanCheckIn: onHome || onAway,
       viewerTeamName: onHome ? homeTeam.name : onAway ? awayTeam.name : null,
       manageableTeamIds,
+      subsByTeam,
+      addableSubs,
     };
   }
 
@@ -280,18 +317,40 @@ export default async function GamePage({
                 gameId={game.id}
                 team={awayView}
                 players={toManagedPlayers(availability.away)}
-              />
+              >
+                <SubsManager
+                  gameId={game.id}
+                  teamId={awayView.id}
+                  subs={availability.subsByTeam.get(awayView.id) ?? []}
+                  addableSubs={availability.addableSubs}
+                />
+              </AvailabilityManager>
             ) : (
-              <TeamAvailabilityCard team={awayView} avail={availability.away} />
+              <TeamAvailabilityCard
+                team={awayView}
+                avail={availability.away}
+                subs={availability.subsByTeam.get(awayView.id) ?? []}
+              />
             )}
             {availability.manageableTeamIds.includes(homeView.id) ? (
               <AvailabilityManager
                 gameId={game.id}
                 team={homeView}
                 players={toManagedPlayers(availability.home)}
-              />
+              >
+                <SubsManager
+                  gameId={game.id}
+                  teamId={homeView.id}
+                  subs={availability.subsByTeam.get(homeView.id) ?? []}
+                  addableSubs={availability.addableSubs}
+                />
+              </AvailabilityManager>
             ) : (
-              <TeamAvailabilityCard team={homeView} avail={availability.home} />
+              <TeamAvailabilityCard
+                team={homeView}
+                avail={availability.home}
+                subs={availability.subsByTeam.get(homeView.id) ?? []}
+              />
             )}
           </div>
         </section>
@@ -409,7 +468,15 @@ function toManagedPlayers(avail: TeamAvail): ManagedPlayer[] {
   ].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function TeamAvailabilityCard({ team, avail }: { team: TeamRef; avail: TeamAvail }) {
+function TeamAvailabilityCard({
+  team,
+  avail,
+  subs,
+}: {
+  team: TeamRef;
+  avail: TeamAvail;
+  subs: GameSub[];
+}) {
   return (
     <div
       className="panel p-4 space-y-3"
@@ -424,6 +491,7 @@ function TeamAvailabilityCard({ team, avail }: { team: TeamRef; avail: TeamAvail
       <AvailGroup label="In" color="text-goal" players={avail.in} />
       <AvailGroup label="Out" color="text-ice" players={avail.out} />
       <AvailGroup label="No response" color="text-ink-faint" players={avail.none} />
+      <SubsList subs={subs} />
       {avail.in.length + avail.out.length + avail.none.length === 0 && (
         <p className="text-ink-faint text-[13px]">No roster set for this season.</p>
       )}

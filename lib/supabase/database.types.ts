@@ -279,6 +279,55 @@ export type Database = {
           },
         ]
       }
+      game_subs: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          game_id: string
+          player_id: string
+          position: Database["public"]["Enums"]["player_position"]
+          team_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          game_id: string
+          player_id: string
+          position?: Database["public"]["Enums"]["player_position"]
+          team_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          game_id?: string
+          player_id?: string
+          position?: Database["public"]["Enums"]["player_position"]
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_subs_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_subs_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_subs_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           away_score: number
@@ -756,6 +805,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_new_game_sub: {
+        Args: {
+          p_first_name: string
+          p_game_id: string
+          p_last_name: string
+          p_position: Database["public"]["Enums"]["player_position"]
+          p_team_id: string
+        }
+        Returns: string
+      }
       admin_user_last_sign_in: {
         Args: never
         Returns: {

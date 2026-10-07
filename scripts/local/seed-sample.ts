@@ -127,7 +127,7 @@ const games: GameRow[] = pairs.map(([home, away], i) => {
       // is regulation, which leaves regulation tied (loser = winner − 1).
       const isOtWinner = ot && teamId === winnerId && g === goals - 1;
       const period = isOtWinner ? 4 : 1 + ri(3);
-      const clock = isOtWinner ? ri(300) : ri(1200);
+      const clock = isOtWinner ? ri(300) : ri(1020); // seeded season uses 17-minute periods
       events.push(
         `(${q(id)}, ${period}, ${clock}, 'goal', ${q(teamId)}, ${q(scorer.id)}, ${a1 ? q(a1.id) : "NULL"}, ${a2 ? q(a2.id) : "NULL"})`,
       );

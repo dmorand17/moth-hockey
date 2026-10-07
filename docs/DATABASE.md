@@ -57,7 +57,9 @@ value be used in the same transaction that adds it.
   `home_score`/`away_score`, `period`, `clock_seconds` (default 1020 = 17:00),
   `decided_in` (null until final), `shootout_home_goals`/`shootout_away_goals`.
 - **`game_appearances`** — one row per player who played; PK `(game_id, player_id)`;
-  `is_sub`. Games-played is `COUNT(*)` over this.
+  `is_sub`; `position` (`player_position`, nullable — added in `0025`; null on pre-`0025`
+  rows). Callers resolve final position via `resolvePosition` (appearance → `game_subs`
+  → `team_players` → `"forward"`). Games-played is `COUNT(*)` over this.
 - **`game_subs`** (`0022`) — subs lined up *before* a game by a captain or admin:
   `game_id`, `team_id`, `player_id`, `position`, `added_by`. PK `(game_id, player_id)`.
   The scorekeeper's check-in starts with these pre-checked; `startGame` turns them

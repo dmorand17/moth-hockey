@@ -335,6 +335,18 @@ export default async function GamePage({
         </div>
       </section>
 
+      {/* WRITE-UP (right after scoreboard for visibility) */}
+      {isScheduled && previewWriteUp && (
+        <section className="rise">
+          <WriteUpCard writeUp={previewWriteUp} admin={adminSlot(previewWriteUp)} />
+        </section>
+      )}
+      {isFinal && recapWriteUp && (
+        <section className="rise">
+          <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
+        </section>
+      )}
+
       {/* AVAILABILITY (scheduled games) */}
       {availability && (
         <section className="rise delay-1 space-y-4">
@@ -398,15 +410,7 @@ export default async function GamePage({
       {previewSource && (
         <section className="rise delay-1 space-y-4">
           <SectionHeader eyebrow="Preview" title="Matchup" />
-          {previewWriteUp && <WriteUpCard writeUp={previewWriteUp} admin={adminSlot(previewWriteUp)} />}
           <MatchupPanel source={previewSource} />
-        </section>
-      )}
-
-      {/* RECAP (final games) */}
-      {isFinal && recapWriteUp && (
-        <section className="rise delay-1">
-          <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
         </section>
       )}
 

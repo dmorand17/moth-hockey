@@ -8,15 +8,22 @@ import {
   availableGoalie,
   availableTopScorer,
   gameLineup,
+  goalieSeasonRecord,
+  headToHead as headToHeadFn,
   keyMatchup,
   projectMatchup,
   projectedRoster,
+  seasonPlayerTotals,
+  standingsPlace,
   teamForm,
   topScorers,
   type FinalGame,
   type GoalEvent,
   type Position,
   type RosterEntry,
+  type SeasonAppearance,
+  type SeasonGoal,
+  type SeasonShot,
 } from "@/lib/matchup";
 import { resolvePosition } from "@/lib/box-score";
 import type { PreviewSource, PreviewTeam, RecapGoal, RecapPenalty, RecapSource } from "@/lib/write-ups/prompt";
@@ -77,21 +84,29 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
   if (!game || game.status !== "scheduled") return null;
   const teamIds = [game.home_team_id, game.away_team_id];
 
-  const [standings, finalsRes, goalRowsRes, rosterRowsRes, availRowsRes, subRowsRes, teamRowsRes] =
+  const [standings, finalsRes, goalRowsRes, rosterRowsRes, availRowsRes, subRowsRes, teamRowsRes,
+         seasonShotRowsRes, seasonAppRowsRes] =
     await Promise.all([
       getStandings(game.season_id),
       db.from("games")
         .select("id, scheduled_at, home_team_id, away_team_id, home_score, away_score, decided_in")
         .eq("season_id", game.season_id).eq("status", "final").eq("kind", "regular"),
       db.from("game_events")
-        .select("team_id, player_id, period, clock_seconds, assist1_player_id, assist2_player_id, game:game_id!inner(season_id, status, kind)")
+        .select("game_id, team_id, player_id, period, clock_seconds, assist1_player_id, assist2_player_id, game:game_id!inner(season_id, status, kind)")
         .eq("type", "goal").eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
       db.from("team_players")
         .select("team_id, position, player:player_id(id, first_name, last_name)")
         .eq("season_id", game.season_id).in("team_id", teamIds),
       db.from("game_availability").select("player_id, status").eq("game_id", gameId),
-      db.from("game_subs").select("team_id, position, player:player_id(first_name, last_name)").eq("game_id", gameId),
+      db.from("game_subs").select("team_id, position, player_id, player:player_id(first_name, last_name)").eq("game_id", gameId),
       db.from("teams").select("id, name").eq("season_id", game.season_id),
+      db.from("game_events")
+        .select("team_id, game_id, penalty_shot_result, game:game_id!inner(season_id, status, kind)")
+        .eq("type", "penalty").not("penalty_shot_result", "is", null)
+        .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
+      db.from("game_appearances")
+        .select("game_id, player_id, team_id, position, game:game_id!inner(season_id, status, kind)")
+        .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
     ]);
   const finals = must(finalsRes, `loadPreviewSource(${gameId}): games`);
   const goalRows = must(goalRowsRes, `loadPreviewSource(${gameId}): game_events`);
@@ -99,6 +114,8 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
   const availRows = must(availRowsRes, `loadPreviewSource(${gameId}): game_availability`);
   const subRows = must(subRowsRes, `loadPreviewSource(${gameId}): game_subs`);
   const teamRows = must(teamRowsRes, `loadPreviewSource(${gameId}): teams`);
+  const seasonShotRows = must(seasonShotRowsRes, `loadPreviewSource(${gameId}): season_shots`);
+  const seasonAppRows = must(seasonAppRowsRes, `loadPreviewSource(${gameId}): season_appearances`);
 
   const teamNames = new Map((teamRows ?? []).map((t) => [t.id, t.name]));
   const games: FinalGame[] = (finals ?? []).flatMap((g) =>
@@ -107,12 +124,14 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
            homeScore: g.home_score, awayScore: g.away_score, decidedIn: g.decided_in }]
       : [],
   );
-  const goals: GoalEvent[] = (goalRows ?? []).flatMap((e) =>
-    e.player_id
-      ? [{ teamId: e.team_id, playerId: e.player_id, period: e.period, clockSeconds: e.clock_seconds,
-           assist1Id: e.assist1_player_id, assist2Id: e.assist2_player_id }]
+  // SeasonGoal includes gameId; GoalEvent is a structural subset so seasonGoals is usable as GoalEvent[].
+  const seasonGoals: SeasonGoal[] = (goalRows ?? []).flatMap((e) =>
+    e.player_id && e.game_id
+      ? [{ gameId: e.game_id, teamId: e.team_id, playerId: e.player_id, period: e.period,
+           clockSeconds: e.clock_seconds, assist1Id: e.assist1_player_id, assist2Id: e.assist2_player_id }]
       : [],
   );
+  const goals: GoalEvent[] = seasonGoals;
 
   const roster: RosterEntry[] = (rosterRows ?? []).flatMap((r) => {
     const p = r.player as unknown as ({ id: string } & Name) | null;
@@ -133,20 +152,89 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
 
   const status = new Map((availRows ?? []).map((a) => [a.player_id, a.status as "in" | "out"]));
 
+  // Season data for standings, leaders, goalie records, head-to-head.
+  const seasonShots: SeasonShot[] = (seasonShotRows ?? []).flatMap((e) =>
+    e.game_id
+      ? [{ gameId: e.game_id, committingTeamId: e.team_id, result: e.penalty_shot_result as "goal" | "saved" | null }]
+      : [],
+  );
+  const rosterPositions = new Map(roster.map((r) => [r.playerId, r.position]));
+  const seasonApps: SeasonAppearance[] = (seasonAppRows ?? []).flatMap((a) =>
+    a.game_id && a.player_id
+      ? [{
+          gameId: a.game_id as string,
+          playerId: a.player_id as string,
+          teamId: a.team_id as string,
+          position: resolvePosition(a.position as Position | null, undefined, rosterPositions.get(a.player_id as string)),
+        }]
+      : [],
+  );
+  const allTotals = seasonPlayerTotals(seasonGoals);
+
   const side = (teamId: string): PreviewTeam => {
     const form = teamForm(standingFor(standings, teamId), games, teamId, (id) => teamNames.get(id) ?? "Unknown");
     const scorers = topScorers(goals, teamId, nameOf);
     const teamRoster = roster.filter((r) => r.teamId === teamId);
-    const goalieId = teamRoster.find((r) => r.position === "goalie")?.playerId;
-    const keyIds = new Set([...scorers.map((s) => s.playerId), ...(goalieId ? [goalieId] : [])]);
-    const subs = (subRows ?? [])
-      .filter((s) => s.team_id === teamId)
-      .map((s) => ({ name: full(s.player as unknown as Name), position: s.position as Position }));
+    const rosteredGoalieEntry = teamRoster.find((r) => r.position === "goalie");
+    const keyIds = new Set([...scorers.map((s) => s.playerId), ...(rosteredGoalieEntry ? [rosteredGoalieEntry.playerId] : [])]);
+    const subsForTeam = (subRows ?? []).filter((s) => s.team_id === teamId);
+    const subs = subsForTeam.map((s) => ({ name: full(s.player as unknown as Name), position: s.position as Position }));
+
+    // Season leaders: team's rostered players, top 3 by points → goals → name.
+    const teamPlayerIds = new Set(teamRoster.map((r) => r.playerId));
+    const seasonLeaders = [...teamPlayerIds]
+      .filter((id) => allTotals.has(id))
+      .map((id) => ({ id, t: allTotals.get(id)! }))
+      .sort((a, b) => {
+        if (b.t.points !== a.t.points) return b.t.points - a.t.points;
+        if (b.t.goals !== a.t.goals) return b.t.goals - a.t.goals;
+        return nameOf(a.id).localeCompare(nameOf(b.id));
+      })
+      .slice(0, 3)
+      .map(({ id, t }) => ({
+        name: nameOf(id),
+        goals: t.goals,
+        assists: t.assists,
+        points: t.points,
+        leagueRankPoints: t.leagueRankPoints,
+        leagueRankGoals: t.leagueRankGoals,
+      }));
+
+    // Expected goalie (same rule as availableGoalie) for season record.
+    let expectedGoalieId: string | null = null;
+    let expectedGoalieName: string | null = null;
+    if (!rosteredGoalieEntry) {
+      const subG = subsForTeam.find((s) => s.position as Position === "goalie");
+      if (subG) {
+        expectedGoalieId = (subG as unknown as { player_id: string | null }).player_id ?? null;
+        expectedGoalieName = full(subG.player as unknown as Name);
+      }
+    } else if (status.get(rosteredGoalieEntry.playerId) !== "out") {
+      expectedGoalieId = rosteredGoalieEntry.playerId;
+      expectedGoalieName = rosteredGoalieEntry.name;
+    } else {
+      const subG = subsForTeam.find((s) => s.position as Position === "goalie");
+      if (subG) {
+        expectedGoalieId = (subG as unknown as { player_id: string | null }).player_id ?? null;
+        expectedGoalieName = full(subG.player as unknown as Name);
+      }
+    }
+    const goalieSeason =
+      expectedGoalieId && expectedGoalieName
+        ? {
+            name: expectedGoalieName,
+            ...goalieSeasonRecord(expectedGoalieId, games, seasonApps, seasonGoals, seasonShots),
+          }
+        : null;
+
     return {
       name: teamNames.get(teamId) ?? "Unknown",
       form,
       topScorers: scorers,
       roster: projectedRoster(teamRoster, status, subs, keyIds),
+      standing: standingsPlace(standings, teamId),
+      seasonLeaders,
+      goalieSeason,
     };
   };
 
@@ -161,6 +249,16 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
   const homeRoster = roster.filter((r) => r.teamId === game.home_team_id);
   const awayRoster = roster.filter((r) => r.teamId === game.away_team_id);
 
+  const h2hGames = headToHeadFn(games, game.home_team_id, game.away_team_id);
+  const headToHead = h2hGames.map((g) => ({
+    playedOn: g.scheduledAt,
+    home: teamNames.get(g.homeTeamId) ?? "Unknown",
+    away: teamNames.get(g.awayTeamId) ?? "Unknown",
+    homeScore: g.homeScore,
+    awayScore: g.awayScore,
+    decidedIn: g.decidedIn,
+  }));
+
   return {
     scheduledAt: game.scheduled_at,
     home,
@@ -170,6 +268,7 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
       { team: home.name, topScorer: availableTopScorer(home.topScorers, status), goalie: availableGoalie(homeRoster, status, teamSubs(game.home_team_id)), form: home.form },
       { team: away.name, topScorer: availableTopScorer(away.topScorers, status), goalie: availableGoalie(awayRoster, status, teamSubs(game.away_team_id)), form: away.form },
     ),
+    headToHead,
   };
 }
 
@@ -183,7 +282,8 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
   const game = await loadGame(db, gameId);
   if (!game || game.status !== "final") return null;
 
-  const [standings, eventRowsRes, appRowsRes, rosterRowsRes, subRowsRes] = await Promise.all([
+  const [standings, eventRowsRes, appRowsRes, rosterRowsRes, subRowsRes,
+         seasonFinalsRes, seasonGoalRowsRes, seasonShotRowsRes, seasonAppRowsRes] = await Promise.all([
     getStandings(game.season_id),
     db.from("game_events")
       .select(
@@ -197,11 +297,28 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
     db.from("game_appearances").select("player_id, team_id, is_sub, position, player:player_id(first_name, last_name)").eq("game_id", gameId),
     db.from("team_players").select("player_id, position").eq("season_id", game.season_id),
     db.from("game_subs").select("player_id, position").eq("game_id", gameId),
+    db.from("games")
+      .select("id, scheduled_at, home_team_id, away_team_id, home_score, away_score, decided_in")
+      .eq("season_id", game.season_id).eq("status", "final").eq("kind", "regular"),
+    db.from("game_events")
+      .select("game_id, team_id, player_id, assist1_player_id, assist2_player_id, game:game_id!inner(season_id, status, kind)")
+      .eq("type", "goal").eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
+    db.from("game_events")
+      .select("team_id, game_id, penalty_shot_result, game:game_id!inner(season_id, status, kind)")
+      .eq("type", "penalty").not("penalty_shot_result", "is", null)
+      .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
+    db.from("game_appearances")
+      .select("game_id, player_id, team_id, position, game:game_id!inner(season_id, status, kind)")
+      .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
   ]);
   const eventRows = must(eventRowsRes, `loadRecapSource(${gameId}): game_events`);
   const appRows = must(appRowsRes, `loadRecapSource(${gameId}): game_appearances`);
   const rosterRows = must(rosterRowsRes, `loadRecapSource(${gameId}): team_players`);
   const subRows = must(subRowsRes, `loadRecapSource(${gameId}): game_subs`);
+  const seasonFinals = must(seasonFinalsRes, `loadRecapSource(${gameId}): season_finals`);
+  const seasonGoalRows = must(seasonGoalRowsRes, `loadRecapSource(${gameId}): season_goals`);
+  const seasonShotRows = must(seasonShotRowsRes, `loadRecapSource(${gameId}): season_shots`);
+  const seasonAppRows = must(seasonAppRowsRes, `loadRecapSource(${gameId}): season_appearances`);
 
   const teamName = (id: string) => (id === game.home_team_id ? game.home_team.name : game.away_team.name);
   const positionOf = new Map<string, Position>();
@@ -289,16 +406,113 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
       ? { homeGoals: soHome, awayGoals: soAway }
       : null;
 
+  // Season context: standings, goalie records, player totals, head-to-head.
+  const seasonGoals: SeasonGoal[] = (seasonGoalRows ?? []).flatMap((e) =>
+    e.player_id && e.game_id
+      ? [{
+          gameId: e.game_id as string, teamId: e.team_id as string, playerId: e.player_id as string,
+          period: 0, clockSeconds: 0,
+          assist1Id: (e.assist1_player_id as string | null) ?? null,
+          assist2Id: (e.assist2_player_id as string | null) ?? null,
+        }]
+      : [],
+  );
+  const seasonShots: SeasonShot[] = (seasonShotRows ?? []).flatMap((e) =>
+    e.game_id
+      ? [{ gameId: e.game_id as string, committingTeamId: e.team_id as string, result: e.penalty_shot_result as "goal" | "saved" | null }]
+      : [],
+  );
+  const seasonRosterPos = new Map<string, Position>();
+  for (const r of rosterRows ?? []) seasonRosterPos.set(r.player_id, r.position as Position);
+  const seasonApps: SeasonAppearance[] = (seasonAppRows ?? []).flatMap((a) =>
+    a.game_id && a.player_id
+      ? [{
+          gameId: a.game_id as string, playerId: a.player_id as string, teamId: a.team_id as string,
+          position: resolvePosition(a.position as Position | null, undefined, seasonRosterPos.get(a.player_id as string)),
+        }]
+      : [],
+  );
+  const seasonFinaleGames: FinalGame[] = (seasonFinals ?? []).flatMap((g) =>
+    g.home_team_id && g.away_team_id
+      ? [{ id: g.id, scheduledAt: g.scheduled_at, homeTeamId: g.home_team_id, awayTeamId: g.away_team_id,
+           homeScore: g.home_score, awayScore: g.away_score, decidedIn: g.decided_in }]
+      : [],
+  );
+  const allTotals = seasonPlayerTotals(seasonGoals);
+
+  const goaliesSeasonAfterFor = (teamId: string) => {
+    const teamGoalies = apps.filter(
+      (a) => a.team_id === teamId && resolvePosition(a.position, positionOf.get(a.player_id), undefined) === "goalie",
+    );
+    return teamGoalies.map((a) => ({
+      name: full(a.player),
+      ...goalieSeasonRecord(a.player_id, seasonFinaleGames, seasonApps, seasonGoals, seasonShots),
+    }));
+  };
+
+  const thisGameGoals = seasonGoals.filter((g) => g.gameId === gameId);
+  const scorerAssisterIds = new Set<string>();
+  for (const g of thisGameGoals) {
+    scorerAssisterIds.add(g.playerId);
+    if (g.assist1Id) scorerAssisterIds.add(g.assist1Id);
+    if (g.assist2Id) scorerAssisterIds.add(g.assist2Id);
+  }
+  const gamePlayerNames = new Map<string, string>();
+  for (const a of apps) if (a.player) gamePlayerNames.set(a.player_id, full(a.player));
+  const gamePlayerTeams = new Map<string, string>(apps.map((a) => [a.player_id, a.team_id]));
+
+  const seasonTotalsAfter = [...scorerAssisterIds]
+    .filter((id) => allTotals.has(id))
+    .map((id) => {
+      const t = allTotals.get(id)!;
+      return {
+        name: gamePlayerNames.get(id) ?? "Unknown",
+        team: teamName(gamePlayerTeams.get(id) ?? ""),
+        goals: t.goals,
+        assists: t.assists,
+        points: t.points,
+        leagueRankPoints: t.leagueRankPoints,
+        leagueRankGoals: t.leagueRankGoals,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const teamNameOf = (id: string) =>
+    id === game.home_team_id ? game.home_team.name : game.away_team.name;
+  const h2hGames = headToHeadFn(seasonFinaleGames, game.home_team_id, game.away_team_id);
+  const headToHead = h2hGames.map((g) => ({
+    playedOn: g.scheduledAt,
+    home: teamNameOf(g.homeTeamId),
+    away: teamNameOf(g.awayTeamId),
+    homeScore: g.homeScore,
+    awayScore: g.awayScore,
+    decidedIn: g.decidedIn,
+  }));
+
   return {
     scheduledAt: game.scheduled_at,
     homeScore: game.home_score,
     awayScore: game.away_score,
     decidedIn: game.decided_in,
     periodLengthSeconds,
-    home: { name: game.home_team.name, recordAfter: record(game.home_team_id), lineup: lineup(game.home_team_id) },
-    away: { name: game.away_team.name, recordAfter: record(game.away_team_id), lineup: lineup(game.away_team_id) },
+    home: {
+      name: game.home_team.name,
+      recordAfter: record(game.home_team_id),
+      lineup: lineup(game.home_team_id),
+      standingAfter: standingsPlace(standings, game.home_team_id),
+      goaliesSeasonAfter: goaliesSeasonAfterFor(game.home_team_id),
+    },
+    away: {
+      name: game.away_team.name,
+      recordAfter: record(game.away_team_id),
+      lineup: lineup(game.away_team_id),
+      standingAfter: standingsPlace(standings, game.away_team_id),
+      goaliesSeasonAfter: goaliesSeasonAfterFor(game.away_team_id),
+    },
     goals,
     penalties,
     shootout,
+    seasonTotalsAfter,
+    headToHead,
   };
 }

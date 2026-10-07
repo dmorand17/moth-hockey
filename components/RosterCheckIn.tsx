@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createNewSub, startGame, updateRoster } from "@/app/score/[gameId]/actions";
 
-type Position = "forward" | "defense" | "goalie";
+export type Position = "forward" | "defense" | "goalie";
 
 type Availability = "in" | "out" | null;
 
@@ -30,6 +30,9 @@ type Props = {
   lockedPlayerIds?: string[];
   // After-success redirect (e.g. back to /score/[gameId]). Defaults to refresh.
   redirectTo?: string;
+  // Subs a captain/admin lined up before the game (game_subs). They start
+  // added and checked; the scorekeeper can still uncheck them.
+  initialSubs?: { side: "home" | "away"; id: string; name: string; position: Position }[];
 };
 
 type CheckInPlayer = RosterPlayer & { isSub: boolean };
@@ -45,19 +48,25 @@ export function RosterCheckIn({
   initiallyChecked,
   lockedPlayerIds,
   redirectTo,
+  initialSubs = [],
 }: Props) {
   const locked = useMemo(() => new Set(lockedPlayerIds ?? []), [lockedPlayerIds]);
+  const subsFor = (side: "home" | "away"): CheckInPlayer[] =>
+    initialSubs
+      .filter((s) => s.side === side)
+      .map((s) => ({ id: s.id, name: s.name, position: s.position, isSub: true }));
   const [home, setHome] = useState<CheckInPlayer[]>(
-    () => homeRoster.map((p) => ({ ...p, isSub: false })),
+    () => [...homeRoster.map((p) => ({ ...p, isSub: false })), ...subsFor("home")],
   );
   const [away, setAway] = useState<CheckInPlayer[]>(
-    () => awayRoster.map((p) => ({ ...p, isSub: false })),
+    () => [...awayRoster.map((p) => ({ ...p, isSub: false })), ...subsFor("away")],
   );
   const [checked, setChecked] = useState<Set<string>>(
     () =>
-      initiallyChecked
-        ? new Set(initiallyChecked)
-        : new Set([...homeRoster.map((p) => p.id), ...awayRoster.map((p) => p.id)]),
+      new Set([
+        ...(initiallyChecked ?? [...homeRoster.map((p) => p.id), ...awayRoster.map((p) => p.id)]),
+        ...initialSubs.map((s) => s.id),
+      ]),
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -354,7 +363,7 @@ function TeamRoster({
   );
 }
 
-function SubControls({
+export function SubControls({
   addableSubs,
   onAddExistingSub,
   onCreateNewSub,
@@ -528,7 +537,9 @@ function SubControls({
               setPosition("forward");
             }
           }}
-          className="flex-1 min-h-[40px] eyebrow text-[11px] bg-ice text-board rounded-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
+          // Not `.eyebrow`: that class is unlayered CSS, so its color beats any
+          // Tailwind text-* utility and left this label gray-on-cyan.
+          className="flex-1 min-h-[40px] text-[11px] font-semibold uppercase tracking-[0.08em] bg-ice text-board rounded-[2px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {busy ? "Adding…" : "Add"}
         </button>

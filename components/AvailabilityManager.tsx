@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -20,10 +20,13 @@ export function AvailabilityManager({
   gameId,
   team,
   players,
+  children,
 }: {
   gameId: string;
   team: Team;
   players: ManagedPlayer[];
+  // Extra controls rendered under the roster list (e.g. sub management).
+  children?: ReactNode;
 }) {
   const inCount = players.filter((p) => p.status === "in").length;
   const outCount = players.filter((p) => p.status === "out").length;
@@ -48,6 +51,7 @@ export function AvailabilityManager({
           ))}
         </ul>
       )}
+      {children}
     </div>
   );
 }

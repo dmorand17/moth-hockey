@@ -328,6 +328,50 @@ export type Database = {
           },
         ]
       }
+      game_write_ups: {
+        Row: {
+          body: string
+          edited_at: string | null
+          edited_by: string | null
+          game_id: string
+          generated_at: string
+          headline: string
+          hidden: boolean
+          kind: Database["public"]["Enums"]["write_up_kind"]
+          model: string
+        }
+        Insert: {
+          body: string
+          edited_at?: string | null
+          edited_by?: string | null
+          game_id: string
+          generated_at?: string
+          headline: string
+          hidden?: boolean
+          kind: Database["public"]["Enums"]["write_up_kind"]
+          model: string
+        }
+        Update: {
+          body?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          game_id?: string
+          generated_at?: string
+          headline?: string
+          hidden?: boolean
+          kind?: Database["public"]["Enums"]["write_up_kind"]
+          model?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_write_ups_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           away_score: number
@@ -847,6 +891,7 @@ export type Database = {
       playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final"
       season_type: "spring" | "summer" | "fall" | "winter"
       user_role: "admin" | "scorekeeper" | "team_captain" | "player"
+      write_up_kind: "preview" | "recap"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -989,6 +1034,7 @@ export const Constants = {
       playoff_round: ["qf1", "qf2", "qf3", "qf4", "sf1", "sf2", "final"],
       season_type: ["spring", "summer", "fall", "winter"],
       user_role: ["admin", "scorekeeper", "team_captain", "player"],
+      write_up_kind: ["preview", "recap"],
     },
   },
 } as const

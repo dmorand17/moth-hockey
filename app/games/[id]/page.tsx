@@ -8,9 +8,11 @@ import { AvailabilityManager, type ManagedPlayer } from "@/components/Availabili
 import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
 import { MatchupPanel } from "@/components/MatchupPanel";
 import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
+import { WriteUpAdminControls } from "@/components/WriteUpAdminControls";
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
 import type { PreviewSource } from "@/lib/write-ups/prompt";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSessionIfRole } from "@/lib/auth";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
 type PlayerRef = { id: string; first_name: string; last_name: string };
@@ -90,6 +92,16 @@ export default async function GamePage({
   const writeUps = (writeUpRows ?? []) as WriteUp[];
   const previewWriteUp = writeUps.find((w) => w.kind === "preview") ?? null;
   const recapWriteUp = writeUps.find((w) => w.kind === "recap") ?? null;
+
+  const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
+  const adminSlot = (w: WriteUp) =>
+    viewerIsAdmin ? (
+      <WriteUpAdminControls
+        gameId={id}
+        writeUp={w}
+        canRegenerate={w.kind === "preview" ? game.status === "scheduled" : game.status === "final"}
+      />
+    ) : undefined;
 
   // loadPreviewSource throws on a query error (so the generator never publishes
   // from bad data). On the page, a failed load just means no matchup panel —
@@ -386,7 +398,7 @@ export default async function GamePage({
       {previewSource && (
         <section className="rise delay-1 space-y-4">
           <SectionHeader eyebrow="Preview" title="Matchup" />
-          {previewWriteUp && <WriteUpCard writeUp={previewWriteUp} />}
+          {previewWriteUp && <WriteUpCard writeUp={previewWriteUp} admin={adminSlot(previewWriteUp)} />}
           <MatchupPanel source={previewSource} />
         </section>
       )}
@@ -394,7 +406,7 @@ export default async function GamePage({
       {/* RECAP (final games) */}
       {isFinal && recapWriteUp && (
         <section className="rise delay-1">
-          <WriteUpCard writeUp={recapWriteUp} />
+          <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
         </section>
       )}
 

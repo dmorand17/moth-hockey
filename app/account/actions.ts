@@ -59,10 +59,13 @@ export async function setAvailability(input: {
   // Only allow availability for a game the player's team is actually in.
   const { data: gameRow } = await supabase
     .from("games")
-    .select("season_id, home_team_id, away_team_id")
+    .select("season_id, home_team_id, away_team_id, status")
     .eq("id", gameId)
     .maybeSingle();
   if (!gameRow) return { ok: false, error: "Game not found." };
+  if (gameRow.status !== "scheduled") {
+    return { ok: false, error: "This game has started — availability is locked." };
+  }
 
   const teamIds = [gameRow.home_team_id, gameRow.away_team_id].filter(
     (t): t is string => t != null,

@@ -8,8 +8,21 @@ import { type ActionResult } from "@/lib/action-result";
 import { formatPeriod } from "@/lib/format";
 import { PENALTY_TYPES, type PenaltyType } from "./penalty-types";
 import { generateAndStore } from "@/lib/write-ups/generate";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
+import { syncAvailabilityFromLineup } from "@/lib/lineup-availability";
 
 type Position = "forward" | "defense" | "goalie";
+
+// Lock availability in from the lineup. Logged, never fatal: a failure here
+// must not undo a started game or a saved lineup edit.
+async function lockAvailability(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  gameId: string,
+) {
+  const res = await syncAvailabilityFromLineup(supabase as unknown as SupabaseClient<Database>, gameId);
+  if (!res.ok) console.error("[lineup-availability]", gameId, res.error);
+}
 
 // Creates a one-off player to use as a sub. Returns the new player so the
 // client can stage them into the check-in list. We do NOT create a
@@ -92,12 +105,14 @@ export async function startGame(input: {
       team_id: input.homeTeamId,
       player_id: p.playerId,
       is_sub: p.isSub,
+      position: p.position,
     })),
     ...input.awayRoster.map((p) => ({
       game_id: input.gameId,
       team_id: input.awayTeamId,
       player_id: p.playerId,
       is_sub: p.isSub,
+      position: p.position,
     })),
   ];
 
@@ -123,7 +138,10 @@ export async function startGame(input: {
     return { ok: false, error: updateErr?.message ?? "Couldn't start the game. Refresh and try again." };
   }
 
+  await lockAvailability(supabase, input.gameId);
+
   revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
   revalidatePath("/score");
   return { ok: true };
 }
@@ -171,7 +189,7 @@ export async function updateRoster(input: {
   const [{ data: currentApps, error: appsErr }, { data: events, error: evErr }] = await Promise.all([
     supabase
       .from("game_appearances")
-      .select("player_id, team_id, is_sub")
+      .select("player_id, team_id, is_sub, position")
       .eq("game_id", input.gameId),
     supabase
       .from("game_events")
@@ -195,8 +213,8 @@ export async function updateRoster(input: {
   }
 
   const incoming = [
-    ...input.homeRoster.map((p) => ({ team_id: input.homeTeamId, player_id: p.playerId, is_sub: p.isSub })),
-    ...input.awayRoster.map((p) => ({ team_id: input.awayTeamId, player_id: p.playerId, is_sub: p.isSub })),
+    ...input.homeRoster.map((p) => ({ team_id: input.homeTeamId, player_id: p.playerId, is_sub: p.isSub, position: p.position })),
+    ...input.awayRoster.map((p) => ({ team_id: input.awayTeamId, player_id: p.playerId, is_sub: p.isSub, position: p.position })),
   ];
   const incomingKeys = new Set(incoming.map((a) => `${a.team_id}:${a.player_id}`));
 
@@ -214,11 +232,6 @@ export async function updateRoster(input: {
     toRemove.push({ team_id: row.team_id, player_id: playerId });
   }
 
-  // Additions: in incoming but not current.
-  const toAdd = incoming
-    .filter((a) => !currentByKey.has(`${a.team_id}:${a.player_id}`))
-    .map((a) => ({ ...a, game_id: input.gameId }));
-
   if (toRemove.length > 0) {
     // No bulk delete by composite key; loop is fine for ≲40 rows.
     for (const r of toRemove) {
@@ -232,13 +245,18 @@ export async function updateRoster(input: {
     }
   }
 
-  if (toAdd.length > 0) {
-    const { error: addErr } = await supabase.from("game_appearances").insert(toAdd);
-    if (addErr) return { ok: false, error: addErr.message };
-  }
+  // Upsert every desired row so positions update for players who stay in the lineup.
+  const { error: upsertErr } = await supabase.from("game_appearances").upsert(
+    incoming.map((a) => ({ ...a, game_id: input.gameId })),
+    { onConflict: "game_id,player_id" },
+  );
+  if (upsertErr) return { ok: false, error: upsertErr.message };
+
+  await lockAvailability(supabase, input.gameId);
 
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath(`/score/${input.gameId}/roster`);
+  revalidatePath(`/games/${input.gameId}`);
   revalidatePath("/score");
   return { ok: true };
 }

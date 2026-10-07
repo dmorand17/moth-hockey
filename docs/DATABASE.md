@@ -57,7 +57,9 @@ value be used in the same transaction that adds it.
   `home_score`/`away_score`, `period`, `clock_seconds` (default 1020 = 17:00),
   `decided_in` (null until final), `shootout_home_goals`/`shootout_away_goals`.
 - **`game_appearances`** — one row per player who played; PK `(game_id, player_id)`;
-  `is_sub`. Games-played is `COUNT(*)` over this.
+  `is_sub`; `position` (`player_position`, nullable — added in `0025`; null on pre-`0025`
+  rows). Callers resolve final position via `resolvePosition` (appearance → `game_subs`
+  → `team_players` → `"forward"`). Games-played is `COUNT(*)` over this.
 - **`game_subs`** (`0022`) — subs lined up *before* a game by a captain or admin:
   `game_id`, `team_id`, `player_id`, `position`, `added_by`. PK `(game_id, player_id)`.
   The scorekeeper's check-in starts with these pre-checked; `startGame` turns them
@@ -128,6 +130,7 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | `user_profiles` | self, admin, **team_captain** | self (own), admin |
 | `team_captains` | public | admin |
 | `game_subs` | public | admin; **team_captain** for their own team, that season, while the game is scheduled |
+| `game_availability` (since `0024`) | public | player (own row), captain (own team), admin; **scorekeeper** while the game is scheduled or live — `startGame`/`updateRoster` write the check-in back as in/out |
 | `game_write_ups` | public when not `hidden`; admins see all | admin (service role writes generated rows) |
 | `account_requests` | admin | anyone may INSERT; admin update |
 

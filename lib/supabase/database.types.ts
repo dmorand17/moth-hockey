@@ -102,18 +102,21 @@ export type Database = {
           game_id: string
           is_sub: boolean
           player_id: string
+          position: Database["public"]["Enums"]["player_position"] | null
           team_id: string
         }
         Insert: {
           game_id: string
           is_sub?: boolean
           player_id: string
+          position?: Database["public"]["Enums"]["player_position"] | null
           team_id: string
         }
         Update: {
           game_id?: string
           is_sub?: boolean
           player_id?: string
+          position?: Database["public"]["Enums"]["player_position"] | null
           team_id?: string
         }
         Relationships: [

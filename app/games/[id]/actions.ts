@@ -29,10 +29,13 @@ export async function setPlayerAvailability(input: {
 
   const { data: game } = await supabase
     .from("games")
-    .select("season_id, home_team_id, away_team_id")
+    .select("season_id, home_team_id, away_team_id, status")
     .eq("id", gameId)
     .maybeSingle();
   if (!game) return fail("Game not found.");
+  if (game.status !== "scheduled" && session.role !== "admin") {
+    return fail("This game has started — availability is locked.");
+  }
 
   if (session.role === "team_captain") {
     const teamIds = [game.home_team_id, game.away_team_id].filter(

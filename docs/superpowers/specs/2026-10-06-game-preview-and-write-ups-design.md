@@ -1,7 +1,7 @@
 # Game Preview, Matchup Analyzer & AI Write-ups — Design
 
 **Date:** 2026-10-06
-**Status:** Draft — awaiting review.
+**Status:** Approved 2026-10-06. Implementation plan: `docs/superpowers/plans/2026-10-06-game-preview-and-write-ups.md`.
 **Issue:** #19
 
 ## Problem
@@ -93,7 +93,7 @@ top of the panel.
 
 A recap write-up, when present, shows at the top of the final-game view.
 
-### 3. Data model — migration `0021_game_write_ups.sql`
+### 3. Data model — migration `0023_game_write_ups.sql`
 
 ```sql
 create type write_up_kind as enum ('preview', 'recap');
@@ -149,9 +149,9 @@ unlabeled data):
 - Preview: `game { home, away, when }`; per team: `record`, `points`, `gp`,
   `goals_for`, `goals_against`, `gf_per_game`, `ga_per_game`,
   `last_3_most_recent_first`, `top_scorers`, `rostered_goalie`,
-  `availability { roster_size, in[], out[], no_response_count }` (names for
-  in/out; a count for no-response), and `subs_lined_up[]` once captain-added
-  subs exist (empty until then);
+  `availability { roster_size, checked_in, out, out_key_players[], no_response }`
+  — counts, plus names only for absent top scorers / the rostered goalie, so the
+  model can't name anyone else who's out — and `subs_lined_up[]` from `game_subs`;
   `projection { expected_goals_*, over_under_line, win_probability_*,
   moneyline_* }`.
 - Recap: `game { home, away, played_on, final, decided_in }`; `goals[]` in

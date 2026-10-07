@@ -51,9 +51,9 @@ Admins can edit or hide any write-up.
 ```
 lib/matchup.ts        pure stats: form, scorers, rosters, key matchup, projection
    │
-   ├──► app/games/[id]  PreviewPanel (scheduled games) — renders live
+   ├──► app/games/[id]  MatchupPanel (scheduled games) — renders live
    │
-   └──► lib/write-ups.ts  builds the model input, calls OpenRouter, stores result
+   └──► lib/write-ups/  builds the model input, calls OpenRouter, stores result
            ▲                         ▲
            │                         │
   app/api/cron/write-ups      finalizeGame → after()
@@ -164,9 +164,12 @@ unlabeled data):
   `projection { expected_goals_*, over_under_line, win_probability_*,
   moneyline_* }`.
 - Recap: `game { home, away, played_on, final, decided_in }`; `goals[]` in
-  order with `period`, `time_remaining`, `team`, `scorer`, `scorer_is_sub`,
-  `assists`, `score_after`; `penalties[]`; `records_after`; per team
-  `lineup { skaters_dressed, goalie, subs[] }` from `game_appearances`
+  order with `period`, `time` (elapsed), `team`, `scorer`, `scorer_is_sub`,
+  `assists`, `score_after`, `penalty_shot` (bool — penalty-shot goals are merged
+  into `goals[]` and credited to the shooting team); `penalties[]` each with
+  `shot_result` and `shooter`; optional `shootout { winner, home_goals,
+  away_goals, note }` block when decided in a shootout; `records_after`; per
+  team `lineup { skaters_dressed, goalie, subs[] }` from `game_appearances`
   (`is_sub = true` → `subs[]`).
 
 **System prompt:** the bake-off prompt (fun, PG, league-newsletter tone; only
@@ -202,8 +205,9 @@ prose), plus rules for the new data:
 ### 6. Admin controls
 
 On `/games/[id]`, admins see **Edit**, **Hide/Show** and **Regenerate** on
-each write-up. Edit sets `edited_at`/`edited_by`. Regenerate deletes the row
-and generates fresh output (with a confirm dialog), since it discards edits.
+each write-up. Edit sets `edited_at`/`edited_by`. Regenerate generates new
+output first, then replaces the row only on success — the current write-up and
+its `hidden` flag are preserved on failure (no partial data loss).
 
 ## Error handling
 

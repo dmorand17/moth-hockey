@@ -19,7 +19,9 @@ Rules:
 - Tone: fun and a little playful, like a league newsletter. PG. Light ribbing of a TEAM's record is fine; never mock an individual player.
 - Don't summarize a streak or pattern unless every game in it fits the description.
 - Previews: projections are for fun, not betting advice. You may mention the projected total and who's slightly favored. If few players have checked in, say rosters are still TBD rather than guessing. Only name absent players listed in out_key_players, and never guess why anyone is out. Name subs who are lined up.
-- Recaps: tell the story of the game from the goal sequence (leads, comebacks, the winner). Credit scorers by name. Credit a sub who scored or assisted as a sub. Mention a short bench only if a team dressed fewer than 7 skaters.`;
+- Recaps: tell the story of the game from the goal sequence (leads, comebacks, the winner). Credit scorers by name. Credit a sub who scored or assisted as a sub. Mention a short bench only if a team dressed fewer than 7 skaters.
+- A goal with penalty_shot true was scored on a penalty shot; say so.
+- If shootout is present, the game was decided in a shootout; never credit any player with the shootout goal.`;
 
 export type PreviewTeam = { name: string; form: TeamForm; topScorers: Scorer[]; roster: ProjectedRoster };
 
@@ -39,19 +41,30 @@ export type RecapGoal = {
   scorer: string;
   scorerIsSub: boolean;
   assists: string[];
+  penaltyShot: boolean;
 };
-export type RecapPenalty = { period: number; clockSeconds: number; team: string; player: string; penalty: string };
+export type RecapPenalty = {
+  period: number;
+  clockSeconds: number;
+  team: string;
+  player: string;
+  penalty: string;
+  shotResult: "goal" | "saved" | null;
+  shooter: string | null;
+};
 
 export type RecapSource = {
   scheduledAt: string;
   homeScore: number;
   awayScore: number;
   decidedIn: "regulation" | "ot" | "shootout" | null;
+  periodLengthSeconds: number;
   home: RecapTeam;
   away: RecapTeam;
   // In game order: period ascending, clock (time remaining) descending.
   goals: RecapGoal[];
   penalties: RecapPenalty[];
+  shootout: { homeGoals: number; awayGoals: number } | null;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -97,6 +110,13 @@ function previewTeam(t: PreviewTeam) {
   };
 }
 
+function shapeKeyMatchup(km: KeyMatchup) {
+  return {
+    scorer: { name: km.scorer.name, team: km.scorer.team, goals: km.scorer.goals },
+    goalie: { name: km.goalie.name, team: km.goalie.team, team_ga_per_game: round2(km.goalie.teamGaPerGame) },
+  };
+}
+
 export function buildPreviewInput(src: PreviewSource): Record<string, unknown> {
   return {
     game: {
@@ -117,11 +137,17 @@ export function buildPreviewInput(src: PreviewSource): Record<string, unknown> {
           moneyline_away: src.projection.moneylineAway,
         }
       : "not available yet (fewer than 2 games played)",
-    key_matchup: src.keyMatchup ?? "none",
+    key_matchup: src.keyMatchup ? shapeKeyMatchup(src.keyMatchup) : "none",
   };
 }
 
 const DECIDED: Record<string, string> = { regulation: "regulation", ot: "overtime", shootout: "shootout" };
+
+/** Elapsed seconds for an event given time remaining and period length. Clamped ≥ 0. */
+function elapsedSeconds(clockSeconds: number, period: number, periodLengthSeconds: number): number {
+  const len = period === 4 ? 300 : periodLengthSeconds;
+  return Math.max(0, len - clockSeconds);
+}
 
 export function buildRecapInput(src: RecapSource): Record<string, unknown> {
   let home = 0;
@@ -131,18 +157,19 @@ export function buildRecapInput(src: RecapSource): Record<string, unknown> {
     else away++;
     return {
       period: formatPeriod(g.period),
-      time_remaining: formatClock(g.clockSeconds),
+      time: formatClock(elapsedSeconds(g.clockSeconds, g.period, src.periodLengthSeconds)),
       team: g.team,
       scorer: g.scorer,
       scorer_is_sub: g.scorerIsSub,
       assists: g.assists.length ? g.assists.join(", ") : null,
       score_after: `${src.home.name} ${home}, ${src.away.name} ${away}`,
+      penalty_shot: g.penaltyShot,
     };
   });
 
   const lineup = (l: Lineup) => ({ skaters_dressed: l.skatersDressed, goalie: l.goalie, subs: l.subs });
 
-  return {
+  const result: Record<string, unknown> = {
     game: {
       home: src.home.name,
       away: src.away.name,
@@ -153,14 +180,28 @@ export function buildRecapInput(src: RecapSource): Record<string, unknown> {
     goals,
     penalties: src.penalties.map((p) => ({
       period: formatPeriod(p.period),
-      time_remaining: formatClock(p.clockSeconds),
+      time: formatClock(elapsedSeconds(p.clockSeconds, p.period, src.periodLengthSeconds)),
       team: p.team,
       player: p.player,
       penalty: p.penalty,
+      shot_result: p.shotResult,
+      shooter: p.shooter,
     })),
     lineups: { [src.home.name]: lineup(src.home.lineup), [src.away.name]: lineup(src.away.lineup) },
     records_after: { [src.home.name]: src.home.recordAfter, [src.away.name]: src.away.recordAfter },
   };
+
+  if (src.shootout) {
+    const winner = src.shootout.homeGoals > src.shootout.awayGoals ? src.home.name : src.away.name;
+    result.shootout = {
+      winner,
+      home_goals: src.shootout.homeGoals,
+      away_goals: src.shootout.awayGoals,
+      note: "The final score includes 1 goal awarded to the shootout winner. No player is credited with it.",
+    };
+  }
+
+  return result;
 }
 
 export function userMessage(kind: WriteUpKind, input: Record<string, unknown>): string {

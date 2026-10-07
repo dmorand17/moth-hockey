@@ -90,8 +90,7 @@ export function MatchupPanel({ source }: { source: PreviewSource }) {
               </div>
             </div>
             <p className="mt-2 text-[12px] text-ink-faint">
-              {Math.round(p.winProbabilityAway * 100)}% / {Math.round(p.winProbabilityHome * 100)}% to win.
-              For fun — not betting advice.
+              {source.away.name} {Math.round(p.winProbabilityAway * 100)}% · {source.home.name} {Math.round(p.winProbabilityHome * 100)}% to win. For fun — not betting advice.
             </p>
           </>
         ) : (

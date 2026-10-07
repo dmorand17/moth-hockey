@@ -87,4 +87,24 @@ describe("generateText", () => {
     expect(r.completionTokens).toBe(100);
     expect(calls.map((c) => c.model)).toEqual(["openai/gpt-6-luna", "google/gemini-2.5-flash-lite"]);
   });
+
+  test("falls back when primary returns finish_reason=length", async () => {
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init!.body));
+      calls.push({ model: body.model, reasoning: body.reasoning });
+      if (body.model.startsWith("openai/")) {
+        return respond(200, {
+          model: body.model,
+          choices: [{ message: { content: "truncated text" }, finish_reason: "length" }],
+          usage: { cost: 0.0001, prompt_tokens: 900, completion_tokens: 1000 },
+        });
+      }
+      return respond(200, { model: body.model, choices: [{ message: { content: "fallback ok" }, finish_reason: "stop" }] });
+    }) as unknown as typeof fetch;
+
+    const r = await generateText("sys", "user");
+    expect(r.model).toBe("google/gemini-2.5-flash-lite");
+    expect(r.text).toBe("fallback ok");
+    expect(calls.map((c) => c.model)).toEqual(["openai/gpt-6-luna", "google/gemini-2.5-flash-lite"]);
+  });
 });

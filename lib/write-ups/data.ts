@@ -34,7 +34,9 @@ async function loadGame(db: Db, gameId: string) {
     .from("games")
     .select(
       "id, season_id, scheduled_at, status, home_team_id, away_team_id, home_score, away_score, decided_in, " +
-        "home_team:home_team_id(name), away_team:away_team_id(name)",
+        "shootout_home_goals, shootout_away_goals, " +
+        "home_team:home_team_id(name), away_team:away_team_id(name), " +
+        "season:season_id(period_length_minutes)",
     )
     .eq("id", gameId)
     .maybeSingle();
@@ -43,14 +45,18 @@ async function loadGame(db: Db, gameId: string) {
     id: string; season_id: string; scheduled_at: string; status: string;
     home_team_id: string | null; away_team_id: string | null; home_score: number; away_score: number;
     decided_in: "regulation" | "ot" | "shootout" | null;
+    shootout_home_goals: number | null; shootout_away_goals: number | null;
     home_team: { name: string }; away_team: { name: string };
+    season: { period_length_minutes: number } | null;
   } | null;
   if (!raw || !raw.home_team_id || !raw.away_team_id) return null;
   const g = raw as unknown as {
     id: string; season_id: string; scheduled_at: string; status: string;
     home_team_id: string; away_team_id: string; home_score: number; away_score: number;
     decided_in: "regulation" | "ot" | "shootout" | null;
+    shootout_home_goals: number | null; shootout_away_goals: number | null;
     home_team: { name: string }; away_team: { name: string };
+    season: { period_length_minutes: number } | null;
   };
   return g;
 }
@@ -169,8 +175,9 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
     getStandings(game.season_id),
     db.from("game_events")
       .select(
-        "type, team_id, period, clock_seconds, penalty_type, penalty_type_other, " +
-          "scorer:player_id(first_name, last_name), a1:assist1_player_id(first_name, last_name), a2:assist2_player_id(first_name, last_name), player_id",
+        "type, team_id, period, clock_seconds, penalty_type, penalty_type_other, penalty_shot_result, penalty_shot_taker_id, " +
+          "scorer:player_id(first_name, last_name), a1:assist1_player_id(first_name, last_name), a2:assist2_player_id(first_name, last_name), " +
+          "shooter:penalty_shot_taker_id(first_name, last_name), player_id",
       )
       .eq("game_id", gameId)
       .order("period")
@@ -202,10 +209,13 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
   type Ev = {
     type: "goal" | "penalty"; team_id: string; period: number; clock_seconds: number;
     penalty_type: string | null; penalty_type_other: string | null; player_id: string | null;
-    scorer: Name | null; a1: Name | null; a2: Name | null;
+    penalty_shot_result: "goal" | "saved" | null; penalty_shot_taker_id: string | null;
+    scorer: Name | null; a1: Name | null; a2: Name | null; shooter: Name | null;
   };
   const events = (eventRows ?? []) as unknown as Ev[];
-  const goals: RecapGoal[] = events
+
+  // Regular goals (type='goal' events).
+  const regularGoals: RecapGoal[] = events
     .filter((e) => e.type === "goal")
     .map((e) => ({
       period: e.period,
@@ -214,7 +224,29 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
       scorer: full(e.scorer),
       scorerIsSub: e.player_id ? subIds.has(e.player_id) : false,
       assists: [e.a1, e.a2].filter((a): a is Name => !!a).map(full),
+      penaltyShot: false,
     }));
+
+  // Penalty-shot goals: penalty events where shot resulted in a goal.
+  // The shooting team is the OPPONENT of the committing team (e.team_id).
+  const penaltyShotGoals: RecapGoal[] = events
+    .filter((e) => e.type === "penalty" && e.penalty_shot_result === "goal" && e.penalty_shot_taker_id)
+    .map((e) => ({
+      period: e.period,
+      clockSeconds: e.clock_seconds,
+      team: teamName(e.team_id === game.home_team_id ? game.away_team_id : game.home_team_id),
+      scorer: full(e.shooter),
+      scorerIsSub: e.penalty_shot_taker_id ? subIds.has(e.penalty_shot_taker_id) : false,
+      assists: [],
+      penaltyShot: true,
+    }));
+
+  // Merge and sort: period asc, clock desc (higher remaining = earlier in period).
+  const goals: RecapGoal[] = [...regularGoals, ...penaltyShotGoals].sort((a, b) => {
+    if (a.period !== b.period) return a.period - b.period;
+    return b.clockSeconds - a.clockSeconds;
+  });
+
   const penalties: RecapPenalty[] = events
     .filter((e) => e.type === "penalty")
     .map((e) => ({
@@ -223,6 +255,8 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
       team: teamName(e.team_id),
       player: full(e.scorer),
       penalty: penaltyLabel(e.penalty_type, e.penalty_type_other),
+      shotResult: e.penalty_shot_result,
+      shooter: e.shooter ? full(e.shooter) : null,
     }));
 
   const record = (teamId: string) => {
@@ -230,14 +264,25 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
     return `${s.w}-${s.l}-${s.otl}`;
   };
 
+  const periodLengthSeconds = (game.season?.period_length_minutes ?? 17) * 60;
+
+  const soHome = game.shootout_home_goals;
+  const soAway = game.shootout_away_goals;
+  const shootout =
+    game.decided_in === "shootout" && soHome != null && soAway != null
+      ? { homeGoals: soHome, awayGoals: soAway }
+      : null;
+
   return {
     scheduledAt: game.scheduled_at,
     homeScore: game.home_score,
     awayScore: game.away_score,
     decidedIn: game.decided_in,
+    periodLengthSeconds,
     home: { name: game.home_team.name, recordAfter: record(game.home_team_id), lineup: lineup(game.home_team_id) },
     away: { name: game.away_team.name, recordAfter: record(game.away_team_id), lineup: lineup(game.away_team_id) },
     goals,
     penalties,
+    shootout,
   };
 }

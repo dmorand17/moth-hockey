@@ -40,12 +40,14 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
   });
   const json = (await res.json()) as {
     model?: string;
-    choices?: { message?: { content?: string } }[];
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
     usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number };
     error?: { message?: string };
   };
   if (!res.ok || json.error) throw new Error(`${model}: ${json.error?.message ?? `HTTP ${res.status}`}`);
-  const text = json.choices?.[0]?.message?.content?.trim();
+  const choice = json.choices?.[0];
+  if (choice?.finish_reason === "length") throw new Error(`${model}: truncated (finish_reason=length)`);
+  const text = choice?.message?.content?.trim();
   if (!text) throw new Error(`${model}: empty response`);
   return {
     text,

@@ -128,6 +128,7 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | `user_profiles` | self, admin, **team_captain** | self (own), admin |
 | `team_captains` | public | admin |
 | `game_subs` | public | admin; **team_captain** for their own team, that season, while the game is scheduled |
+| `game_availability` (since `0024`) | public | player (own row), captain (own team), admin; **scorekeeper** while the game is scheduled or live — `startGame`/`updateRoster` write the check-in back as in/out |
 | `game_write_ups` | public when not `hidden`; admins see all | admin (service role writes generated rows) |
 | `account_requests` | admin | anyone may INSERT; admin update |
 

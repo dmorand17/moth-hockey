@@ -8,8 +8,21 @@ import { type ActionResult } from "@/lib/action-result";
 import { formatPeriod } from "@/lib/format";
 import { PENALTY_TYPES, type PenaltyType } from "./penalty-types";
 import { generateAndStore } from "@/lib/write-ups/generate";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
+import { syncAvailabilityFromLineup } from "@/lib/lineup-availability";
 
 type Position = "forward" | "defense" | "goalie";
+
+// Lock availability in from the lineup. Logged, never fatal: a failure here
+// must not undo a started game or a saved lineup edit.
+async function lockAvailability(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  gameId: string,
+) {
+  const res = await syncAvailabilityFromLineup(supabase as unknown as SupabaseClient<Database>, gameId);
+  if (!res.ok) console.error("[lineup-availability]", gameId, res.error);
+}
 
 // Creates a one-off player to use as a sub. Returns the new player so the
 // client can stage them into the check-in list. We do NOT create a
@@ -123,7 +136,10 @@ export async function startGame(input: {
     return { ok: false, error: updateErr?.message ?? "Couldn't start the game. Refresh and try again." };
   }
 
+  await lockAvailability(supabase, input.gameId);
+
   revalidatePath(`/score/${input.gameId}`);
+  revalidatePath(`/games/${input.gameId}`);
   revalidatePath("/score");
   return { ok: true };
 }
@@ -237,8 +253,11 @@ export async function updateRoster(input: {
     if (addErr) return { ok: false, error: addErr.message };
   }
 
+  await lockAvailability(supabase, input.gameId);
+
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath(`/score/${input.gameId}/roster`);
+  revalidatePath(`/games/${input.gameId}`);
   revalidatePath("/score");
   return { ok: true };
 }

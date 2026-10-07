@@ -325,3 +325,39 @@ git commit -m "feat(write-ups): standings, leaders, goalie records and head-to-h
 - [ ] **Step 2: Docs** — update the input-contract bullets in the write-ups spec to list the new fields, and add to `docs/DEVELOPMENT.md`'s AI write-ups section: "Inputs include each team's standings place, top-3 season points leaders with league ranks, the expected goalie's season record, head-to-head this season, and (recaps) every scorer's season totals after the game."
 - [ ] **Step 3: All checks** — `bun run test && bunx tsc --noEmit && bun run lint && bun run build`.
 - [ ] **Step 4: Commit** — `git commit -m "docs: season context in AI write-up inputs"` (docs only).
+
+---
+
+### Task 2b: Store the AI input with each write-up; admins can inspect it
+
+**Files:**
+- Create: `supabase/migrations/0026_write_up_input.sql`
+- Modify: `lib/supabase/database.types.ts` (regenerated)
+- Modify: `lib/write-ups/generate.ts`
+- Modify: `components/WriteUpCard.tsx` (the `WriteUp` type gains `input`)
+- Modify: `components/WriteUpAdminControls.tsx` (a "View AI input" panel)
+- Modify: `app/games/[id]/page.tsx` (select `input` only for admins)
+- Modify: `docs/DATABASE.md`, `docs/DEVELOPMENT.md`
+
+**Requirements:**
+1. Migration `0026_write_up_input.sql`:
+   ```sql
+   -- The exact JSON sent to the model for each write-up, so admins can inspect
+   -- what the AI was told (and fact-check against it). Null for rows written
+   -- before this migration. Contents are derived from already-public data.
+   alter table game_write_ups add column input jsonb;
+   ```
+   Apply with `bunx supabase migration up --local` (NOT `db reset`). Regenerate types: `bunx supabase gen types typescript --local 2>/dev/null > lib/supabase/database.types.ts`; confirm the file starts with `export type Json =`.
+2. `generate.ts`: include `input` (the exact object passed to `userMessage(kind, input)`) in the row written on BOTH paths — the default `ignoreDuplicates` insert and the `replace: true` overwrite. Admin edits (`updateWriteUp`) must not touch `input`. Nothing else in `generateAndStore` changes (never throws; same statuses; same logging).
+3. `WriteUp` type (components/WriteUpCard.tsx) gains `input?: unknown`. The public card renders nothing new.
+4. `app/games/[id]/page.tsx`: the write-ups query selects `input` **only when the viewer is an admin** (the page already computes `viewerIsAdmin` via `getSessionIfRole(["admin"])`; reorder so it's known before the write-ups query, or run a second admin-only select for `kind, input`). Non-admins never receive `input` in the page payload.
+5. `WriteUpAdminControls.tsx`: add a native `<details>` "View AI input" (collapsed by default) below the existing buttons, showing `JSON.stringify(writeUp.input, null, 2)` in a `<pre>` with `max-h-96 overflow-auto text-[12px] tnum` and the panel styling used nearby. If `input` is null/undefined: "No AI input stored (generated before inputs were saved)." Use explicit Tailwind utilities — do NOT combine `.eyebrow` with `text-*` colors (known CSS bug).
+6. Docs: `docs/DATABASE.md` — note `game_write_ups.input` (jsonb, since `0026`); `docs/DEVELOPMENT.md` AI write-ups section — "Each write-up stores the exact model input (`input`); admins can open 'View AI input' on the card."
+
+**Verify (record command + output):**
+- `bun test lib`, `bunx tsc --noEmit`, `bun run lint` (only the 2 pre-existing warnings in `app/admin/schedule/page.tsx`).
+- Local: insert nothing by hand — trigger ONE real generation (~$0.0002) via a TEMPORARY route `app/api/dev/input-check/route.ts` calling `generateAndStore("recap", <latest final game id>, { replace: true })` with the service client; `curl` it; then confirm `select input is not null, jsonb_typeof(input), input ? 'goals' from game_write_ups where game_id = … and kind = 'recap'` → `t | object | t`. **Delete the temp route** (`git status` clean of it).
+- Browser (playwright-cli NAMED session `-s=input2b`, short commands + `sleep`s): as `admin@moth.test` (magic link via Mailpit http://127.0.0.1:54324 → `/auth/confirm` → SIGN IN) open `/games/<id>`, expand "View AI input", screenshot to `/tmp/input2b/`. Signed out (cookie-clear), confirm the page HTML does not contain `"season_totals_after"` or `"records_after"` (i.e. input isn't sent to non-admins): `curl -s http://127.0.0.1:3001/games/<id> | grep -c records_after` → 0.
+- Delete the generated write-up row afterwards.
+
+**Commit (don't push):** `feat(write-ups): store and show the AI input for admins` — all files above. Never print/commit `.env.local`; don't commit `.playwright-cli/`.

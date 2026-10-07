@@ -156,5 +156,7 @@ Game previews and recaps are written by a model through OpenRouter.
 - **Tests:** `bun run test` runs the pure-module tests in `lib/`.
 - **Regenerate (admin):** generates the new text first and only replaces the current
   write-up if that succeeds; on failure the current write-up is kept.
+- **AI input stored:** each write-up stores the exact model input (`input`); admins
+  can open "View AI input" on the card to inspect it.
 - **Generation log line format:**
   `[write-ups] {"gameId":…,"kind":…,"status":…,"detail":"<model> in=<prompt tokens> out=<completion tokens> $<cost>"}`

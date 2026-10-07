@@ -78,40 +78,56 @@ export function WriteUpAdminControls({
   }
 
   return (
-    <div className="flex flex-wrap gap-2 border-t border-rule pt-3">
-      <button
-        type="button"
-        disabled={pending}
-        className={btn}
-        onClick={() => {
-          setHeadline(writeUp.headline);
-          setBody(writeUp.body);
-          setEditing(true);
-        }}
-      >
-        Edit
-      </button>
-      <button
-        type="button"
-        disabled={pending}
-        className={btn}
-        onClick={() => run(() => setWriteUpHidden({ gameId, kind: writeUp.kind, hidden: !writeUp.hidden }))}
-      >
-        {writeUp.hidden ? "Show" : "Hide"}
-      </button>
-      {canRegenerate && (
+    <div className="space-y-3 border-t border-rule pt-3">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           disabled={pending}
           className={btn}
           onClick={() => {
-            if (!confirm("Replace this write-up with a new one? Any edits will be lost.")) return;
-            run(() => regenerateWriteUp({ gameId, kind: writeUp.kind }));
+            setHeadline(writeUp.headline);
+            setBody(writeUp.body);
+            setEditing(true);
           }}
         >
-          {pending ? "Working…" : "Regenerate"}
+          Edit
         </button>
-      )}
+        <button
+          type="button"
+          disabled={pending}
+          className={btn}
+          onClick={() => run(() => setWriteUpHidden({ gameId, kind: writeUp.kind, hidden: !writeUp.hidden }))}
+        >
+          {writeUp.hidden ? "Show" : "Hide"}
+        </button>
+        {canRegenerate && (
+          <button
+            type="button"
+            disabled={pending}
+            className={btn}
+            onClick={() => {
+              if (!confirm("Replace this write-up with a new one? Any edits will be lost.")) return;
+              run(() => regenerateWriteUp({ gameId, kind: writeUp.kind }));
+            }}
+          >
+            {pending ? "Working…" : "Regenerate"}
+          </button>
+        )}
+      </div>
+      <details className="panel p-3">
+        <summary className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-dim select-none">
+          View AI input
+        </summary>
+        <div className="mt-3">
+          {writeUp.input != null ? (
+            <pre className="max-h-96 overflow-auto text-[12px] tnum text-ink-dim whitespace-pre-wrap break-all">
+              {JSON.stringify(writeUp.input, null, 2)}
+            </pre>
+          ) : (
+            <p className="text-[13px] text-ink-dim">No AI input stored (generated before inputs were saved).</p>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

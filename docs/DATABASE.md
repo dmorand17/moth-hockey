@@ -64,10 +64,11 @@ value be used in the same transaction that adds it.
   `game_id`, `team_id`, `player_id`, `position`, `added_by`. PK `(game_id, player_id)`.
   The scorekeeper's check-in starts with these pre-checked; `startGame` turns them
   into `is_sub` appearances.
-- **`game_write_ups`** (`0023`) — AI-written `preview` / `recap` per game: `headline`,
+- **`game_write_ups`** (`0023`, `0026`) — AI-written `preview` / `recap` per game: `headline`,
   `body`, `model`, `generated_at`, `edited_at`/`edited_by`, `hidden`. PK `(game_id, kind)`.
-  Written by the server with the service role (daily cron + after finalize); never
-  overwritten by re-runs.
+  `input` (jsonb, since `0026`) stores the exact JSON object passed to the model;
+  null for rows written before that migration. Written by the server with the service
+  role (daily cron + after finalize); never overwritten by re-runs.
 - **`game_events`** — `type` (`goal`|`penalty`), `period`, `clock_seconds`,
   scorer/assists or penalty fields. A CHECK constraint enforces shape per type
   (goals have a `player_id`, no penalty fields; penalties require

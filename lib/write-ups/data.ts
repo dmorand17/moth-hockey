@@ -452,22 +452,34 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
 
   const thisGameGoals = seasonGoals.filter((g) => g.gameId === gameId);
   const scorerAssisterIds = new Set<string>();
+  // Map player_id → the teamId of the goal event they scored/assisted on.
+  const goalEventTeam = new Map<string, string>();
   for (const g of thisGameGoals) {
     scorerAssisterIds.add(g.playerId);
-    if (g.assist1Id) scorerAssisterIds.add(g.assist1Id);
-    if (g.assist2Id) scorerAssisterIds.add(g.assist2Id);
+    goalEventTeam.set(g.playerId, g.teamId);
+    if (g.assist1Id) { scorerAssisterIds.add(g.assist1Id); goalEventTeam.set(g.assist1Id, g.teamId); }
+    if (g.assist2Id) { scorerAssisterIds.add(g.assist2Id); goalEventTeam.set(g.assist2Id, g.teamId); }
   }
   const gamePlayerNames = new Map<string, string>();
   for (const a of apps) if (a.player) gamePlayerNames.set(a.player_id, full(a.player));
-  const gamePlayerTeams = new Map<string, string>(apps.map((a) => [a.player_id, a.team_id]));
+
+  // Look up names for any scorer/assister not found in game_appearances (e.g. pure assister).
+  const missingNames = [...scorerAssisterIds].filter((id) => !gamePlayerNames.has(id));
+  if (missingNames.length) {
+    const extra = must(
+      await db.from("players").select("id, first_name, last_name").in("id", missingNames),
+      `loadRecapSource(${gameId}): players`,
+    );
+    for (const p of extra ?? []) gamePlayerNames.set(p.id, full(p));
+  }
 
   const seasonTotalsAfter = [...scorerAssisterIds]
-    .filter((id) => allTotals.has(id))
+    .filter((id) => allTotals.has(id) && gamePlayerNames.has(id))
     .map((id) => {
       const t = allTotals.get(id)!;
       return {
-        name: gamePlayerNames.get(id) ?? "Unknown",
-        team: teamName(gamePlayerTeams.get(id) ?? ""),
+        name: gamePlayerNames.get(id)!,
+        team: teamName(goalEventTeam.get(id) ?? ""),
         goals: t.goals,
         assists: t.assists,
         points: t.points,

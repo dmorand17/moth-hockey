@@ -1,5 +1,6 @@
 import "server-only";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
+import type { Json } from "@/lib/supabase/database.types";
 import { loadPreviewSource, loadRecapSource } from "@/lib/write-ups/data";
 import { generateText } from "@/lib/write-ups/openrouter";
 import { parseWriteUp } from "@/lib/write-ups/parse";
@@ -54,6 +55,7 @@ export async function generateAndStore(kind: WriteUpKind, gameId: string, opts?:
           headline: parsed.headline,
           body: parsed.body,
           model: out.model,
+          input: input as Json,
           generated_at: new Date().toISOString(),
           edited_at: null,
           edited_by: null,
@@ -63,7 +65,7 @@ export async function generateAndStore(kind: WriteUpKind, gameId: string, opts?:
       if (error) return result("failed", error.message);
     } else {
       const { error } = await db.from("game_write_ups").upsert(
-        { game_id: gameId, kind, headline: parsed.headline, body: parsed.body, model: out.model },
+        { game_id: gameId, kind, headline: parsed.headline, body: parsed.body, model: out.model, input: input as Json },
         { onConflict: "game_id,kind", ignoreDuplicates: true },
       );
       if (error) return result("failed", error.message);

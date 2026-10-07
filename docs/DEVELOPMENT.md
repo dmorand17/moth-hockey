@@ -127,3 +127,26 @@ where user_id = (select id from auth.users where email = 'you@example.com');
 
 After that, role changes flow through `/admin/users`. (Locally, `admin@moth.test`
 is already seeded as admin.)
+
+## AI write-ups (#19)
+
+Game previews and recaps are written by a model through OpenRouter.
+
+- **Model:** `WRITE_UP_MODEL` (default `openai/gpt-6-luna`), falling back to
+  `WRITE_UP_FALLBACK_MODEL` (default `google/gemini-2.5-flash-lite`). Change either in
+  Vercel's env settings; no deploy needed.
+- **When:** a Vercel Cron job (`vercel.json`, daily 18:00 UTC) calls
+  `/api/cron/write-ups` for previews of games in the next 36h and recaps missing
+  from the last 7 days. Finalizing a game also writes its recap in the background.
+- **Run it locally:**
+  `curl -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3001/api/cron/write-ups`
+- **Env:** `OPENROUTER_API_KEY`, `SUPABASE_SECRET_KEY` (server-only), `CRON_SECRET`,
+  plus the two model vars. See `.env.local.example`.
+- **OpenRouter guardrails:** the workspace must allow the OpenAI and Google
+  providers. With Zero Data Retention on, at least one ZDR-compliant endpoint per
+  model must stay allowed.
+- **Tests:** `bun run test` runs the pure-module tests in `lib/`.
+- **Regenerate (admin):** generates the new text first and only replaces the current
+  write-up if that succeeds; on failure the current write-up is kept.
+- **Generation log line format:**
+  `[write-ups] {"gameId":…,"kind":…,"status":…,"detail":"<model> in=<prompt tokens> out=<completion tokens> $<cost>"}`

@@ -1,11 +1,13 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type ActionResult } from "@/lib/action-result";
 import { formatPeriod } from "@/lib/format";
 import { PENALTY_TYPES, type PenaltyType } from "./penalty-types";
+import { generateAndStore } from "@/lib/write-ups/generate";
 
 type Position = "forward" | "defense" | "goalie";
 
@@ -509,6 +511,12 @@ export async function finalizeGame(input: { gameId: string }): Promise<ActionRes
     })
     .eq("id", input.gameId);
   if (error) return { ok: false, error: error.message };
+
+  // Write the recap in the background so finalize stays instant. A failure
+  // here is logged; the daily cron retries any final game missing a recap.
+  // No revalidatePath needed: /games/[id] reads cookies, so it renders fresh
+  // on every request.
+  after(() => generateAndStore("recap", input.gameId));
 
   revalidatePath(`/score/${input.gameId}`);
   revalidatePath(`/games/${input.gameId}`);

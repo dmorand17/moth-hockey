@@ -6,7 +6,13 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { CheckInToggle } from "@/components/CheckInToggle";
 import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
 import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
+import { MatchupPanel } from "@/components/MatchupPanel";
+import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
+import { WriteUpAdminControls } from "@/components/WriteUpAdminControls";
+import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
+import type { PreviewSource } from "@/lib/write-ups/prompt";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSessionIfRole } from "@/lib/auth";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
 type PlayerRef = { id: string; first_name: string; last_name: string };
@@ -77,6 +83,38 @@ export default async function GamePage({
   const tbdTeam = { id: "tbd", name: "TBD", slug: "", color: "#6b7280" };
   const homeView = homeTeam ?? tbdTeam;
   const awayView = awayTeam ?? tbdTeam;
+
+  // Write-ups: RLS already hides hidden rows from everyone but admins.
+  const { data: writeUpRows } = await supabase
+    .from("game_write_ups")
+    .select("kind, headline, body, model, hidden, edited_at")
+    .eq("game_id", id);
+  const writeUps = (writeUpRows ?? []) as WriteUp[];
+  const previewWriteUp = writeUps.find((w) => w.kind === "preview") ?? null;
+  const recapWriteUp = writeUps.find((w) => w.kind === "recap") ?? null;
+
+  const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
+  const adminSlot = (w: WriteUp) =>
+    viewerIsAdmin ? (
+      <WriteUpAdminControls
+        gameId={id}
+        writeUp={w}
+        canRegenerate={w.kind === "preview" ? game.status === "scheduled" : game.status === "final"}
+      />
+    ) : undefined;
+
+  // loadPreviewSource throws on a query error (so the generator never publishes
+  // from bad data). On the page, a failed load just means no matchup panel —
+  // the rest of the game page must still render.
+  let previewSource: PreviewSource | null = null;
+  if (game.status === "scheduled" && homeTeam && awayTeam) {
+    try {
+      previewSource = await loadPreviewSource(supabase as unknown as Db, id);
+    } catch (e) {
+      console.error("[game page] matchup panel unavailable", e);
+    }
+  }
+
   const isFinal = game.status === "final";
   const isLive = game.status === "live";
   const homeWon = isFinal && game.home_score > game.away_score;
@@ -297,6 +335,18 @@ export default async function GamePage({
         </div>
       </section>
 
+      {/* WRITE-UP (right after scoreboard for visibility) */}
+      {isScheduled && previewWriteUp && (
+        <section className="rise">
+          <WriteUpCard writeUp={previewWriteUp} admin={adminSlot(previewWriteUp)} />
+        </section>
+      )}
+      {isFinal && recapWriteUp && (
+        <section className="rise">
+          <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
+        </section>
+      )}
+
       {/* AVAILABILITY (scheduled games) */}
       {availability && (
         <section className="rise delay-1 space-y-4">
@@ -353,6 +403,14 @@ export default async function GamePage({
               />
             )}
           </div>
+        </section>
+      )}
+
+      {/* MATCHUP (scheduled games) */}
+      {previewSource && (
+        <section className="rise delay-1 space-y-4">
+          <SectionHeader eyebrow="Preview" title="Matchup" />
+          <MatchupPanel source={previewSource} />
         </section>
       )}
 

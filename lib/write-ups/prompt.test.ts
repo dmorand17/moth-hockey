@@ -362,3 +362,11 @@ test("system prompt includes season context rules", () => {
   expect(SYSTEM_PROMPT).toContain("movement in the standings");
   expect(SYSTEM_PROMPT).toContain("first meeting");
 });
+
+test("system prompt sets a sportsbook tone for previews and a news tone for recaps", () => {
+  expect(SYSTEM_PROMPT).toContain("sportsbook preview column");
+  expect(SYSTEM_PROMPT).toContain("moneyline");
+  expect(SYSTEM_PROMPT).toContain("never tell readers to place real bets");
+  expect(SYSTEM_PROMPT).toContain("newspaper sports recap");
+  expect(SYSTEM_PROMPT).toContain("recaps 150-220 words");
+});

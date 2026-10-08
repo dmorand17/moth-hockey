@@ -9,6 +9,7 @@ export function CollapsibleSection({
   title,
   subtitle,
   defaultOpen,
+  closedHint,
   className,
   children,
 }: {
@@ -16,6 +17,8 @@ export function CollapsibleSection({
   title: string;
   subtitle?: string;
   defaultOpen: boolean;
+  // Show "Hidden · tap to show" while collapsed, for sections closed by default.
+  closedHint?: boolean;
   className?: string;
   children: ReactNode;
 }) {
@@ -24,6 +27,11 @@ export function CollapsibleSection({
       <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <SectionHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />
+          {closedHint && (
+            <p className="mt-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-faint group-open:hidden">
+              Hidden · tap to show
+            </p>
+          )}
         </div>
         <span
           aria-hidden

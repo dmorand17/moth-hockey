@@ -1,3 +1,4 @@
+import { OddsBoard } from "@/components/OddsBoard";
 import type { PreviewSource, PreviewTeam } from "@/lib/write-ups/prompt";
 
 function TeamColumn({ team }: { team: PreviewTeam }) {
@@ -74,25 +75,9 @@ export function MatchupPanel({ source }: { source: PreviewSource }) {
       <div className="border-t border-rule pt-4">
         <div className="eyebrow">Projection</div>
         {p ? (
-          <>
-            <div className="mt-2 grid grid-cols-3 gap-3 text-center">
-              <div>
-                <div className="digit text-[22px] text-ink tnum">{p.overUnderLine}</div>
-                <div className="text-[12px] text-ink-dim">Over/under</div>
-              </div>
-              <div>
-                <div className="digit text-[22px] text-ink tnum">{p.moneylineAway}</div>
-                <div className="text-[12px] text-ink-dim">{source.away.name}</div>
-              </div>
-              <div>
-                <div className="digit text-[22px] text-ink tnum">{p.moneylineHome}</div>
-                <div className="text-[12px] text-ink-dim">{source.home.name}</div>
-              </div>
-            </div>
-            <p className="mt-2 text-[12px] text-ink-faint">
-              {source.away.name} {Math.round(p.winProbabilityAway * 100)}% · {source.home.name} {Math.round(p.winProbabilityHome * 100)}% to win. For fun — not betting advice.
-            </p>
-          </>
+          <div className="mt-2">
+            <OddsBoard projection={p} awayName={source.away.name} homeName={source.home.name} />
+          </div>
         ) : (
           <p className="mt-1 text-[13px] text-ink-dim">Projections start after week 2.</p>
         )}

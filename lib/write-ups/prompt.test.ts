@@ -368,7 +368,7 @@ test("system prompt sets a sportsbook tone for previews and a news tone for reca
   expect(SYSTEM_PROMPT).toContain("moneyline");
   expect(SYSTEM_PROMPT).toContain("never tell readers to place real bets");
   expect(SYSTEM_PROMPT).toContain("sports game story");
-  expect(SYSTEM_PROMPT).toContain("recaps 150-220 words");
+  expect(SYSTEM_PROMPT).toContain("Previews 70-100 words; recaps 80-120 words");
 });
 
 describe("playerGameTotals", () => {

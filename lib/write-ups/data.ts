@@ -284,7 +284,7 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
 
   const [standings, eventRowsRes, appRowsRes, rosterRowsRes, subRowsRes,
          seasonFinalsRes, seasonGoalRowsRes, seasonShotRowsRes, seasonAppRowsRes] = await Promise.all([
-    getStandings(game.season_id),
+    getStandings(game.season_id, game.scheduled_at),
     db.from("game_events")
       .select(
         "type, team_id, period, clock_seconds, penalty_type, penalty_type_other, penalty_shot_result, penalty_shot_taker_id, " +
@@ -299,17 +299,21 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
     db.from("game_subs").select("player_id, position").eq("game_id", gameId),
     db.from("games")
       .select("id, scheduled_at, home_team_id, away_team_id, home_score, away_score, decided_in")
-      .eq("season_id", game.season_id).eq("status", "final").eq("kind", "regular"),
+      .eq("season_id", game.season_id).eq("status", "final").eq("kind", "regular")
+      .lte("scheduled_at", game.scheduled_at),
     db.from("game_events")
-      .select("game_id, team_id, player_id, assist1_player_id, assist2_player_id, game:game_id!inner(season_id, status, kind)")
-      .eq("type", "goal").eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
+      .select("game_id, team_id, player_id, assist1_player_id, assist2_player_id, game:game_id!inner(season_id, status, kind, scheduled_at)")
+      .eq("type", "goal").eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular")
+      .lte("game.scheduled_at", game.scheduled_at),
     db.from("game_events")
-      .select("team_id, game_id, penalty_shot_result, game:game_id!inner(season_id, status, kind)")
+      .select("team_id, game_id, penalty_shot_result, game:game_id!inner(season_id, status, kind, scheduled_at)")
       .eq("type", "penalty").not("penalty_shot_result", "is", null)
-      .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
+      .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular")
+      .lte("game.scheduled_at", game.scheduled_at),
     db.from("game_appearances")
-      .select("game_id, player_id, team_id, position, game:game_id!inner(season_id, status, kind)")
-      .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
+      .select("game_id, player_id, team_id, position, game:game_id!inner(season_id, status, kind, scheduled_at)")
+      .eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular")
+      .lte("game.scheduled_at", game.scheduled_at),
   ]);
   const eventRows = must(eventRowsRes, `loadRecapSource(${gameId}): game_events`);
   const appRows = must(appRowsRes, `loadRecapSource(${gameId}): game_appearances`);

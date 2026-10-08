@@ -12,7 +12,7 @@ Previews already use season records, goals for/against, the last 3 results and e
 
 Give the model the season facts behind those statements, with explicit field names, so it can use them accurately and can't invent them.
 
-All of it is **current season, regular-season finals only**, matching `/standings` and `/stats`.
+All of it is **current season, regular-season finals only**, matching `/standings` and `/stats`. Recaps count only finals scheduled up to and including the game, so "after" means after that game even when later games exist.
 
 ## Additions
 

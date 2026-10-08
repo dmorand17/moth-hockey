@@ -28,6 +28,10 @@ All of it is **current season, regular-season finals only**, matching `/standing
 
 **Goalie record** is over regular-season finals where the player appeared for that team with position `goalie`. Position comes from `game_appearances.position`, falling back to the season roster position, as in the box score. GA counts opposing goals plus opposing made penalty shots; GAA = GA / GP, rounded to 2 decimals; W/L/OTL follow the box score rule.
 
+**Known differences from `/stats`:** season goals and points count `goal` events only, so penalty-shot goals (a separate PSG column on `/stats`) aren't included and a penalty-shot scorer gets no `season_totals_after` line. Goalie records count per-game goalie appearances, while `/stats` shows goalie lines only for players rostered as goalies.
+
+**Who can see `input`:** the game page selects it only for admins. The column is still readable through the public API under the existing write-ups read policy. That's accepted: everything in it comes from tables that are already public.
+
 ## Prompt rules (added to `SYSTEM_PROMPT`)
 
 - Cite season numbers (totals, ranks, places, records) only exactly as given.

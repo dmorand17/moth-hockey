@@ -269,6 +269,10 @@ describe("seasonPlayerTotals", () => {
     expect(totals.get("b")!.leagueRankGoals).toBe(2);
     expect(totals.get("c")!.leagueRankGoals).toBe(2);
   });
+  test("a three-way tie shares rank 1 and the next player is 4th", () => {
+    const t = seasonPlayerTotals([sg("g1", "p", "q"), sg("g1", "q", "r"), sg("g2", "r", "p"), sg("g2", "s")]);
+    expect(["p", "q", "r", "s"].map((id) => t.get(id)!.leagueRankPoints)).toEqual([1, 1, 1, 4]);
+  });
   test("a player with assists but no goals has no goals rank", () => {
     const t = seasonPlayerTotals([sg("g1", "a", "z")]);
     expect(t.get("z")).toMatchObject({ goals: 0, assists: 1, points: 1, leagueRankGoals: null, leagueRankPoints: 1 });
@@ -299,6 +303,18 @@ describe("goalieSeasonRecord", () => {
     expect(goalieSeasonRecord("gk", games, apps, goals, shots)).toEqual({
       gp: 2, w: 1, l: 0, otl: 1, ga: 3, gaa: 1.5,
     });
+  });
+  test("a regulation loss in goal counts as L", () => {
+    const g4 = game({ id: "g4", homeTeamId: "F", awayTeamId: "R", homeScore: 2, awayScore: 0 });
+    const g4Goals: SeasonGoal[] = [
+      { gameId: "g4", teamId: "F", playerId: "x", period: 1, clockSeconds: 0, assist1Id: null, assist2Id: null },
+      { gameId: "g4", teamId: "F", playerId: "x", period: 2, clockSeconds: 0, assist1Id: null, assist2Id: null },
+    ];
+    expect(goalieSeasonRecord(
+      "gk", [...games, g4],
+      [...apps, { gameId: "g4", playerId: "gk", teamId: "R", position: "goalie" }],
+      [...goals, ...g4Goals], shots,
+    )).toEqual({ gp: 3, w: 1, l: 1, otl: 1, ga: 5, gaa: 1.67 });
   });
   test("zero games gives zeros, not NaN", () => {
     expect(goalieSeasonRecord("nobody", games, apps, goals, shots)).toEqual({ gp: 0, w: 0, l: 0, otl: 0, ga: 0, gaa: 0 });

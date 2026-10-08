@@ -115,12 +115,12 @@ export function WriteUpAdminControls({
         )}
       </div>
       <details className="panel p-3">
-        <summary className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-dim select-none">
+        <summary className="min-h-9 flex items-center cursor-pointer text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-dim select-none">
           View AI input
         </summary>
         <div className="mt-3">
           {writeUp.input != null ? (
-            <pre className="max-h-96 overflow-auto text-[12px] tnum text-ink-dim whitespace-pre-wrap break-all">
+            <pre className="max-h-96 overflow-auto text-[12px] tnum text-ink-dim whitespace-pre-wrap break-words">
               {JSON.stringify(writeUp.input, null, 2)}
             </pre>
           ) : (

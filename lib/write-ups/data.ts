@@ -82,7 +82,6 @@ function standingFor(rows: StandingsRow[], teamId: string): StandingsRow {
 export async function loadPreviewSource(db: Db, gameId: string): Promise<PreviewSource | null> {
   const game = await loadGame(db, gameId);
   if (!game || game.status !== "scheduled") return null;
-  const teamIds = [game.home_team_id, game.away_team_id];
 
   const [standings, finalsRes, goalRowsRes, rosterRowsRes, availRowsRes, subRowsRes, teamRowsRes,
          seasonShotRowsRes, seasonAppRowsRes] =
@@ -96,7 +95,9 @@ export async function loadPreviewSource(db: Db, gameId: string): Promise<Preview
         .eq("type", "goal").eq("game.season_id", game.season_id).eq("game.status", "final").eq("game.kind", "regular"),
       db.from("team_players")
         .select("team_id, position, player:player_id(id, first_name, last_name)")
-        .eq("season_id", game.season_id).in("team_id", teamIds),
+        // Whole season, not just these two teams: season goalie records fall back to
+        // the roster position of players (e.g. subs) from other teams.
+        .eq("season_id", game.season_id),
       db.from("game_availability").select("player_id, status").eq("game_id", gameId),
       db.from("game_subs").select("team_id, position, player_id, player:player_id(first_name, last_name)").eq("game_id", gameId),
       db.from("teams").select("id, name").eq("season_id", game.season_id),
@@ -483,7 +484,7 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
       const t = allTotals.get(id)!;
       return {
         name: gamePlayerNames.get(id)!,
-        team: teamName(goalEventTeam.get(id) ?? ""),
+        team: teamName(goalEventTeam.get(id)!),
         goals: t.goals,
         assists: t.assists,
         points: t.points,
@@ -493,13 +494,11 @@ export async function loadRecapSource(db: Db, gameId: string): Promise<RecapSour
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const teamNameOf = (id: string) =>
-    id === game.home_team_id ? game.home_team.name : game.away_team.name;
   const h2hGames = headToHeadFn(seasonFinaleGames, game.home_team_id, game.away_team_id);
   const headToHead = h2hGames.map((g) => ({
     playedOn: g.scheduledAt,
-    home: teamNameOf(g.homeTeamId),
-    away: teamNameOf(g.awayTeamId),
+    home: teamName(g.homeTeamId),
+    away: teamName(g.awayTeamId),
     homeScore: g.homeScore,
     awayScore: g.awayScore,
     decidedIn: g.decidedIn,

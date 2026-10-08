@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, test } from "bun:test";
 import type { KeyMatchup, TeamForm } from "@/lib/matchup";
-import { buildPreviewInput, buildRecapInput, SYSTEM_PROMPT, userMessage } from "@/lib/write-ups/prompt";
+import { buildPreviewInput, buildRecapInput, playerGameTotals, SYSTEM_PROMPT, userMessage } from "@/lib/write-ups/prompt";
 
 const form: TeamForm = {
   gp: 6, record: "3-3-0", points: 9, goalsFor: 14, goalsAgainst: 17,
@@ -369,4 +369,44 @@ test("system prompt sets a sportsbook tone for previews and a news tone for reca
   expect(SYSTEM_PROMPT).toContain("never tell readers to place real bets");
   expect(SYSTEM_PROMPT).toContain("newspaper sports recap");
   expect(SYSTEM_PROMPT).toContain("recaps 150-220 words");
+});
+
+describe("playerGameTotals", () => {
+  const g = (team: string, scorer: string, assists: string[] = []) => ({
+    period: 1, clockSeconds: 0, team, scorer, scorerIsSub: false, assists, penaltyShot: false,
+  });
+  // Shaped like the prod Yellow-White game the model miscounted.
+  const goals = [
+    g("White", "Melanson", ["Marshall"]),
+    g("White", "Galvin", ["Marshall"]),
+    g("White", "Galvin"),
+    g("White", "Marshall", ["Melanson", "Sciola"]),
+    g("White", "Galvin", ["Marshall"]),
+    g("Yellow", "James", ["Goldfinger"]),
+  ];
+  test("counts goals, assists and points per player, sorted by points", () => {
+    expect(playerGameTotals(goals)).toEqual([
+      { name: "Marshall", team: "White", goals: 1, assists: 3, points: 4 },
+      { name: "Galvin", team: "White", goals: 3, assists: 0, points: 3 },
+      { name: "Melanson", team: "White", goals: 1, assists: 1, points: 2 },
+      { name: "James", team: "Yellow", goals: 1, assists: 0, points: 1 },
+      { name: "Goldfinger", team: "Yellow", goals: 0, assists: 1, points: 1 },
+      { name: "Sciola", team: "White", goals: 0, assists: 1, points: 1 },
+    ]);
+  });
+  test("recap input numbers each scorer's goals and carries the totals", () => {
+    const input = buildRecapInput({
+      scheduledAt: "2026-10-06T21:00:00Z", homeScore: 1, awayScore: 5, decidedIn: "regulation",
+      periodLengthSeconds: 1020,
+      home: { name: "Yellow", recordAfter: "2-3-0", lineup: { skatersDressed: 8, goalie: null, subs: [] }, standingAfter: null, goaliesSeasonAfter: [] },
+      away: { name: "White", recordAfter: "3-2-0", lineup: { skatersDressed: 8, goalie: null, subs: [] }, standingAfter: null, goaliesSeasonAfter: [] },
+      goals, penalties: [], shootout: null, seasonTotalsAfter: [], headToHead: [],
+    }) as Record<string, any>;
+    expect(input.goals.filter((x: any) => x.scorer === "Galvin").map((x: any) => x.scorer_goal_of_game)).toEqual([1, 2, 3]);
+    expect(input.player_totals_this_game[1]).toEqual({ name: "Galvin", team: "White", goals: 3, assists: 0, points: 3 });
+  });
+  test("system prompt forbids counting the goal list", () => {
+    expect(SYSTEM_PROMPT).toContain("player_totals_this_game");
+    expect(SYSTEM_PROMPT).toContain("never count the goals list yourself");
+  });
 });

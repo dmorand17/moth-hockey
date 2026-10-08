@@ -17,9 +17,11 @@ Rules:
 - Use ONLY facts in the provided JSON. Never invent stats, plays, quotes, injuries, dates, or history. If something isn't in the data, don't mention it.
 - Previews 120-160 words; recaps 150-220 words. First line is a headline (no quotes, no markdown). Then a blank line, then the body as plain prose in short paragraphs — no bullet points, no markdown.
 - PG. Light ribbing of a TEAM's record is fine; never mock an individual player.
+- Players' genders aren't in the data: never use he/she/his/her for a player. Repeat the name, use their/they, or rephrase.
 - Don't summarize a streak or pattern unless every game in it fits the description. last_3_most_recent_first lists results newest first; when describing recent form, quote those results (W/L/OTL and score) rather than generalizing.
 - Previews: write like a sportsbook preview column. Work the line in early: quote the moneyline for both teams, the over/under, and each side's win probability as a percentage, all exactly as given in projection, woven into lively sentences rather than listed. Name the favorite and the underdog, say whether the matchup points to the over or the under using expected goals versus the over/under line, and give a lean on the moneyline backed only by the data (record, goals per game, form, head-to-head, goalies). Use betting language (chalk, dog, the number, value) but never tell readers to place real bets. If projection is null, say there's no line yet and preview the matchup without one. If few players have checked in, say rosters are still TBD rather than guessing. Only name absent players listed in out_key_players, and never guess why anyone is out. Name subs who are lined up.
 - Recaps: write like a newspaper sports recap, in past tense. Open with a lede sentence giving the result, the final score, and the standout performer. Then tell the game in order from the goal sequence (leads, answers, comebacks, the winner), naming period and score. Close with what it means: each team's record and standings place after the game. No questions to the reader, no puns in every sentence. Credit scorers by name. Credit a sub who scored or assisted as a sub. Mention a short bench only if a team dressed fewer than 7 skaters.
+- Player counts for this game (goals, assists, points, hat tricks) come only from player_totals_this_game, and a player's "Nth goal of the night" only from scorer_goal_of_game; never count the goals list yourself.
 - A goal with penalty_shot true was scored on a penalty shot; say so.
 - If shootout is present, the game was decided in a shootout; never credit any player with the shootout goal.
 - Season numbers (totals, league ranks, standings places, goalie records, head-to-head) may be cited only exactly as given.
@@ -225,18 +227,43 @@ function elapsedSeconds(clockSeconds: number, period: number, periodLengthSecond
   return Math.max(0, len - clockSeconds);
 }
 
+export type PlayerGameTotal = { name: string; team: string; goals: number; assists: number; points: number };
+
+// Each scorer's and assister's line for this game, counted in code: the model
+// miscounts when it tallies a long goal list itself. Points desc, goals desc, name.
+export function playerGameTotals(goals: RecapGoal[]): PlayerGameTotal[] {
+  const byKey = new Map<string, PlayerGameTotal>();
+  const line = (name: string, team: string) => {
+    const key = `${team}\u0000${name}`;
+    let t = byKey.get(key);
+    if (!t) byKey.set(key, (t = { name, team, goals: 0, assists: 0, points: 0 }));
+    return t;
+  };
+  for (const g of goals) {
+    line(g.scorer, g.team).goals++;
+    for (const a of g.assists) line(a, g.team).assists++;
+  }
+  return [...byKey.values()]
+    .map((t) => ({ ...t, points: t.goals + t.assists }))
+    .sort((a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name));
+}
+
 export function buildRecapInput(src: RecapSource): Record<string, unknown> {
   let home = 0;
   let away = 0;
+  const scorerCount = new Map<string, number>();
   const goals = src.goals.map((g) => {
     if (g.team === src.home.name) home++;
     else away++;
+    const key = `${g.team}\u0000${g.scorer}`;
+    scorerCount.set(key, (scorerCount.get(key) ?? 0) + 1);
     return {
       period: formatPeriod(g.period),
       time: formatClock(elapsedSeconds(g.clockSeconds, g.period, src.periodLengthSeconds)),
       team: g.team,
       scorer: g.scorer,
       scorer_is_sub: g.scorerIsSub,
+      scorer_goal_of_game: scorerCount.get(key)!,
       assists: g.assists.length ? g.assists.join(", ") : null,
       score_after: `${src.home.name} ${home}, ${src.away.name} ${away}`,
       penalty_shot: g.penaltyShot,
@@ -254,6 +281,7 @@ export function buildRecapInput(src: RecapSource): Record<string, unknown> {
       decided_in: DECIDED[src.decidedIn ?? "regulation"],
     },
     goals,
+    player_totals_this_game: playerGameTotals(src.goals),
     penalties: src.penalties.map((p) => ({
       period: formatPeriod(p.period),
       time: formatClock(elapsedSeconds(p.clockSeconds, p.period, src.periodLengthSeconds)),

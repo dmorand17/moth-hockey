@@ -154,7 +154,11 @@ Game previews and recaps are written by a model through OpenRouter.
   providers. With Zero Data Retention on, at least one ZDR-compliant endpoint per
   model must stay allowed.
 - **Tests:** `bun run test` runs the pure-module tests in `lib/`.
+- **Generate (admin):** a game with no write-up shows admins a "Generate preview" (scheduled) or "Generate recap" (final) button — useful for finals outside the cron's 7-day window. It never replaces an existing write-up.
 - **Regenerate (admin):** generates the new text first and only replaces the current
   write-up if that succeeds; on failure the current write-up is kept.
+- **Season context:** Inputs include each team's standings place, top-3 season points leaders with league ranks, the expected goalie's season record, head-to-head this season, and (recaps) every scorer's season totals after the game.
+- **AI input stored:** each write-up stores the exact model input (`input`); admins
+  can open "View AI input" on the card to inspect it.
 - **Generation log line format:**
   `[write-ups] {"gameId":…,"kind":…,"status":…,"detail":"<model> in=<prompt tokens> out=<completion tokens> $<cost>"}`

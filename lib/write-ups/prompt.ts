@@ -2,7 +2,7 @@
 // loads rows, these shape them into the JSON contract from the spec. Field
 // names are deliberate — the bake-off showed models misread unlabeled data
 // (result order) and invent what's missing (the weekday).
-import type { KeyMatchup, Lineup, ProjectedRoster, Projection, Scorer, TeamForm } from "@/lib/matchup";
+import type { GoalieRecord, KeyMatchup, Lineup, ProjectedRoster, Projection, Scorer, TeamForm } from "@/lib/matchup";
 import { formatClock, formatPeriod } from "@/lib/format";
 
 export type WriteUpKind = "preview" | "recap";
@@ -21,9 +21,39 @@ Rules:
 - Previews: projections are for fun, not betting advice. You may mention the projected total and who's slightly favored. If few players have checked in, say rosters are still TBD rather than guessing. Only name absent players listed in out_key_players, and never guess why anyone is out. Name subs who are lined up.
 - Recaps: tell the story of the game from the goal sequence (leads, comebacks, the winner). Credit scorers by name. Credit a sub who scored or assisted as a sub. Mention a short bench only if a team dressed fewer than 7 skaters.
 - A goal with penalty_shot true was scored on a penalty shot; say so.
-- If shootout is present, the game was decided in a shootout; never credit any player with the shootout goal.`;
+- If shootout is present, the game was decided in a shootout; never credit any player with the shootout goal.
+- Season numbers (totals, league ranks, standings places, goalie records, head-to-head) may be cited only exactly as given.
+- Say "league-leading" or "leads the league" only when a league_rank_* is 1; if two players share rank 1, say "tied for the league lead".
+- Never describe movement in the standings ("climbs into first", "drops to third"): you are given a place, not a change.
+- Head-to-head: use only head_to_head_this_season; if it is empty, this is the teams' first meeting this season.`;
 
-export type PreviewTeam = { name: string; form: TeamForm; topScorers: Scorer[]; roster: ProjectedRoster };
+export type SeasonLeader = {
+  name: string;
+  goals: number;
+  assists: number;
+  points: number;
+  leagueRankPoints: number | null;
+  leagueRankGoals: number | null;
+};
+
+export type HeadToHeadEntry = {
+  playedOn: string;
+  home: string;
+  away: string;
+  homeScore: number;
+  awayScore: number;
+  decidedIn: string | null;
+};
+
+export type PreviewTeam = {
+  name: string;
+  form: TeamForm;
+  topScorers: Scorer[];
+  roster: ProjectedRoster;
+  standing: { place: number; of: number } | null;
+  seasonLeaders: SeasonLeader[];
+  goalieSeason: ({ name: string } & GoalieRecord) | null;
+};
 
 export type PreviewSource = {
   scheduledAt: string;
@@ -31,9 +61,16 @@ export type PreviewSource = {
   away: PreviewTeam;
   projection: Projection | null;
   keyMatchup: KeyMatchup | null;
+  headToHead: HeadToHeadEntry[];
 };
 
-export type RecapTeam = { name: string; recordAfter: string; lineup: Lineup };
+export type RecapTeam = {
+  name: string;
+  recordAfter: string;
+  lineup: Lineup;
+  standingAfter: { place: number; of: number } | null;
+  goaliesSeasonAfter: ({ name: string } & GoalieRecord)[];
+};
 export type RecapGoal = {
   period: number;
   clockSeconds: number;
@@ -65,6 +102,16 @@ export type RecapSource = {
   goals: RecapGoal[];
   penalties: RecapPenalty[];
   shootout: { homeGoals: number; awayGoals: number } | null;
+  seasonTotalsAfter: {
+    name: string;
+    team: string;
+    goals: number;
+    assists: number;
+    points: number;
+    leagueRankPoints: number | null;
+    leagueRankGoals: number | null;
+  }[];
+  headToHead: HeadToHeadEntry[];
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -86,6 +133,15 @@ function leagueTime(iso: string): string {
   });
 }
 
+function formatH2H(entries: HeadToHeadEntry[]) {
+  return entries.map((h) => ({
+    played_on: leagueDate(h.playedOn),
+    result:
+      `${h.home} ${h.homeScore}, ${h.away} ${h.awayScore}` +
+      (h.decidedIn === "ot" ? " (OT)" : h.decidedIn === "shootout" ? " (SO)" : ""),
+  }));
+}
+
 function previewTeam(t: PreviewTeam) {
   return {
     name: t.name,
@@ -97,7 +153,26 @@ function previewTeam(t: PreviewTeam) {
     gf_per_game: round2(t.form.gfPerGame),
     ga_per_game: round2(t.form.gaPerGame),
     last_3_most_recent_first: t.form.lastThreeMostRecentFirst,
-    top_scorers: t.topScorers.map((s) => ({ name: s.name, goals: s.goals })),
+    standing: t.standing,
+    season_leaders: t.seasonLeaders.map((l) => ({
+      name: l.name,
+      goals: l.goals,
+      assists: l.assists,
+      points: l.points,
+      league_rank_points: l.leagueRankPoints,
+      league_rank_goals: l.leagueRankGoals,
+    })),
+    goalie_season: t.goalieSeason
+      ? {
+          name: t.goalieSeason.name,
+          gp: t.goalieSeason.gp,
+          w: t.goalieSeason.w,
+          l: t.goalieSeason.l,
+          otl: t.goalieSeason.otl,
+          ga: t.goalieSeason.ga,
+          gaa: t.goalieSeason.gaa,
+        }
+      : null,
     rostered_goalie: t.roster.rosteredGoalie,
     availability: {
       roster_size: t.roster.rosterSize,
@@ -138,6 +213,7 @@ export function buildPreviewInput(src: PreviewSource): Record<string, unknown> {
         }
       : "not available yet (fewer than 2 games played)",
     key_matchup: src.keyMatchup ? shapeKeyMatchup(src.keyMatchup) : "none",
+    head_to_head_this_season: formatH2H(src.headToHead),
   };
 }
 
@@ -189,6 +265,25 @@ export function buildRecapInput(src: RecapSource): Record<string, unknown> {
     })),
     lineups: { [src.home.name]: lineup(src.home.lineup), [src.away.name]: lineup(src.away.lineup) },
     records_after: { [src.home.name]: src.home.recordAfter, [src.away.name]: src.away.recordAfter },
+    standing_after: { [src.home.name]: src.home.standingAfter, [src.away.name]: src.away.standingAfter },
+    goalies_season_after: {
+      [src.home.name]: src.home.goaliesSeasonAfter.map((g) => ({
+        name: g.name, gp: g.gp, w: g.w, l: g.l, otl: g.otl, ga: g.ga, gaa: g.gaa,
+      })),
+      [src.away.name]: src.away.goaliesSeasonAfter.map((g) => ({
+        name: g.name, gp: g.gp, w: g.w, l: g.l, otl: g.otl, ga: g.ga, gaa: g.gaa,
+      })),
+    },
+    season_totals_after: src.seasonTotalsAfter.map((t) => ({
+      name: t.name,
+      team: t.team,
+      goals: t.goals,
+      assists: t.assists,
+      points: t.points,
+      league_rank_points: t.leagueRankPoints,
+      league_rank_goals: t.leagueRankGoals,
+    })),
+    head_to_head_this_season: formatH2H(src.headToHead),
   };
 
   if (src.shootout) {

@@ -78,3 +78,21 @@ export async function regenerateWriteUp(input: { gameId: string; kind: Kind }): 
   }
   return ok("Regenerated");
 }
+
+// Generates a write-up for a game that doesn't have one yet (e.g. a final older
+// than the cron's 7-day window). Never replaces an existing write-up.
+export async function generateWriteUp(input: { gameId: string; kind: Kind }): Promise<ActionResult> {
+  const auth = await adminOnly();
+  if (!auth.ok) return fail(auth.error);
+  if (!isValidKind(input.kind)) return fail("Invalid write-up type.");
+
+  const { data: game } = await auth.supabase.from("games").select("status").eq("id", input.gameId).maybeSingle();
+  const wanted = input.kind === "preview" ? "scheduled" : "final";
+  if (game?.status !== wanted) return fail(`A ${input.kind} can only be generated for a ${wanted} game.`);
+
+  const result = await generateAndStore(input.kind, input.gameId);
+  revalidatePath(`/games/${input.gameId}`);
+  if (result.status === "exists") return fail(`This game already has a ${input.kind}.`);
+  if (result.status !== "created") return fail(`Couldn't generate (${result.detail ?? result.status}).`);
+  return ok("Generated");
+}

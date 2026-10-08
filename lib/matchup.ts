@@ -243,3 +243,104 @@ export function gameLineup(entries: LineupEntry[]): Lineup {
     subs: entries.filter((e) => e.isSub).map((e) => e.name),
   };
 }
+
+// ---- Season context for write-ups (#19 follow-up) ----------------------------
+
+export type SeasonGoal = GoalEvent & { gameId: string };
+export type SeasonShot = { gameId: string; committingTeamId: string; result: "goal" | "saved" | null };
+export type SeasonAppearance = { gameId: string; playerId: string; teamId: string; position: Position };
+export type PlayerTotals = {
+  goals: number;
+  assists: number;
+  points: number;
+  leagueRankPoints: number | null;
+  leagueRankGoals: number | null;
+};
+export type GoalieRecord = { gp: number; w: number; l: number; otl: number; ga: number; gaa: number };
+
+// getStandings() already returns rows in final order (points + tiebreakers).
+export function standingsPlace(rows: StandingsRow[], teamId: string): { place: number; of: number } | null {
+  const i = rows.findIndex((r) => r.team_id === teamId);
+  return i < 0 ? null : { place: i + 1, of: rows.length };
+}
+
+// Competition ranking ("1224"): equal values share a rank and the next rank
+// skips. Players with a value of 0 aren't ranked.
+function competitionRanks(values: Map<string, number>): Map<string, number | null> {
+  const sorted = [...values.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const ranks = new Map<string, number | null>();
+  let prev: number | null = null;
+  let rank = 0;
+  sorted.forEach(([id, v], i) => {
+    if (v !== prev) rank = i + 1;
+    prev = v;
+    ranks.set(id, rank);
+  });
+  for (const id of values.keys()) if (!ranks.has(id)) ranks.set(id, null);
+  return ranks;
+}
+
+export function seasonPlayerTotals(goals: SeasonGoal[]): Map<string, PlayerTotals> {
+  const g = new Map<string, number>();
+  const a = new Map<string, number>();
+  const bump = (m: Map<string, number>, id: string | null) => {
+    if (id) m.set(id, (m.get(id) ?? 0) + 1);
+  };
+  for (const e of goals) {
+    bump(g, e.playerId);
+    bump(a, e.assist1Id);
+    bump(a, e.assist2Id);
+  }
+  const ids = new Set([...g.keys(), ...a.keys()]);
+  const points = new Map([...ids].map((id) => [id, (g.get(id) ?? 0) + (a.get(id) ?? 0)]));
+  const goalsAll = new Map([...ids].map((id) => [id, g.get(id) ?? 0]));
+  const rankPts = competitionRanks(points);
+  const rankG = competitionRanks(goalsAll);
+  const out = new Map<string, PlayerTotals>();
+  for (const id of ids) {
+    out.set(id, {
+      goals: g.get(id) ?? 0,
+      assists: a.get(id) ?? 0,
+      points: points.get(id) ?? 0,
+      leagueRankPoints: rankPts.get(id) ?? null,
+      leagueRankGoals: rankG.get(id) ?? null,
+    });
+  }
+  return out;
+}
+
+export function goalieSeasonRecord(
+  goalieId: string,
+  games: FinalGame[],
+  appearances: SeasonAppearance[],
+  goals: SeasonGoal[],
+  shots: SeasonShot[],
+): GoalieRecord {
+  const byId = new Map(games.map((g) => [g.id, g]));
+  let gp = 0, w = 0, l = 0, otl = 0, ga = 0;
+  for (const app of appearances) {
+    if (app.playerId !== goalieId || app.position !== "goalie") continue;
+    const g = byId.get(app.gameId);
+    if (!g) continue;
+    gp++;
+    const isHome = g.homeTeamId === app.teamId;
+    const mine = isHome ? g.homeScore : g.awayScore;
+    const theirs = isHome ? g.awayScore : g.homeScore;
+    if (mine > theirs) w++;
+    else if (g.decidedIn === "ot" || g.decidedIn === "shootout") otl++;
+    else l++;
+    ga += goals.filter((e) => e.gameId === g.id && e.teamId !== app.teamId).length;
+    ga += shots.filter((s) => s.gameId === g.id && s.committingTeamId === app.teamId && s.result === "goal").length;
+  }
+  return { gp, w, l, otl, ga, gaa: gp ? Math.round((ga / gp) * 100) / 100 : 0 };
+}
+
+export function headToHead(games: FinalGame[], teamA: string, teamB: string): FinalGame[] {
+  return games
+    .filter(
+      (g) =>
+        (g.homeTeamId === teamA && g.awayTeamId === teamB) ||
+        (g.homeTeamId === teamB && g.awayTeamId === teamA),
+    )
+    .sort((x, y) => y.scheduledAt.localeCompare(x.scheduledAt));
+}

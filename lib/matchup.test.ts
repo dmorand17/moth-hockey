@@ -4,15 +4,22 @@ import {
   availableGoalie,
   availableTopScorer,
   gameLineup,
+  goalieSeasonRecord,
+  headToHead,
   keyMatchup,
   moneyline,
   projectMatchup,
   projectedRoster,
+  seasonPlayerTotals,
+  standingsPlace,
   teamForm,
   topScorers,
   type FinalGame,
   type GoalEvent,
   type RosterEntry,
+  type SeasonAppearance,
+  type SeasonGoal,
+  type SeasonShot,
   type TeamForm,
 } from "@/lib/matchup";
 
@@ -226,5 +233,101 @@ describe("availableGoalie", () => {
       { playerId: "f1", name: "Marlow Fenn", teamId: "R", position: "forward" },
     ];
     expect(availableGoalie(noGoalieRoster, new Map(), [])).toBeNull();
+  });
+});
+
+describe("standingsPlace", () => {
+  const rows = ["T1", "T2", "T3"].map((id) => row({ team_id: id }));
+  test("1-based index in the already-ordered standings", () => {
+    expect(standingsPlace(rows, "T2")).toEqual({ place: 2, of: 3 });
+  });
+  test("null for an unknown team", () => {
+    expect(standingsPlace(rows, "nope")).toBeNull();
+  });
+});
+
+describe("seasonPlayerTotals", () => {
+  const sg = (gameId: string, playerId: string, a1: string | null = null, a2: string | null = null): SeasonGoal => ({
+    gameId, teamId: "R", playerId, period: 1, clockSeconds: 0, assist1Id: a1, assist2Id: a2,
+  });
+  const totals = seasonPlayerTotals([
+    sg("g1", "a", "b"),
+    sg("g1", "a", "c"),
+    sg("g2", "b", "a"),
+    sg("g2", "c"),
+  ]);
+  test("goals, assists and points per player", () => {
+    expect(totals.get("a")).toMatchObject({ goals: 2, assists: 1, points: 3 });
+    expect(totals.get("b")).toMatchObject({ goals: 1, assists: 1, points: 2 });
+    expect(totals.get("c")).toMatchObject({ goals: 1, assists: 1, points: 2 });
+  });
+  test("competition ranking: ties share a rank, the next rank skips", () => {
+    expect(totals.get("a")!.leagueRankPoints).toBe(1);
+    expect(totals.get("b")!.leagueRankPoints).toBe(2);
+    expect(totals.get("c")!.leagueRankPoints).toBe(2);
+    expect(totals.get("a")!.leagueRankGoals).toBe(1);
+    expect(totals.get("b")!.leagueRankGoals).toBe(2);
+    expect(totals.get("c")!.leagueRankGoals).toBe(2);
+  });
+  test("a three-way tie shares rank 1 and the next player is 4th", () => {
+    const t = seasonPlayerTotals([sg("g1", "p", "q"), sg("g1", "q", "r"), sg("g2", "r", "p"), sg("g2", "s")]);
+    expect(["p", "q", "r", "s"].map((id) => t.get(id)!.leagueRankPoints)).toEqual([1, 1, 1, 4]);
+  });
+  test("a player with assists but no goals has no goals rank", () => {
+    const t = seasonPlayerTotals([sg("g1", "a", "z")]);
+    expect(t.get("z")).toMatchObject({ goals: 0, assists: 1, points: 1, leagueRankGoals: null, leagueRankPoints: 1 });
+  });
+});
+
+describe("goalieSeasonRecord", () => {
+  const games = [
+    game({ id: "g1", homeTeamId: "R", awayTeamId: "W", homeScore: 3, awayScore: 1 }),
+    game({ id: "g2", homeTeamId: "V", awayTeamId: "R", homeScore: 2, awayScore: 1, decidedIn: "ot" }),
+    game({ id: "g3", homeTeamId: "R", awayTeamId: "F", homeScore: 0, awayScore: 4 }),
+  ];
+  const apps: SeasonAppearance[] = [
+    { gameId: "g1", playerId: "gk", teamId: "R", position: "goalie" },
+    { gameId: "g2", playerId: "gk", teamId: "R", position: "goalie" },
+    // g3: gk played as a skater, so it doesn't count toward the goalie record.
+    { gameId: "g3", playerId: "gk", teamId: "R", position: "forward" },
+  ];
+  const goals: SeasonGoal[] = [
+    { gameId: "g1", teamId: "W", playerId: "x", period: 1, clockSeconds: 0, assist1Id: null, assist2Id: null },
+    { gameId: "g2", teamId: "V", playerId: "y", period: 1, clockSeconds: 0, assist1Id: null, assist2Id: null },
+    { gameId: "g2", teamId: "R", playerId: "z", period: 2, clockSeconds: 0, assist1Id: null, assist2Id: null },
+  ];
+  // In g2, R committed a penalty and V's made penalty shot counts against gk.
+  const shots: SeasonShot[] = [{ gameId: "g2", committingTeamId: "R", result: "goal" }];
+
+  test("GP, W/L/OTL, GA incl. penalty shots, GAA — goalie games only", () => {
+    expect(goalieSeasonRecord("gk", games, apps, goals, shots)).toEqual({
+      gp: 2, w: 1, l: 0, otl: 1, ga: 3, gaa: 1.5,
+    });
+  });
+  test("a regulation loss in goal counts as L", () => {
+    const g4 = game({ id: "g4", homeTeamId: "F", awayTeamId: "R", homeScore: 2, awayScore: 0 });
+    const g4Goals: SeasonGoal[] = [
+      { gameId: "g4", teamId: "F", playerId: "x", period: 1, clockSeconds: 0, assist1Id: null, assist2Id: null },
+      { gameId: "g4", teamId: "F", playerId: "x", period: 2, clockSeconds: 0, assist1Id: null, assist2Id: null },
+    ];
+    expect(goalieSeasonRecord(
+      "gk", [...games, g4],
+      [...apps, { gameId: "g4", playerId: "gk", teamId: "R", position: "goalie" }],
+      [...goals, ...g4Goals], shots,
+    )).toEqual({ gp: 3, w: 1, l: 1, otl: 1, ga: 5, gaa: 1.67 });
+  });
+  test("zero games gives zeros, not NaN", () => {
+    expect(goalieSeasonRecord("nobody", games, apps, goals, shots)).toEqual({ gp: 0, w: 0, l: 0, otl: 0, ga: 0, gaa: 0 });
+  });
+});
+
+describe("headToHead", () => {
+  test("only games between the two teams, newest first", () => {
+    const gs = [
+      game({ id: "a", scheduledAt: "2026-03-01T23:00:00Z", homeTeamId: "R", awayTeamId: "W" }),
+      game({ id: "b", scheduledAt: "2026-03-08T23:00:00Z", homeTeamId: "R", awayTeamId: "V" }),
+      game({ id: "c", scheduledAt: "2026-03-15T23:00:00Z", homeTeamId: "W", awayTeamId: "R" }),
+    ];
+    expect(headToHead(gs, "R", "W").map((g) => g.id)).toEqual(["c", "a"]);
   });
 });

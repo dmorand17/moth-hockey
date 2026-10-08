@@ -7,6 +7,7 @@ export type WriteUp = {
   model: string;
   hidden: boolean;
   edited_at: string | null;
+  input?: unknown;
 };
 
 // An AI-written preview or recap. `admin` is where edit/hide controls go for

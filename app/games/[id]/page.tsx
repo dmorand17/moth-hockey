@@ -8,7 +8,7 @@ import { AvailabilityManager, type ManagedPlayer } from "@/components/Availabili
 import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
 import { MatchupPanel } from "@/components/MatchupPanel";
 import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
-import { WriteUpAdminControls } from "@/components/WriteUpAdminControls";
+import { GenerateWriteUpButton, WriteUpAdminControls } from "@/components/WriteUpAdminControls";
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
 import type { PreviewSource } from "@/lib/write-ups/prompt";
 import { BoxScore } from "@/components/BoxScore";
@@ -87,16 +87,20 @@ export default async function GamePage({
   const homeView = homeTeam ?? tbdTeam;
   const awayView = awayTeam ?? tbdTeam;
 
+  const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
+
   // Write-ups: RLS already hides hidden rows from everyone but admins.
+  // `input` is only selected for admins — non-admins never receive it.
+  const writeUpSelect = viewerIsAdmin
+    ? "kind, headline, body, model, hidden, edited_at, input"
+    : "kind, headline, body, model, hidden, edited_at";
   const { data: writeUpRows } = await supabase
     .from("game_write_ups")
-    .select("kind, headline, body, model, hidden, edited_at")
+    .select(writeUpSelect)
     .eq("game_id", id);
-  const writeUps = (writeUpRows ?? []) as WriteUp[];
+  const writeUps = (writeUpRows ?? []) as unknown as WriteUp[];
   const previewWriteUp = writeUps.find((w) => w.kind === "preview") ?? null;
   const recapWriteUp = writeUps.find((w) => w.kind === "recap") ?? null;
-
-  const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
   const adminSlot = (w: WriteUp) =>
     viewerIsAdmin ? (
       <WriteUpAdminControls
@@ -407,6 +411,16 @@ export default async function GamePage({
       {isFinal && recapWriteUp && (
         <section className="rise">
           <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
+        </section>
+      )}
+      {viewerIsAdmin && isScheduled && !previewWriteUp && (
+        <section className="rise">
+          <GenerateWriteUpButton gameId={id} kind="preview" />
+        </section>
+      )}
+      {viewerIsAdmin && isFinal && !recapWriteUp && (
+        <section className="rise">
+          <GenerateWriteUpButton gameId={id} kind="recap" />
         </section>
       )}
 

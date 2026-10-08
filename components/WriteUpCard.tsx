@@ -10,9 +10,9 @@ export type WriteUp = {
   input?: unknown;
 };
 
-// An AI-written preview or recap. `admin` is where edit/hide controls go for
-// admins; everyone else just reads it.
-export function WriteUpCard({ writeUp, admin }: { writeUp: WriteUp; admin?: ReactNode }) {
+// An AI-written preview or recap. `footer` sits under the text (e.g. the odds
+// board); `admin` is where edit/hide controls go for admins.
+export function WriteUpCard({ writeUp, footer, admin }: { writeUp: WriteUp; footer?: ReactNode; admin?: ReactNode }) {
   return (
     <article className={`panel p-4 sm:p-5 space-y-3 ${writeUp.hidden ? "opacity-60" : ""}`}>
       <div className="flex items-center justify-between gap-3">
@@ -27,6 +27,7 @@ export function WriteUpCard({ writeUp, admin }: { writeUp: WriteUp; admin?: Reac
           <p key={i}>{p}</p>
         ))}
       </div>
+      {footer}
       <p className="text-[12px] text-ink-faint">
         {writeUp.edited_at ? "Written with AI, edited by an admin." : "Written with AI from league stats."}
       </p>

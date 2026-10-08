@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { WriteUp } from "@/components/WriteUpCard";
-import { regenerateWriteUp, setWriteUpHidden, updateWriteUp } from "@/app/games/[id]/write-up-actions";
+import { generateWriteUp, regenerateWriteUp, setWriteUpHidden, updateWriteUp } from "@/app/games/[id]/write-up-actions";
 
 const btn =
   "min-h-[40px] px-3 text-[12px] font-semibold uppercase tracking-[0.08em] rounded-[2px] border border-rule bg-board-3 text-ink-dim hover:border-rule-strong hover:text-ink disabled:opacity-50";
@@ -128,6 +128,34 @@ export function WriteUpAdminControls({
           )}
         </div>
       </details>
+    </div>
+  );
+}
+
+// Shown to admins in place of the write-up card when a game has none yet.
+export function GenerateWriteUpButton({ gameId, kind }: { gameId: string; kind: WriteUp["kind"] }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  return (
+    <div className="panel p-4 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-[14px] text-ink-dim">No {kind} yet.</p>
+      <button
+        type="button"
+        disabled={pending}
+        className={btn}
+        onClick={() =>
+          startTransition(async () => {
+            const res = await generateWriteUp({ gameId, kind });
+            if (!res.ok) toast.error(res.error);
+            else {
+              toast.success(res.message ?? "Generated");
+              router.refresh();
+            }
+          })
+        }
+      >
+        {pending ? "Generating…" : `Generate ${kind}`}
+      </button>
     </div>
   );
 }

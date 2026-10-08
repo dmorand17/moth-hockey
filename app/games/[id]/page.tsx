@@ -8,7 +8,7 @@ import { AvailabilityManager, type ManagedPlayer } from "@/components/Availabili
 import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
 import { MatchupPanel } from "@/components/MatchupPanel";
 import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
-import { WriteUpAdminControls } from "@/components/WriteUpAdminControls";
+import { GenerateWriteUpButton, WriteUpAdminControls } from "@/components/WriteUpAdminControls";
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
 import type { PreviewSource } from "@/lib/write-ups/prompt";
 import { BoxScore } from "@/components/BoxScore";
@@ -411,6 +411,16 @@ export default async function GamePage({
       {isFinal && recapWriteUp && (
         <section className="rise">
           <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
+        </section>
+      )}
+      {viewerIsAdmin && isScheduled && !previewWriteUp && (
+        <section className="rise">
+          <GenerateWriteUpButton gameId={id} kind="preview" />
+        </section>
+      )}
+      {viewerIsAdmin && isFinal && !recapWriteUp && (
+        <section className="rise">
+          <GenerateWriteUpButton gameId={id} kind="recap" />
         </section>
       )}
 

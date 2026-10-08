@@ -104,8 +104,16 @@ export type StandingsRow = {
   diff: number;
 };
 
-export async function getStandings(seasonId: string): Promise<StandingsRow[]> {
+// `through` (an ISO timestamp) limits the table to finals scheduled at or before
+// it, so a recap can show the standings as they stood after that game.
+export async function getStandings(seasonId: string, through?: string): Promise<StandingsRow[]> {
   const supabase = await createSupabaseServerClient();
+  const finals = supabase
+    .from("games")
+    .select("home_team_id, away_team_id, home_score, away_score, status, decided_in")
+    .eq("season_id", seasonId)
+    .eq("status", "final")
+    .eq("kind", "regular");
   const [
     { data: season },
     { data: teams, error: tErr },
@@ -117,12 +125,7 @@ export async function getStandings(seasonId: string): Promise<StandingsRow[]> {
       .eq("id", seasonId)
       .maybeSingle(),
     supabase.from("teams").select("id, name, slug, color").eq("season_id", seasonId),
-    supabase
-      .from("games")
-      .select("home_team_id, away_team_id, home_score, away_score, status, decided_in")
-      .eq("season_id", seasonId)
-      .eq("status", "final")
-      .eq("kind", "regular"),
+    through ? finals.lte("scheduled_at", through) : finals,
   ]);
   if (tErr) throw tErr;
   if (gErr) throw gErr;

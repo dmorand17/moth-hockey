@@ -157,18 +157,24 @@ unlabeled data):
 
 - Preview: `game { home, away, when }`; per team: `record`, `points`, `gp`,
   `goals_for`, `goals_against`, `gf_per_game`, `ga_per_game`,
-  `last_3_most_recent_first`, `top_scorers`, `rostered_goalie`,
+  `standing { place, of }`, `last_3_most_recent_first`,
+  `season_leaders[]` (top 3 by points: `goals`, `assists`, `points`,
+  `league_rank_points`, `league_rank_goals`), `rostered_goalie`,
+  `goalie_season { name, gp, w, l, otl, ga, gaa }` for the expected goalie,
   `availability { roster_size, checked_in, out, out_key_players[], no_response }`
   — counts, plus names only for absent top scorers / the rostered goalie, so the
   model can't name anyone else who's out — and `subs_lined_up[]` from `game_subs`;
   `projection { expected_goals_*, over_under_line, win_probability_*,
-  moneyline_* }`.
+  moneyline_* }`; `head_to_head_this_season[]` (earlier meetings, newest first).
 - Recap: `game { home, away, played_on, final, decided_in }`; `goals[]` in
   order with `period`, `time` (elapsed), `team`, `scorer`, `scorer_is_sub`,
   `assists`, `score_after`, `penalty_shot` (bool — penalty-shot goals are merged
   into `goals[]` and credited to the shooting team); `penalties[]` each with
   `shot_result` and `shooter`; optional `shootout { winner, home_goals,
-  away_goals, note }` block when decided in a shootout; `records_after`; per
+  away_goals, note }` block when decided in a shootout; `records_after`;
+  `standing_after`; `season_totals_after[]` for every scorer/assister;
+  `goalies_season_after` per team; `head_to_head_this_season[]` (including this
+  game). Recap season data counts only finals up to this game; per
   team `lineup { skaters_dressed, goalie, subs[] }` from `game_appearances`
   (`is_sub = true` → `subs[]`).
 

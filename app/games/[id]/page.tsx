@@ -87,16 +87,20 @@ export default async function GamePage({
   const homeView = homeTeam ?? tbdTeam;
   const awayView = awayTeam ?? tbdTeam;
 
+  const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
+
   // Write-ups: RLS already hides hidden rows from everyone but admins.
+  // `input` is only selected for admins — non-admins never receive it.
+  const writeUpSelect = viewerIsAdmin
+    ? "kind, headline, body, model, hidden, edited_at, input"
+    : "kind, headline, body, model, hidden, edited_at";
   const { data: writeUpRows } = await supabase
     .from("game_write_ups")
-    .select("kind, headline, body, model, hidden, edited_at")
+    .select(writeUpSelect)
     .eq("game_id", id);
-  const writeUps = (writeUpRows ?? []) as WriteUp[];
+  const writeUps = (writeUpRows ?? []) as unknown as WriteUp[];
   const previewWriteUp = writeUps.find((w) => w.kind === "preview") ?? null;
   const recapWriteUp = writeUps.find((w) => w.kind === "recap") ?? null;
-
-  const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
   const adminSlot = (w: WriteUp) =>
     viewerIsAdmin ? (
       <WriteUpAdminControls

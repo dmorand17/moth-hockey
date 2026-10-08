@@ -340,6 +340,7 @@ export type Database = {
           generated_at: string
           headline: string
           hidden: boolean
+          input: Json | null
           kind: Database["public"]["Enums"]["write_up_kind"]
           model: string
         }
@@ -351,6 +352,7 @@ export type Database = {
           generated_at?: string
           headline: string
           hidden?: boolean
+          input?: Json | null
           kind: Database["public"]["Enums"]["write_up_kind"]
           model: string
         }
@@ -362,6 +364,7 @@ export type Database = {
           generated_at?: string
           headline?: string
           hidden?: boolean
+          input?: Json | null
           kind?: Database["public"]["Enums"]["write_up_kind"]
           model?: string
         }

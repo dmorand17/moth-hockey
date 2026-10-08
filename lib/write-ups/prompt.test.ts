@@ -367,7 +367,7 @@ test("system prompt sets a sportsbook tone for previews and a news tone for reca
   expect(SYSTEM_PROMPT).toContain("sportsbook preview column");
   expect(SYSTEM_PROMPT).toContain("moneyline");
   expect(SYSTEM_PROMPT).toContain("never tell readers to place real bets");
-  expect(SYSTEM_PROMPT).toContain("newspaper sports recap");
+  expect(SYSTEM_PROMPT).toContain("sports game story");
   expect(SYSTEM_PROMPT).toContain("recaps 150-220 words");
 });
 
@@ -409,4 +409,11 @@ describe("playerGameTotals", () => {
     expect(SYSTEM_PROMPT).toContain("player_totals_this_game");
     expect(SYSTEM_PROMPT).toContain("never count the goals list yourself");
   });
+});
+
+test("system prompt uses first names after the first mention", () => {
+  expect(SYSTEM_PROMPT).toContain("first-name basis");
+  expect(SYSTEM_PROMPT).toContain("Never refer to a player by last name alone");
+  expect(SYSTEM_PROMPT).toContain("share a first name");
+  expect(SYSTEM_PROMPT).toContain("Never use he, she");
 });

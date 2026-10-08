@@ -178,10 +178,13 @@ unlabeled data):
   team `lineup { skaters_dressed, goalie, subs[] }` from `game_appearances`
   (`is_sub = true` → `subs[]`).
 
-**System prompt:** the bake-off prompt (fun, PG, league-newsletter tone; only
-facts from the JSON; never mock an individual; projections are for fun; say
-"rosters TBD" when few have checked in; 120–160 words; headline then plain
-prose), plus rules for the new data:
+**System prompt:** the bake-off prompt (PG; only facts from the JSON; never
+mock an individual; say "rosters TBD" when few have checked in; headline then
+plain prose). Since 2026-10-08, previews read like a sportsbook column (quote
+the moneyline, over/under and win probabilities; name the favorite and dog;
+give a data-backed lean; never urge real bets; 120–160 words) and recaps like a
+newspaper game story (lede with result and standout, goals in order, close
+with records and standings; 150–220 words). Plus rules for the new data:
 
 - *Don't summarize a streak or pattern unless every game in it fits.* (From the
   bake-off.)

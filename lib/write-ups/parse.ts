@@ -6,7 +6,7 @@ export type ParsedWriteUp =
   | { ok: true; headline: string; body: string }
   | { ok: false; reason: string };
 
-const MIN_WORDS = 60;
+const MIN_WORDS = 40;
 const MAX_WORDS = 250;
 
 function cleanHeadline(line: string): string {

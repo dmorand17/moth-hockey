@@ -27,7 +27,7 @@ describe("parseWriteUp", () => {
 
   test("rejects empty, too short, and too long output", () => {
     expect(parseWriteUp("   ").ok).toBe(false);
-    expect(parseWriteUp(`H\n\n${words(40)}`)).toEqual({ ok: false, reason: "body is 40 words (want 60-250)" });
+    expect(parseWriteUp(`H\n\n${words(30)}`)).toEqual({ ok: false, reason: "body is 30 words (want 40-250)" });
     expect(parseWriteUp(`H\n\n${words(300)}`).ok).toBe(false);
   });
 

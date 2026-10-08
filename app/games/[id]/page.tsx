@@ -7,6 +7,7 @@ import { CheckInToggle } from "@/components/CheckInToggle";
 import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
 import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
 import { MatchupPanel } from "@/components/MatchupPanel";
+import { OddsBoard } from "@/components/OddsBoard";
 import { WriteUpCard, type WriteUp } from "@/components/WriteUpCard";
 import { GenerateWriteUpButton, WriteUpAdminControls } from "@/components/WriteUpAdminControls";
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
@@ -405,7 +406,15 @@ export default async function GamePage({
       {/* WRITE-UP (right after scoreboard for visibility) */}
       {isScheduled && previewWriteUp && (
         <section className="rise">
-          <WriteUpCard writeUp={previewWriteUp} admin={adminSlot(previewWriteUp)} />
+          <WriteUpCard
+            writeUp={previewWriteUp}
+            footer={
+              previewSource?.projection && (
+                <OddsBoard projection={previewSource.projection} awayName={previewSource.away.name} homeName={previewSource.home.name} />
+              )
+            }
+            admin={adminSlot(previewWriteUp)}
+          />
         </section>
       )}
       {isFinal && recapWriteUp && (

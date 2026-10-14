@@ -16,7 +16,7 @@ import {
   type EditPayload,
 } from "@/app/score/[gameId]/actions";
 import { PENALTY_TYPES, type PenaltyType } from "@/app/score/[gameId]/penalty-types";
-import { formatClock, formatPeriod } from "@/lib/format";
+import { formatClock, formatPeriod, maskClockInput } from "@/lib/format";
 
 const CLOCK_RE = /^(\d{1,2}):([0-5]?\d)$/;
 
@@ -962,7 +962,8 @@ function ClockSheet({
         <span className="eyebrow text-[10px] text-ink-faint shrink-0">Set to</span>
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => setText(maskClockInput(e.target.value))}
+          onFocus={(e) => e.target.select()}
           onBlur={(e) => commitText(e.target.value)}
           inputMode="numeric"
           placeholder="MM:SS"
@@ -977,6 +978,10 @@ function ClockSheet({
         type="button"
         onClick={() => {
           const m = text.trim().match(CLOCK_RE);
+          if (text.trim() && !m) {
+            setLocalError("Use MM:SS, e.g. 14:30");
+            return;
+          }
           const finalValue = m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : value;
           if (finalValue > 99 * 60) {
             setLocalError("Max is 99:00");

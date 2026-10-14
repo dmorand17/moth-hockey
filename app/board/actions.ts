@@ -48,8 +48,9 @@ export async function editPost(input: { id: string; body: string }): Promise<Act
   if (!post) return fail("Post not found.");
   if (post.author_id !== viewer.userId && !viewer.isAdmin) return fail("You can only edit your own posts.");
 
-  const { error } = await supabase.from("posts").update({ body: valid.body }).eq("id", input.id);
+  const { data: updated, error } = await supabase.from("posts").update({ body: valid.body }).eq("id", input.id).select("id");
   if (error) return fail(postErrorMessage(error));
+  if (!updated || updated.length === 0) return fail("Post not found.");
   revalidateBoard(post.game_id);
   return ok("Saved");
 }

@@ -3,6 +3,7 @@ import {
   BODY_MAX,
   buildThreads,
   formatRelative,
+  parseCursor,
   postErrorMessage,
   validateBody,
   type AuthorRow,
@@ -81,6 +82,52 @@ describe("buildThreads", () => {
   test("author is null when no linked player", () => {
     const [t] = buildThreads([row({ id: "t", author_id: "ghost" })], [], authors);
     expect(t.author).toBeNull();
+  });
+});
+
+describe("parseCursor", () => {
+  test("accepts valid ISO-8601 timestamps with Z", () => {
+    expect(parseCursor("2026-10-14T12:00:00Z")).toBe("2026-10-14T12:00:00Z");
+  });
+
+  test("accepts valid ISO-8601 timestamps with microseconds and Z", () => {
+    expect(parseCursor("2026-10-14T12:00:00.123456Z")).toBe("2026-10-14T12:00:00.123456Z");
+  });
+
+  test("accepts valid ISO-8601 timestamps with timezone offset", () => {
+    expect(parseCursor("2026-10-14T12:00:00+00:00")).toBe("2026-10-14T12:00:00+00:00");
+  });
+
+  test("accepts valid ISO-8601 timestamps with microseconds and timezone offset", () => {
+    expect(parseCursor("2026-10-14T12:00:00.123456+00:00")).toBe("2026-10-14T12:00:00.123456+00:00");
+  });
+
+  test("rejects undefined", () => {
+    expect(parseCursor(undefined)).toBeUndefined();
+  });
+
+  test("rejects empty string", () => {
+    expect(parseCursor("")).toBeUndefined();
+  });
+
+  test("rejects lenient dates like '1'", () => {
+    expect(parseCursor("1")).toBeUndefined();
+  });
+
+  test("rejects lenient dates like 'foo 12'", () => {
+    expect(parseCursor("foo 12")).toBeUndefined();
+  });
+
+  test("rejects arbitrary garbage", () => {
+    expect(parseCursor("garbage")).toBeUndefined();
+  });
+
+  test("rejects date without time", () => {
+    expect(parseCursor("2026-10-14")).toBeUndefined();
+  });
+
+  test("rejects invalid date components", () => {
+    expect(parseCursor("2026-13-45T99:99:99Z")).toBeUndefined();
   });
 });
 

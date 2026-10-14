@@ -61,6 +61,20 @@ export function buildThreads(top: PostRow[], replies: PostRow[], authors: Author
   }));
 }
 
+export function parseCursor(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+
+  // Strict ISO-8601 timestamp regex: YYYY-MM-DDTHH:MM:SS[.ffffff][Z|±HH:MM]
+  const iso8601Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+
+  if (!iso8601Regex.test(raw)) return undefined;
+
+  // Ensure Date.parse succeeds (strict validation)
+  if (Number.isNaN(Date.parse(raw))) return undefined;
+
+  return raw;
+}
+
 export function formatRelative(iso: string, now: Date = new Date()): string {
   const secs = Math.floor((now.getTime() - new Date(iso).getTime()) / 1000);
   if (secs < 60) return "just now";

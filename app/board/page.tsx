@@ -3,12 +3,13 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { PostThread } from "@/components/PostThread";
 import { getBoardViewer } from "@/lib/auth";
 import { getBoardPosts } from "@/lib/queries";
+import { parseCursor } from "@/lib/board";
 
 type SearchParams = Promise<{ before?: string }>;
 
 export default async function BoardPage({ searchParams }: { searchParams: SearchParams }) {
   const { before } = await searchParams;
-  const cursor = before && !Number.isNaN(Date.parse(before)) ? before : undefined;
+  const cursor = parseCursor(before);
   const [{ threads, nextCursor }, viewer] = await Promise.all([
     getBoardPosts({ before: cursor }),
     getBoardViewer(),

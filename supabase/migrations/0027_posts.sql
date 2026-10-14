@@ -33,6 +33,16 @@ as $$
 declare
   parent posts%rowtype;
 begin
+  -- Serialize per-author inserts so concurrent requests can't race past the rate limit.
+  perform pg_advisory_xact_lock(hashtext(new.author_id::text));
+
+  -- Server controls timestamps; clients cannot pin posts or bypass rate limit via created_at.
+  new.created_at := now();
+  new.edited_at  := null;
+
+  -- Normalize whitespace before the check constraint is evaluated.
+  new.body := btrim(new.body, E' \t\r\n');
+
   if new.parent_id is not null then
     select * into parent from posts where id = new.parent_id;
     if not found
@@ -72,6 +82,9 @@ begin
       new.created_at is distinct from old.created_at) then
     raise exception 'posts_immutable_column';
   end if;
+
+  -- Normalize whitespace before comparing body for edited_at.
+  new.body := btrim(new.body, E' \t\r\n');
 
   if new.body is distinct from old.body then
     new.edited_at := now();

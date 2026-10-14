@@ -424,16 +424,18 @@ const BOARD_PAGE_SIZE = 20;
 async function hydrateThreads(top: PostRow[]): Promise<Thread[]> {
   if (top.length === 0) return [];
   const supabase = await createSupabaseServerClient();
-  const { data: replies } = await supabase
+  const { data: replies, error: repliesError } = await supabase
     .from("posts")
     .select(POST_COLUMNS)
     .in("parent_id", top.map((p) => p.id));
+  if (repliesError) throw repliesError;
   const all = [...top, ...(replies ?? [])];
   const userIds = [...new Set(all.map((p) => p.author_id))];
-  const { data: authors } = await supabase
+  const { data: authors, error: authorsError } = await supabase
     .from("players")
     .select("id, first_name, last_name, user_id")
     .in("user_id", userIds);
+  if (authorsError) throw authorsError;
   return buildThreads(top, (replies ?? []) as PostRow[], (authors ?? []) as AuthorRow[]);
 }
 
@@ -450,7 +452,8 @@ export async function getBoardPosts(
     .order("created_at", { ascending: false })
     .limit(BOARD_PAGE_SIZE + 1);
   if (opts.before) query = query.lt("created_at", opts.before);
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) throw error;
   const rows = (data ?? []) as PostRow[];
   const page = rows.slice(0, BOARD_PAGE_SIZE);
   return {
@@ -462,11 +465,12 @@ export async function getBoardPosts(
 // Per-game discussion: every top-level post for the game, newest first.
 export async function getGamePosts(gameId: string): Promise<Thread[]> {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("posts")
     .select(POST_COLUMNS)
     .eq("game_id", gameId)
     .is("parent_id", null)
     .order("created_at", { ascending: false });
+  if (error) throw error;
   return hydrateThreads((data ?? []) as PostRow[]);
 }

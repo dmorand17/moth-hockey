@@ -48,9 +48,7 @@ Indexes: `(game_id, parent_id, created_at desc)` for feeds, `(parent_id, created
 - If `parent_id` is set, the parent must have `parent_id is null`, and `new.game_id` must equal the parent's `game_id` (both null counts as equal). Otherwise it raises `posts_invalid_parent`.
 - If the author already has 5 posts in the last minute or 50 in the last 24 hours, it raises `posts_rate_limited`.
 
-**Update trigger (`BEFORE UPDATE`):** sets `edited_at = now()` when `body` changes.
-
-**Privileges:** revoke `update` on `posts` from `authenticated`, then grant `update (body)`. Nobody can rewrite `author_id`, `game_id`, `parent_id`, or the timestamps through the API.
+**Update trigger (`BEFORE UPDATE`, `posts_before_update`):** raises `posts_immutable_column` if `id`, `author_id`, `game_id`, `parent_id` or `created_at` change; sets `edited_at = now()` when `body` changes, otherwise keeps the old `edited_at`. (A column grant was the original plan, but local `seed.sql` re-grants all table privileges after migrations, so it would only hold in prod.)
 
 **RLS:**
 

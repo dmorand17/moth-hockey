@@ -1151,13 +1151,13 @@ git commit -m "feat(board): per-game discussion thread on the game page (#140)"
 - [ ] **Step 1: `docs/DATABASE.md`**
 
 - In the migrations table, add a row after `0026`:
-  `| \`0027_posts.sql\` | Message board: \`posts\`, \`is_linked_player()\`, threading + rate-limit triggers, body-only update grant (#140) |`
+  `| \`0027_posts.sql\` | Message board: \`posts\`, \`is_linked_player()\`, threading, rate-limit and column-immutability triggers (#140) |`
 - Under "Stats, awards, content", add:
   ```markdown
   - **`posts`** — message board (#140). `game_id` null = site board, otherwise a
     game's discussion; `parent_id` null = top-level, otherwise a reply (one level
     only). `body` 1–2000 chars after trim; `edited_at` set on body change. Only
-    `body` is updatable through the API (column grant).
+    `body` is updatable (enforced by `posts_before_update`).
   ```
 - Under "Helper functions (RLS)", add:
   `- \`is_linked_player()\` (\`0027\`) — a \`players\` row exists with \`user_id = auth.uid()\`. Gates posting.`
@@ -1166,10 +1166,10 @@ git commit -m "feat(board): per-game discussion thread on the game page (#140)"
   - **`posts_before_insert`** — rejects replies whose parent is itself a reply or
     belongs to a different game (`posts_invalid_parent`), and enforces the rate
     limit: 5 posts/minute and 50 per 24 hours per author (`posts_rate_limited`).
-  - **`posts_touch_edited_at`** — sets `edited_at` when `body` changes.
+  - **`posts_before_update`** — rejects changes to `id`, `author_id`, `game_id`, `parent_id`, `created_at` (`posts_immutable_column`); sets `edited_at` when `body` changes and otherwise keeps it unchanged. (A column grant would not work locally: `seed.sql` re-grants all table privileges.)
   ```
 - In the RLS summary table, add:
-  `| \`posts\` | public | insert: linked player as self; update (\`body\` only): author or admin; delete: admin (replies cascade) |`
+  `| \`posts\` | public | insert: linked player as self; update (body only, via trigger): author or admin; delete: admin (replies cascade) |`
 
 - [ ] **Step 2: `docs/ARCHITECTURE.md`**
 

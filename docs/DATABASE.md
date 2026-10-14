@@ -14,6 +14,7 @@ this doc reflects what the migrations actually create.
 | `0004_auth_roles.sql` | `players.user_id`, `user_profiles`, new role helpers, signup trigger |
 | `0005_team_captains.sql` | `team_captains` + role-sync triggers |
 | `0006_seasons_period_length.sql` | `seasons.period_length_minutes` (default 17) |
+| `0027_posts.sql` | Message board: `posts`, `is_linked_player()`, threading, rate-limit and column-immutability triggers (#140) |
 
 Enum changes are isolated in `0003` on purpose: Postgres won't let a new enum
 value be used in the same transaction that adds it.
@@ -81,6 +82,10 @@ value be used in the same transaction that adds it.
   derive stats from `game_events` instead; the player profile unions both.
 - **`player_awards`** — repeatable per player/season (`award_type` text).
 - **`content_pages`** — `section`+`slug` unique; markdown `body_md`; powers `/about/*`.
+- **`posts`** — message board (#140). `game_id` null = site board, otherwise a
+  game's discussion; `parent_id` null = top-level, otherwise a reply (one level
+  only). `body` 1–2000 chars after trim; `edited_at` set on body change. Only
+  `body` is updatable (enforced by `posts_before_update`).
 
 ### Auth
 
@@ -106,6 +111,7 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
   Lets captains add brand-new subs without INSERT rights on `players`.
 - `current_user_role()` — returns the single role. Legacy from `0001`, still
   present; slated for removal under the multi-role plan.
+- `is_linked_player()` (`0027`) — a `players` row exists with `user_id = auth.uid()`. Gates posting.
 
 (`is_scorer_or_admin()` from `0001` was dropped in `0004`.)
 
@@ -119,6 +125,10 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
   `team_captain`→`player`. Never downgrades `admin`/`scorekeeper`.
 - **`*_touch_updated_at`** — keep `updated_at` fresh on `games`, `content_pages`,
   `user_profiles`.
+- **`posts_before_insert`** — rejects replies whose parent is itself a reply or
+  belongs to a different game (`posts_invalid_parent`), and enforces the rate
+  limit: 5 posts/minute and 50 per 24 hours per author (`posts_rate_limited`).
+- **`posts_before_update`** — rejects changes to `id`, `author_id`, `game_id`, `parent_id`, `created_at` (`posts_immutable_column`); sets `edited_at` when `body` changes and otherwise keeps it unchanged. (A column grant would not work locally: `seed.sql` re-grants all table privileges.)
 
 ## Row-Level Security (summary)
 
@@ -134,6 +144,7 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | `game_availability` (since `0024`) | public | player (own row), captain (own team), admin; **scorekeeper** while the game is scheduled or live — `startGame`/`updateRoster` write the check-in back as in/out |
 | `game_write_ups` | public when not `hidden`; admins see all | admin (service role writes generated rows) |
 | `account_requests` | admin | anyone may INSERT; admin update |
+| `posts` | public | insert: linked player as self; update (body only, via trigger): author or admin; delete: admin (replies cascade) |
 
 Anonymous queries never return `user_profiles` rows — no public select policy
 exists on that table.

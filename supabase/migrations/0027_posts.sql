@@ -59,25 +59,33 @@ create trigger posts_before_insert
   before insert on posts
   for each row execute function public.posts_before_insert();
 
-create or replace function public.posts_touch_edited_at()
+-- Only the body is editable; edited_at is managed here.
+create or replace function public.posts_before_update()
 returns trigger
 language plpgsql
 as $$
 begin
+  if (new.id        is distinct from old.id        or
+      new.author_id is distinct from old.author_id or
+      new.game_id   is distinct from old.game_id   or
+      new.parent_id is distinct from old.parent_id or
+      new.created_at is distinct from old.created_at) then
+    raise exception 'posts_immutable_column';
+  end if;
+
   if new.body is distinct from old.body then
     new.edited_at := now();
+  else
+    new.edited_at := old.edited_at;
   end if;
+
   return new;
 end;
 $$;
 
-create trigger posts_touch_edited_at
+create trigger posts_before_update
   before update on posts
-  for each row execute function public.posts_touch_edited_at();
-
--- Only the body is editable through the API.
-revoke update on posts from anon, authenticated;
-grant update (body) on posts to authenticated;
+  for each row execute function public.posts_before_update();
 
 alter table posts enable row level security;
 

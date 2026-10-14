@@ -16,7 +16,9 @@ import { BoxScore } from "@/components/BoxScore";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { buildBoxScore, resolvePosition, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSessionIfRole } from "@/lib/auth";
+import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
+import { getGamePosts } from "@/lib/queries";
+import { PostThread } from "@/components/PostThread";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
 type PlayerRef = { id: string; first_name: string; last_name: string };
@@ -89,6 +91,8 @@ export default async function GamePage({
   const awayView = awayTeam ?? tbdTeam;
 
   const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
+
+  const [gamePosts, boardViewer] = await Promise.all([getGamePosts(id), getBoardViewer()]);
 
   // Write-ups: RLS already hides hidden rows from everyone but admins.
   // `input` is only selected for admins — non-admins never receive it.
@@ -616,6 +620,12 @@ export default async function GamePage({
           </div>
         </CollapsibleSection>
       )}
+
+      {/* DISCUSSION */}
+      <section className="rise delay-1 space-y-4">
+        <SectionHeader eyebrow="Locker Room" title="Discussion" />
+        <PostThread threads={gamePosts} viewer={boardViewer} gameId={game.id} empty="No posts about this game yet." />
+      </section>
     </div>
   );
 }

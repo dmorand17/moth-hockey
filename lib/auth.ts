@@ -47,3 +47,15 @@ export async function getSessionIfRole(allowed: Role[]): Promise<AuthSession | n
   if (!session || !session.role || !allowed.includes(session.role)) return null;
   return session;
 }
+
+export type BoardViewer = { userId: string; isAdmin: boolean; isLinked: boolean };
+
+// Who's looking at a message board, and what they may do there. Posting
+// requires a linked roster player; admins can edit/delete regardless.
+export async function getBoardViewer(): Promise<BoardViewer | null> {
+  const session = await getAuthSession();
+  if (!session) return null;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("players").select("id").eq("user_id", session.userId).maybeSingle();
+  return { userId: session.userId, isAdmin: session.role === "admin", isLinked: !!data };
+}

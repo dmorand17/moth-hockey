@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "./supabase/server";
+import { buildThreads, type AuthorRow, type PostRow, type Thread } from "./board";
 
 export type PointSystem = "2-1-0" | "3-2-1";
 export type TieKey = "wins" | "diff" | "gf" | "ga" | "h2h";
@@ -414,4 +415,58 @@ export async function getScoringLeaders(seasonId: string): Promise<ScoringLeader
   return [...acc.values()].sort(
     (a, b) => b.points - a.points || b.goals - a.goals || a.name.localeCompare(b.name),
   );
+}
+
+const POST_COLUMNS = "id, author_id, game_id, parent_id, body, created_at, edited_at";
+const BOARD_PAGE_SIZE = 20;
+
+// Replies + author names for a page of top-level posts.
+async function hydrateThreads(top: PostRow[]): Promise<Thread[]> {
+  if (top.length === 0) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data: replies } = await supabase
+    .from("posts")
+    .select(POST_COLUMNS)
+    .in("parent_id", top.map((p) => p.id));
+  const all = [...top, ...(replies ?? [])];
+  const userIds = [...new Set(all.map((p) => p.author_id))];
+  const { data: authors } = await supabase
+    .from("players")
+    .select("id, first_name, last_name, user_id")
+    .in("user_id", userIds);
+  return buildThreads(top, (replies ?? []) as PostRow[], (authors ?? []) as AuthorRow[]);
+}
+
+// Site board: newest 20 top-level posts older than `before` (an ISO timestamp cursor).
+export async function getBoardPosts(
+  opts: { before?: string } = {},
+): Promise<{ threads: Thread[]; nextCursor: string | null }> {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("posts")
+    .select(POST_COLUMNS)
+    .is("game_id", null)
+    .is("parent_id", null)
+    .order("created_at", { ascending: false })
+    .limit(BOARD_PAGE_SIZE + 1);
+  if (opts.before) query = query.lt("created_at", opts.before);
+  const { data } = await query;
+  const rows = (data ?? []) as PostRow[];
+  const page = rows.slice(0, BOARD_PAGE_SIZE);
+  return {
+    threads: await hydrateThreads(page),
+    nextCursor: rows.length > BOARD_PAGE_SIZE ? page[page.length - 1].created_at : null,
+  };
+}
+
+// Per-game discussion: every top-level post for the game, newest first.
+export async function getGamePosts(gameId: string): Promise<Thread[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("posts")
+    .select(POST_COLUMNS)
+    .eq("game_id", gameId)
+    .is("parent_id", null)
+    .order("created_at", { ascending: false });
+  return hydrateThreads((data ?? []) as PostRow[]);
 }

@@ -125,10 +125,18 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
   `team_captain`→`player`. Never downgrades `admin`/`scorekeeper`.
 - **`*_touch_updated_at`** — keep `updated_at` fresh on `games`, `content_pages`,
   `user_profiles`.
-- **`posts_before_insert`** — rejects replies whose parent is itself a reply or
-  belongs to a different game (`posts_invalid_parent`), and enforces the rate
-  limit: 5 posts/minute and 50 per 24 hours per author (`posts_rate_limited`).
-- **`posts_before_update`** — rejects changes to `id`, `author_id`, `game_id`, `parent_id`, `created_at` (`posts_immutable_column`); sets `edited_at` when `body` changes and otherwise keeps it unchanged. (A column grant would not work locally: `seed.sql` re-grants all table privileges.)
+- **`posts_before_insert`** — takes a per-author `pg_advisory_xact_lock` to
+  serialize concurrent inserts; server-sets `created_at = now()` and
+  `edited_at = null` (clients cannot back-date or pre-mark edited); normalizes
+  `body` with `btrim(body, E' \t\r\n')` before the check constraint is
+  evaluated; rejects replies whose parent is itself a reply or belongs to a
+  different game (`posts_invalid_parent`); enforces the rate limit: 5
+  posts/minute and 50 per 24 hours per author (`posts_rate_limited`).
+- **`posts_before_update`** — rejects changes to `id`, `author_id`, `game_id`,
+  `parent_id`, `created_at` (`posts_immutable_column`); normalizes `body` with
+  `btrim` before comparing; sets `edited_at` when `body` changes and otherwise
+  keeps it unchanged. (A column grant would not work locally: `seed.sql`
+  re-grants all table privileges.)
 
 ## Row-Level Security (summary)
 

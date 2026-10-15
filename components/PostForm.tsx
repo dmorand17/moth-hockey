@@ -52,7 +52,7 @@ export function PostForm({
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && length > 0 && !over && !pending) submit();
         }}
         aria-label={parentId ? "Reply" : "New post"}
-        placeholder={parentId ? "Post your reply" : "What's happening in the room?"}
+        placeholder={parentId ? "Post your reply" : "Write a post…"}
         rows={parentId ? 2 : 2}
         autoFocus={!!parentId}
         className={`w-full resize-none bg-transparent outline-none text-ink placeholder:text-ink-faint leading-normal field-sizing-content min-h-12 ${

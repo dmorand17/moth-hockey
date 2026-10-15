@@ -5,12 +5,15 @@ set -euo pipefail
 # from environment variables. Wraps `supabase link` so you don't paste refs or
 # passwords by hand (and can't fat-finger the wrong project).
 #
-# Load the matching per-environment file first, e.g.:
-#   set -a; source .env.staging; set +a
+# If SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD aren't already set, the
+# matching per-environment file (.env.staging or .env.production) is loaded
+# automatically — only inside this script, so secrets never leak into your shell:
 #   ./scripts/supabase-link.sh staging
 
 DEPENDENCIES=(bunx)
 SCRIPT_NAME=$(basename "$0")
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 
 # Baked-in refs (see docs/SUPABASE.md); SUPABASE_PROJECT_REF overrides.
 STAGING_REF_DEFAULT="ecvktaljsvrecozmfayj"
@@ -34,7 +37,8 @@ Options:
     -y, --yes               Skip the production confirmation prompt (for CI)
     -h, --help              Show this help message
 
-Environment (load the matching per-env file first: source .env.staging):
+Environment (read from the shell; if the token or password is missing, the
+matching .env.staging / .env.production in the repo root is loaded for you):
     SUPABASE_ACCESS_TOKEN   Personal access token (required)
                             Create one at https://supabase.com/dashboard/account/tokens
     SUPABASE_DB_PASSWORD    Database password for the target project (required)
@@ -45,8 +49,9 @@ Environment (load the matching per-env file first: source .env.staging):
 Dependencies: ${DEPENDENCIES[*]}
 
 Examples:
-    set -a; source .env.staging; set +a && ${SCRIPT_NAME} staging
-    set -a; source .env.production; set +a && ${SCRIPT_NAME} prod --yes
+    ${SCRIPT_NAME} staging                 # loads .env.staging if needed
+    ${SCRIPT_NAME} prod                    # loads .env.production, asks to confirm
+    SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... ${SCRIPT_NAME} prod --yes   # CI
 
 EOF
     exit "${1:-0}"
@@ -73,16 +78,20 @@ function main() {
 
     exit_on_missing_tools "${DEPENDENCIES[@]}"
 
+    if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" || -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
+        load_env_file "$target"
+    fi
+
     # Guard against sourcing the wrong per-env file (e.g. .env.production loaded
     # but you asked to link staging).
     if [[ -n "${SUPABASE_ENV:-}" && "${SUPABASE_ENV}" != "$target" ]]; then
         log_error "Loaded env is SUPABASE_ENV='${SUPABASE_ENV}' but target is '$target'."
-        log_error "Source the matching file (.env.${target}) or fix the target."
+        log_error "Fix SUPABASE_ENV in .env.${target} (or the exported env), or the target."
         exit 1
     fi
 
     : "${SUPABASE_ACCESS_TOKEN:?set SUPABASE_ACCESS_TOKEN (https://supabase.com/dashboard/account/tokens)}"
-    : "${SUPABASE_DB_PASSWORD:?set SUPABASE_DB_PASSWORD (from .env.${target})}"
+    : "${SUPABASE_DB_PASSWORD:?set SUPABASE_DB_PASSWORD (in .env.${target})}"
 
     local default_ref ref
     if [[ "$target" == "production" ]]; then
@@ -95,6 +104,24 @@ function main() {
     [[ "$target" == "production" ]] && confirm_production "$ref" "$assume_yes"
 
     link_project "$target" "$ref"
+}
+
+# Export every variable from .env.<target> into this script's environment only.
+function load_env_file() {
+    local target="$1"
+    local env_file="$REPO_ROOT/.env.$target"
+
+    if [[ ! -f "$env_file" ]]; then
+        log_error "SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD not set and $env_file not found."
+        log_error "Copy .env.$target.example to .env.$target and fill it in, or export the variables."
+        exit 1
+    fi
+
+    log_info "Loading $(basename "$env_file")…"
+    set -a
+    # shellcheck disable=SC1090
+    source "$env_file"
+    set +a
 }
 
 function confirm_production() {

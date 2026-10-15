@@ -81,12 +81,13 @@ prod requires confirmation. Copy `.env.staging.example` / `.env.production.examp
 fill in the token + DB password, then:
 
 ```bash
-set -a; source .env.staging; set +a
 ./scripts/supabase-link.sh staging
-
-set -a; source .env.production; set +a
 ./scripts/supabase-link.sh prod        # prompts to confirm (--yes to skip in CI)
 ```
+
+If `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` aren't already exported, the
+script loads `.env.staging` / `.env.production` itself — inside the script only,
+so the secrets don't linger in your shell. CI can export the variables instead.
 
 The script reads `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
 (optionally) `SUPABASE_PROJECT_REF` from the loaded env, and cross-checks

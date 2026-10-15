@@ -337,6 +337,14 @@ export default async function GamePage({
 
   // Availability sits under the scoreboard for scheduled games (who's in matters
   // most before puck drop) and near the end, collapsed, for live/final games.
+  // Discussion always sits directly under Availability.
+  const discussionSection = (
+    <section className="rise delay-1 space-y-4">
+      <SectionHeader eyebrow="Locker Room" title="Discussion" />
+      <PostThread threads={gamePosts} viewer={boardViewer} gameId={game.id} empty="No posts about this game yet." />
+    </section>
+  );
+
   const availabilitySection = availability && (
     <CollapsibleSection
       eyebrow="Roster"
@@ -475,6 +483,7 @@ export default async function GamePage({
 
       {/* AVAILABILITY (scheduled games: right under the scoreboard) */}
       {isScheduled && availabilitySection}
+      {isScheduled && discussionSection}
 
       {/* WRITE-UP (right after scoreboard for visibility) */}
       {isScheduled && previewWriteUp && (
@@ -628,11 +637,8 @@ export default async function GamePage({
       {/* AVAILABILITY (live/final games: near the end, collapsed by default) */}
       {!isScheduled && availabilitySection}
 
-      {/* DISCUSSION */}
-      <section className="rise delay-1 space-y-4">
-        <SectionHeader eyebrow="Locker Room" title="Discussion" />
-        <PostThread threads={gamePosts} viewer={boardViewer} gameId={game.id} empty="No posts about this game yet." />
-      </section>
+      {/* DISCUSSION (live/final games: under availability) */}
+      {!isScheduled && discussionSection}
     </div>
   );
 }

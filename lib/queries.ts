@@ -439,7 +439,7 @@ async function hydrateThreads(top: PostRow[]): Promise<Thread[]> {
   const playerIds = (authors ?? []).map((a) => a.id);
   const { data: rosters, error: rostersError } = await supabase
     .from("team_players")
-    .select("player_id, team:teams(name, slug, color), season:seasons(is_current, start_date)")
+    .select("player_id, team:teams(name, slug), season:seasons(is_current, start_date)")
     .in("player_id", playerIds);
   if (rostersError) throw rostersError;
   const teams = pickTeams((rosters ?? []) as RosterRow[]);

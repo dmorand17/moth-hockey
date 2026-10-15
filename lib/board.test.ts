@@ -82,7 +82,7 @@ describe("buildThreads", () => {
   });
 
   test("carries the author's team", () => {
-    const ravens = { name: "Ravens", slug: "ravens", color: "#123456" };
+    const ravens = { name: "Ravens", slug: "ravens" };
     const [t] = buildThreads([row({ id: "t" })], [], [{ ...authors[0], team: ravens }]);
     expect(t.author?.team).toEqual(ravens);
   });
@@ -154,9 +154,9 @@ describe("formatRelative", () => {
 });
 
 describe("pickTeams", () => {
-  const ravens = { name: "Ravens", slug: "ravens", color: "#111111" };
-  const wolves = { name: "Wolves", slug: "wolves", color: "#222222" };
-  const bears = { name: "Bears", slug: "bears", color: "#333333" };
+  const ravens = { name: "Ravens", slug: "ravens" };
+  const wolves = { name: "Wolves", slug: "wolves" };
+  const bears = { name: "Bears", slug: "bears" };
   const r = (player_id: string, team: RosterRow["team"], is_current: boolean, start_date: string): RosterRow => ({
     player_id,
     team,

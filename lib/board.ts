@@ -12,7 +12,7 @@ export type PostRow = {
   edited_at: string | null;
 };
 
-export type PostTeam = { name: string; slug: string; color: string };
+export type PostTeam = { name: string; slug: string };
 
 export type AuthorRow = {
   id: string;

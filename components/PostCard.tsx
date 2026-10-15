@@ -69,10 +69,7 @@ export function PostCard({
   const over = body.trim().length > BODY_MAX;
 
   return (
-    <article
-      className="border-l-2 pl-3 space-y-1"
-      style={{ borderLeftColor: post.author?.team?.color ?? "var(--rule)" }}
-    >
+    <article className="space-y-1">
       <header className="flex flex-wrap items-baseline gap-x-1.5 text-[13px] leading-tight">
         {post.author ? (
           <Link href={`/players/${post.author.playerId}`} className="font-semibold text-ink hover:underline">

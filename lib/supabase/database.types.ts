@@ -45,6 +45,7 @@ export type Database = {
           reviewed_by: string | null
           status: Database["public"]["Enums"]["account_request_status"]
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           email: string
@@ -77,6 +78,7 @@ export type Database = {
           title: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           body_md?: string
           id?: string
@@ -105,6 +107,7 @@ export type Database = {
           position: Database["public"]["Enums"]["player_position"] | null
           team_id: string
         }
+        ComputedFields: never
         Insert: {
           game_id: string
           is_sub?: boolean
@@ -150,6 +153,7 @@ export type Database = {
           status: Database["public"]["Enums"]["availability_status"]
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           game_id: string
           player_id: string
@@ -189,8 +193,7 @@ export type Database = {
           id: string
           notes: string | null
           penalty_shot_result:
-            | Database["public"]["Enums"]["penalty_shot_result"]
-            | null
+            Database["public"]["Enums"]["penalty_shot_result"] | null
           penalty_shot_taker_id: string | null
           penalty_type: string | null
           penalty_type_other: string | null
@@ -199,6 +202,7 @@ export type Database = {
           team_id: string
           type: Database["public"]["Enums"]["game_event_type"]
         }
+        ComputedFields: never
         Insert: {
           assist1_player_id?: string | null
           assist2_player_id?: string | null
@@ -208,8 +212,7 @@ export type Database = {
           id?: string
           notes?: string | null
           penalty_shot_result?:
-            | Database["public"]["Enums"]["penalty_shot_result"]
-            | null
+            Database["public"]["Enums"]["penalty_shot_result"] | null
           penalty_shot_taker_id?: string | null
           penalty_type?: string | null
           penalty_type_other?: string | null
@@ -227,8 +230,7 @@ export type Database = {
           id?: string
           notes?: string | null
           penalty_shot_result?:
-            | Database["public"]["Enums"]["penalty_shot_result"]
-            | null
+            Database["public"]["Enums"]["penalty_shot_result"] | null
           penalty_shot_taker_id?: string | null
           penalty_type?: string | null
           penalty_type_other?: string | null
@@ -291,6 +293,7 @@ export type Database = {
           position: Database["public"]["Enums"]["player_position"]
           team_id: string
         }
+        ComputedFields: never
         Insert: {
           added_by?: string | null
           created_at?: string
@@ -344,6 +347,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["write_up_kind"]
           model: string
         }
+        ComputedFields: never
         Insert: {
           body: string
           edited_at?: string | null
@@ -399,6 +403,7 @@ export type Database = {
           status: Database["public"]["Enums"]["game_status"]
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           away_score?: number
           away_team_id?: string | null
@@ -472,6 +477,7 @@ export type Database = {
           player_id: string
           season_id: string | null
         }
+        ComputedFields: never
         Insert: {
           award_type: string
           created_at?: string
@@ -514,6 +520,7 @@ export type Database = {
           photo_url: string | null
           user_id: string | null
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           first_name: string
@@ -532,6 +539,52 @@ export type Database = {
         }
         Relationships: []
       }
+      posts: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          edited_at: string | null
+          game_id: string | null
+          id: string
+          parent_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          edited_at?: string | null
+          game_id?: string | null
+          id?: string
+          parent_id?: string | null
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          edited_at?: string | null
+          game_id?: string | null
+          id?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schedule_skips: {
         Row: {
           created_at: string
@@ -540,6 +593,7 @@ export type Database = {
           season_id: string
           skip_date: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           id?: string
@@ -580,6 +634,7 @@ export type Database = {
           season_id: string
           team_id: string | null
         }
+        ComputedFields: never
         Insert: {
           assists?: number
           games_played?: number
@@ -650,6 +705,7 @@ export type Database = {
           tiebreakers: string[]
           year: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           default_location?: string | null
@@ -689,6 +745,7 @@ export type Database = {
           team_id: string
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           season_id: string
@@ -727,6 +784,7 @@ export type Database = {
           season_id: string
           team_id: string
         }
+        ComputedFields: never
         Insert: {
           is_captain?: boolean
           jersey_number?: number | null
@@ -777,6 +835,7 @@ export type Database = {
           season_id: string
           slug: string
         }
+        ComputedFields: never
         Insert: {
           color: string
           created_at?: string
@@ -814,6 +873,7 @@ export type Database = {
           updated_at: string
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           email: string
@@ -838,6 +898,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           role: Database["public"]["Enums"]["user_role"]
@@ -866,19 +927,26 @@ export type Database = {
         Returns: string
       }
       admin_user_last_sign_in: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           last_sign_in_at: string
           user_id: string
         }[]
       }
       current_user_role: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_admin: { Args: never; Returns: boolean }
-      is_scorekeeper_or_admin: { Args: never; Returns: boolean }
-      is_team_captain_or_admin: { Args: never; Returns: boolean }
+      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean }
+      is_linked_player: { Args: Record<PropertyKey, never>; Returns: boolean }
+      is_scorekeeper_or_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_team_captain_or_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       reconcile_team_captain: {
         Args: { p_season: string; p_team: string }
         Returns: undefined
@@ -913,12 +981,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -940,13 +1008,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -965,13 +1032,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -990,13 +1056,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1009,11 +1074,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1044,4 +1109,3 @@ export const Constants = {
     },
   },
 } as const
-

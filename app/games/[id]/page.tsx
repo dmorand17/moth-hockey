@@ -16,7 +16,9 @@ import { BoxScore } from "@/components/BoxScore";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { buildBoxScore, resolvePosition, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSessionIfRole } from "@/lib/auth";
+import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
+import { getGamePosts } from "@/lib/queries";
+import { PostThread } from "@/components/PostThread";
 import { formatClock, formatDate, formatPeriod, formatTime } from "@/lib/format";
 
 type PlayerRef = { id: string; first_name: string; last_name: string };
@@ -89,6 +91,8 @@ export default async function GamePage({
   const awayView = awayTeam ?? tbdTeam;
 
   const viewerIsAdmin = !!(await getSessionIfRole(["admin"]));
+
+  const [gamePosts, boardViewer] = await Promise.all([getGamePosts(id), getBoardViewer()]);
 
   // Write-ups: RLS already hides hidden rows from everyone but admins.
   // `input` is only selected for admins — non-admins never receive it.
@@ -331,6 +335,80 @@ export default async function GamePage({
     });
   }
 
+  // Availability sits under the scoreboard for scheduled games (who's in matters
+  // most before puck drop) and near the end, collapsed, for live/final games.
+  // Discussion always sits directly under Availability.
+  const discussionSection = (
+    <section className="rise delay-1 space-y-4">
+      <SectionHeader eyebrow="Locker Room" title="Discussion" />
+      <PostThread threads={gamePosts} viewer={boardViewer} gameId={game.id} empty="No posts about this game yet." />
+    </section>
+  );
+
+  const availabilitySection = availability && (
+    <CollapsibleSection
+      eyebrow="Roster"
+      title="Availability"
+      subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
+      defaultOpen={false}
+      closedHint
+      className="rise delay-1 space-y-4"
+    >
+      {isScheduled && availability.viewerCanCheckIn && (
+        <div className="panel p-4 space-y-3">
+          <p className="text-[14px] text-ink">
+            You&apos;re on{" "}
+            <span className="font-medium">{availability.viewerTeamName}</span> — are you
+            in?
+          </p>
+          <CheckInToggle gameId={game.id} status={availability.viewerStatus} />
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        {availability.manageableTeamIds.includes(awayView.id) ? (
+          <AvailabilityManager
+            gameId={game.id}
+            team={awayView}
+            players={toManagedPlayers(availability.away)}
+          >
+            <SubsManager
+              gameId={game.id}
+              teamId={awayView.id}
+              subs={availability.subsByTeam.get(awayView.id) ?? []}
+              addableSubs={availability.addableSubs}
+            />
+          </AvailabilityManager>
+        ) : (
+          <TeamAvailabilityCard
+            team={awayView}
+            avail={availability.away}
+            subs={availability.subsByTeam.get(awayView.id) ?? []}
+          />
+        )}
+        {availability.manageableTeamIds.includes(homeView.id) ? (
+          <AvailabilityManager
+            gameId={game.id}
+            team={homeView}
+            players={toManagedPlayers(availability.home)}
+          >
+            <SubsManager
+              gameId={game.id}
+              teamId={homeView.id}
+              subs={availability.subsByTeam.get(homeView.id) ?? []}
+              addableSubs={availability.addableSubs}
+            />
+          </AvailabilityManager>
+        ) : (
+          <TeamAvailabilityCard
+            team={homeView}
+            avail={availability.home}
+            subs={availability.subsByTeam.get(homeView.id) ?? []}
+          />
+        )}
+      </div>
+    </CollapsibleSection>
+  );
+
   return (
     <div className="space-y-5 sm:space-y-8">
       <Link href="/schedule" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
@@ -402,6 +480,10 @@ export default async function GamePage({
           )}
         </div>
       </section>
+
+      {/* AVAILABILITY (scheduled games: right under the scoreboard) */}
+      {isScheduled && availabilitySection}
+      {isScheduled && discussionSection}
 
       {/* WRITE-UP (right after scoreboard for visibility) */}
       {isScheduled && previewWriteUp && (
@@ -552,70 +634,11 @@ export default async function GamePage({
         )}
       </CollapsibleSection>
 
-      {/* AVAILABILITY (last, collapsed by default) */}
-      {availability && (
-        <CollapsibleSection
-          eyebrow="Roster"
-          title="Availability"
-          subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
-          defaultOpen={false}
-          closedHint
-          className="rise delay-1 space-y-4"
-        >
-          {isScheduled && availability.viewerCanCheckIn && (
-            <div className="panel p-4 space-y-3">
-              <p className="text-[14px] text-ink">
-                You&apos;re on{" "}
-                <span className="font-medium">{availability.viewerTeamName}</span> — are you
-                in?
-              </p>
-              <CheckInToggle gameId={game.id} status={availability.viewerStatus} />
-            </div>
-          )}
-          <div className="grid gap-4 md:grid-cols-2">
-            {availability.manageableTeamIds.includes(awayView.id) ? (
-              <AvailabilityManager
-                gameId={game.id}
-                team={awayView}
-                players={toManagedPlayers(availability.away)}
-              >
-                <SubsManager
-                  gameId={game.id}
-                  teamId={awayView.id}
-                  subs={availability.subsByTeam.get(awayView.id) ?? []}
-                  addableSubs={availability.addableSubs}
-                />
-              </AvailabilityManager>
-            ) : (
-              <TeamAvailabilityCard
-                team={awayView}
-                avail={availability.away}
-                subs={availability.subsByTeam.get(awayView.id) ?? []}
-              />
-            )}
-            {availability.manageableTeamIds.includes(homeView.id) ? (
-              <AvailabilityManager
-                gameId={game.id}
-                team={homeView}
-                players={toManagedPlayers(availability.home)}
-              >
-                <SubsManager
-                  gameId={game.id}
-                  teamId={homeView.id}
-                  subs={availability.subsByTeam.get(homeView.id) ?? []}
-                  addableSubs={availability.addableSubs}
-                />
-              </AvailabilityManager>
-            ) : (
-              <TeamAvailabilityCard
-                team={homeView}
-                avail={availability.home}
-                subs={availability.subsByTeam.get(homeView.id) ?? []}
-              />
-            )}
-          </div>
-        </CollapsibleSection>
-      )}
+      {/* AVAILABILITY (live/final games: near the end, collapsed by default) */}
+      {!isScheduled && availabilitySection}
+
+      {/* DISCUSSION (live/final games: under availability) */}
+      {!isScheduled && discussionSection}
     </div>
   );
 }

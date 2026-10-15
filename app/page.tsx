@@ -5,10 +5,20 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { getCurrentSeason, getStandings, getUpcomingGames, getRecentResults, getScoringLeaders } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { getSessionIfRole } from "@/lib/auth";
+import { HomeBoard } from "@/components/HomeBoard";
 
-export default async function Home() {
-  const season = await getCurrentSeason();
-  if (!season) return <NoSeason isAdmin={!!(await getSessionIfRole(["admin"]))} />;
+type SearchParams = Promise<{ before?: string; boardSeason?: string }>;
+
+export default async function Home({ searchParams }: { searchParams: SearchParams }) {
+  const [season, { before, boardSeason }] = await Promise.all([getCurrentSeason(), searchParams]);
+  if (!season) {
+    return (
+      <div className="space-y-6 sm:space-y-10">
+        <NoSeason isAdmin={!!(await getSessionIfRole(["admin"]))} />
+        <HomeBoard before={before} boardSeason={boardSeason} />
+      </div>
+    );
+  }
 
   const [standings, upcoming, recent, leaders] = await Promise.all([
     getStandings(season.id),
@@ -96,6 +106,9 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* MESSAGE BOARD */}
+      <HomeBoard eyebrow="01" before={before} boardSeason={boardSeason} />
+
       {/* UPCOMING */}
       <section
         className="rise delay-1 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
@@ -105,7 +118,7 @@ export default async function Home() {
             "linear-gradient(90deg, color-mix(in srgb, var(--ice) 9%, transparent), transparent 34%)",
         }}
       >
-        <SectionHeader eyebrow="01" title="Upcoming" linkHref="/schedule" linkLabel="All games" accent="ice" />
+        <SectionHeader eyebrow="02" title="Upcoming" linkHref="/schedule" linkLabel="All games" accent="ice" />
         {upcoming.length === 0 ? (
           <p className="eyebrow">No games on the schedule</p>
         ) : (
@@ -135,7 +148,7 @@ export default async function Home() {
             "linear-gradient(90deg, color-mix(in srgb, #fbbf24 9%, transparent), transparent 34%)",
         }}
       >
-        <SectionHeader eyebrow="02" title="Recent Results" accent="gold" />
+        <SectionHeader eyebrow="03" title="Recent Results" accent="gold" />
         {recent.length === 0 ? (
           <p className="eyebrow">No results yet — first puck drops soon.</p>
         ) : (
@@ -168,7 +181,7 @@ export default async function Home() {
             "linear-gradient(90deg, color-mix(in srgb, var(--goal) 9%, transparent), transparent 34%)",
         }}
       >
-        <SectionHeader eyebrow="03" title="The Table" linkHref="/standings" linkLabel="Full standings" />
+        <SectionHeader eyebrow="04" title="The Table" linkHref="/standings" linkLabel="Full standings" />
         <div className="panel overflow-hidden">
           <table className="board-table">
             <thead>

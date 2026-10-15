@@ -100,3 +100,10 @@ Role-gated (enforced by `requireRole` + RLS):
 
 Contact info on `/players/[id]` is revealed only to `admin` / `team_captain` via
 `getSessionIfRole`.
+
+The message board lives on the homepage (`components/HomeBoard.tsx`, section 01,
+scoped to the current season with earlier seasons as a read-only archive via
+`?boardSeason=`; paginated with `?before=`; also shown off-season) with mutations in
+`app/post-actions.ts`. Posting there and in the game-page discussion requires a signed-in user
+linked to a roster player (`getBoardViewer()` in `lib/auth.ts`, plus RLS);
+reading is public.

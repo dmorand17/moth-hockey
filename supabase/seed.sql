@@ -552,3 +552,11 @@ insert into player_awards (player_id, season_id, award_type) values
   ('20000000-0000-0000-0000-000000000308', '00000000-0000-0000-0000-000000000ccc', 'goon'),
   -- Phil Esposito — Most Hat Tricks
   ('20000000-0000-0000-0000-000000000504', '00000000-0000-0000-0000-000000000ccc', 'most_hat_tricks');
+
+-- ---------- message board (#140) ----------
+-- Link dev users to roster players so they can post locally.
+-- scorekeeper@moth.test stays unlinked to exercise the "not linked" state.
+update players set user_id = 'f0000000-0000-0000-0000-000000000003'
+  where id = '20000000-0000-0000-0000-000000000102'; -- player@ → Wayne Gretzky
+update players set user_id = '7d01ac6b-7077-45c2-8b1c-41e7b15e7f41'
+  where id = '20000000-0000-0000-0000-000000000101'; -- admin@ → Doug Morand

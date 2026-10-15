@@ -4,6 +4,15 @@ export function formatClock(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+// Cash-register style mask for a clock typed on a numeric keypad (no ":" key):
+// digits shift in from the right, so "1117" reads as "11:17".
+export function maskClockInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").replace(/^0+/, "").slice(-4);
+  if (!digits) return "";
+  const padded = digits.padStart(3, "0");
+  return `${padded.slice(0, -2)}:${padded.slice(-2)}`;
+}
+
 export function formatPeriod(period: number, decidedIn?: string | null): string {
   if (period === 4) return "OT";
   if (period === 5 || decidedIn === "shootout") return "SO";

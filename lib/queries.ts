@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "./supabase/server";
-import { buildThreads, type AuthorRow, type PostRow, type Thread } from "./board";
+import { buildThreads, pickTeams, type AuthorRow, type PostRow, type RosterRow, type Thread } from "./board";
 
 export type PointSystem = "2-1-0" | "3-2-1";
 export type TieKey = "wins" | "diff" | "gf" | "ga" | "h2h";
@@ -436,7 +436,15 @@ async function hydrateThreads(top: PostRow[]): Promise<Thread[]> {
     .select("id, first_name, last_name, user_id")
     .in("user_id", userIds);
   if (authorsError) throw authorsError;
-  return buildThreads(top, (replies ?? []) as PostRow[], (authors ?? []) as AuthorRow[]);
+  const playerIds = (authors ?? []).map((a) => a.id);
+  const { data: rosters, error: rostersError } = await supabase
+    .from("team_players")
+    .select("player_id, team:teams(name, slug, color), season:seasons(is_current, start_date)")
+    .in("player_id", playerIds);
+  if (rostersError) throw rostersError;
+  const teams = pickTeams((rosters ?? []) as RosterRow[]);
+  const withTeams: AuthorRow[] = (authors ?? []).map((a) => ({ ...a, team: teams.get(a.id) ?? null }));
+  return buildThreads(top, (replies ?? []) as PostRow[], withTeams);
 }
 
 // Site board: newest 20 top-level posts older than `before` (an ISO timestamp cursor).

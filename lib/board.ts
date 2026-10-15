@@ -12,12 +12,27 @@ export type PostRow = {
   edited_at: string | null;
 };
 
-export type AuthorRow = { id: string; first_name: string; last_name: string; user_id: string | null };
+export type PostTeam = { name: string; slug: string; color: string };
+
+export type AuthorRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  user_id: string | null;
+  team?: PostTeam | null;
+};
+
+// One team_players row with its team and season, as selected for post authors.
+export type RosterRow = {
+  player_id: string;
+  team: PostTeam | null;
+  season: { is_current: boolean; start_date: string } | null;
+};
 
 export type Post = {
   id: string;
   authorId: string;
-  author: { playerId: string; name: string } | null;
+  author: { playerId: string; name: string; team: PostTeam | null } | null;
   gameId: string | null;
   body: string;
   createdAt: string;
@@ -43,7 +58,9 @@ export function postErrorMessage(err: { code?: string; message: string }): strin
 
 export function buildThreads(top: PostRow[], replies: PostRow[], authors: AuthorRow[]): Thread[] {
   const byUser = new Map(
-    authors.filter((a) => a.user_id).map((a) => [a.user_id!, { playerId: a.id, name: `${a.first_name} ${a.last_name}` }]),
+    authors
+      .filter((a) => a.user_id)
+      .map((a) => [a.user_id!, { playerId: a.id, name: `${a.first_name} ${a.last_name}`, team: a.team ?? null }]),
   );
   const toPost = (r: PostRow): Post => ({
     id: r.id,
@@ -73,6 +90,21 @@ export function parseCursor(raw: string | undefined): string | undefined {
   if (Number.isNaN(Date.parse(raw))) return undefined;
 
   return raw;
+}
+
+// Each player's team for display: this season's, else their most recent one.
+export function pickTeams(rows: RosterRow[]): Map<string, PostTeam> {
+  const best = new Map<string, RosterRow>();
+  for (const r of rows) {
+    if (!r.team || !r.season) continue;
+    const cur = best.get(r.player_id);
+    const better =
+      !cur ||
+      (r.season.is_current && !cur.season!.is_current) ||
+      (r.season.is_current === cur.season!.is_current && r.season.start_date > cur.season!.start_date);
+    if (better) best.set(r.player_id, r);
+  }
+  return new Map([...best].map(([id, r]) => [id, r.team!]));
 }
 
 export function formatRelative(iso: string, now: Date = new Date()): string {

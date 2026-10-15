@@ -4,10 +4,12 @@ import {
   buildThreads,
   formatRelative,
   parseCursor,
+  pickTeams,
   postErrorMessage,
   validateBody,
   type AuthorRow,
   type PostRow,
+  type RosterRow,
 } from "./board";
 
 describe("validateBody", () => {
@@ -75,8 +77,14 @@ describe("buildThreads", () => {
     expect(threads.map((t) => t.id)).toEqual(["t2", "t1"]);
     expect(threads[0].replies).toEqual([]);
     expect(threads[1].replies.map((r) => r.id)).toEqual(["r1", "r2"]);
-    expect(threads[1].author).toEqual({ playerId: "pl1", name: "Wayne Gretzky" });
+    expect(threads[1].author).toEqual({ playerId: "pl1", name: "Wayne Gretzky", team: null });
     expect(threads[1].authorId).toBe("u1");
+  });
+
+  test("carries the author's team", () => {
+    const ravens = { name: "Ravens", slug: "ravens", color: "#123456" };
+    const [t] = buildThreads([row({ id: "t" })], [], [{ ...authors[0], team: ravens }]);
+    expect(t.author?.team).toEqual(ravens);
   });
 
   test("author is null when no linked player", () => {
@@ -142,5 +150,35 @@ describe("formatRelative", () => {
 
   test("falls back to a date after 7 days", () => {
     expect(formatRelative("2026-10-01T18:00:00Z", now)).toBe("Thu, Oct 1");
+  });
+});
+
+describe("pickTeams", () => {
+  const ravens = { name: "Ravens", slug: "ravens", color: "#111111" };
+  const wolves = { name: "Wolves", slug: "wolves", color: "#222222" };
+  const bears = { name: "Bears", slug: "bears", color: "#333333" };
+  const r = (player_id: string, team: RosterRow["team"], is_current: boolean, start_date: string): RosterRow => ({
+    player_id,
+    team,
+    season: { is_current, start_date },
+  });
+
+  test("prefers the current season's team", () => {
+    const teams = pickTeams([r("p1", wolves, false, "2026-01-01"), r("p1", ravens, true, "2025-09-01")]);
+    expect(teams.get("p1")).toEqual(ravens);
+  });
+
+  test("falls back to the most recent season", () => {
+    const teams = pickTeams([r("p1", bears, false, "2024-09-01"), r("p1", wolves, false, "2025-09-01")]);
+    expect(teams.get("p1")).toEqual(wolves);
+  });
+
+  test("players with no roster rows are absent", () => {
+    expect(pickTeams([r("p1", ravens, true, "2025-09-01")]).has("p2")).toBe(false);
+  });
+
+  test("ignores rows missing a team or season", () => {
+    const rows: RosterRow[] = [{ player_id: "p1", team: null, season: null }, r("p1", bears, false, "2024-09-01")];
+    expect(pickTeams(rows).get("p1")).toEqual(bears);
   });
 });

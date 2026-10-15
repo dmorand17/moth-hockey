@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PostBody } from "@/components/PostBody";
 import { PostCard } from "@/components/PostCard";
 import { PostForm } from "@/components/PostForm";
+import { ShowMore } from "@/components/ShowMore";
 import type { BoardViewer } from "@/lib/auth";
 import { formatRelative, type Post, type Thread } from "@/lib/board";
 
@@ -12,11 +13,14 @@ export function PostThread({
   viewer,
   gameId,
   empty,
+  visible,
 }: {
   threads: Thread[];
   viewer: BoardViewer | null;
   gameId: string | null;
   empty: string;
+  /** Show only this many threads until "Show more" is clicked. Omit to show all. */
+  visible?: number;
 }) {
   const now = new Date();
   const canPost = !!viewer?.isLinked;
@@ -51,23 +55,25 @@ export function PostThread({
         <p className="text-[14px] text-ink-dim">{empty}</p>
       ) : (
         <ol className="space-y-3">
-          {threads.map((t) => (
-            <li key={t.id} className="panel p-4 space-y-3">
-              {card(t)}
-              {(t.replies.length > 0 || canPost) && (
-                <ol className="space-y-3 border-l-2 border-rule pl-4 ml-1">
-                  {t.replies.map((r) => (
-                    <li key={r.id}>{card(r)}</li>
-                  ))}
-                  {canPost && (
-                    <li>
-                      <PostForm gameId={gameId} parentId={t.id} />
-                    </li>
-                  )}
-                </ol>
-              )}
-            </li>
-          ))}
+          <ShowMore visible={visible ?? threads.length}>
+            {threads.map((t) => (
+              <li key={t.id} className="panel p-4 space-y-3">
+                {card(t)}
+                {(t.replies.length > 0 || canPost) && (
+                  <ol className="space-y-3 pl-4">
+                    {t.replies.map((r) => (
+                      <li key={r.id}>{card(r)}</li>
+                    ))}
+                    {canPost && (
+                      <li>
+                        <PostForm gameId={gameId} parentId={t.id} />
+                      </li>
+                    )}
+                  </ol>
+                )}
+              </li>
+            ))}
+          </ShowMore>
         </ol>
       )}
     </div>

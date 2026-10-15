@@ -25,7 +25,13 @@ export async function HomeBoard({ eyebrow, before }: { eyebrow?: string; before?
       }}
     >
       <SectionHeader eyebrow={eyebrow} title="Locker Room" />
-      <PostThread threads={threads} viewer={viewer} gameId={null} empty="No posts yet — start the conversation." />
+      <PostThread
+        threads={threads}
+        viewer={viewer}
+        gameId={null}
+        empty="No posts yet — start the conversation."
+        visible={5}
+      />
       {(nextCursor || cursor) && (
         <nav className="flex gap-4">
           {cursor && (

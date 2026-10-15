@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TeamBadge } from "@/components/TeamBadge";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -43,14 +44,22 @@ export function PostCard({
     });
 
   return (
-    <article className="space-y-2">
-      <header className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+    <article
+      className="space-y-2 border-l-[3px] pl-3"
+      style={{ borderLeftColor: post.author?.team?.color ?? "var(--rule)" }}
+    >
+      <header className="flex flex-wrap items-center gap-x-2 text-[13px]">
         {post.author ? (
           <Link href={`/players/${post.author.playerId}`} className="font-semibold text-ink hover:text-ice">
             {post.author.name}
           </Link>
         ) : (
           <span className="font-semibold text-ink-dim">Former player</span>
+        )}
+        {post.author?.team && (
+          <Link href={`/teams/${post.author.team.slug}`} className="text-ink-dim hover:text-ink transition-colors">
+            <TeamBadge {...post.author.team} size="sm" asChild />
+          </Link>
         )}
         <span className="text-ink-faint">· {when}</span>
         {post.editedAt && <span className="text-ink-faint">(edited)</span>}

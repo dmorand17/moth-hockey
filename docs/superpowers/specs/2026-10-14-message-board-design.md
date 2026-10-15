@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-14
 **Status:** Approved 2026-10-14.
-**Revised 2026-10-14:** the board moved from `/board` onto the homepage as section 01 (above Upcoming), also rendered off-season; `/board` and its nav link were removed. Actions live in `app/post-actions.ts`; pagination uses `/?before=<cursor>#board`.
+**Revised 2026-10-14:** the board moved from `/board` onto the homepage as section 01 (above Upcoming), also rendered off-season; `/board` and its nav link were removed. Actions live in `app/post-actions.ts`; pagination uses `/?before=<cursor>#board`. The homepage shows the newest 5 threads with a "Show N more" button for the rest of the page. Each post shows the author's team (current season, else most recent) as a chip and a team-color left border, on the homepage and game discussions.
 **Issue:** #140
 
 ## Problem

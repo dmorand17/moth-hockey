@@ -10,6 +10,11 @@ export function PostBody({ body }: { body: string }) {
         remarkPlugins={[remarkGfm]}
         disallowedElements={["img"]}
         components={{
+          // prose-rink only styles h2–h4 (the page owns the h1), so shift
+          // `#` down a level and fold h5/h6 into h4.
+          h1: ({ children }) => <h2>{children}</h2>,
+          h5: ({ children }) => <h4>{children}</h4>,
+          h6: ({ children }) => <h4>{children}</h4>,
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="nofollow noopener noreferrer">
               {children}

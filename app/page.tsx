@@ -7,15 +7,15 @@ import { NoSeason } from "@/components/NoSeason";
 import { getSessionIfRole } from "@/lib/auth";
 import { HomeBoard } from "@/components/HomeBoard";
 
-type SearchParams = Promise<{ before?: string }>;
+type SearchParams = Promise<{ before?: string; boardSeason?: string }>;
 
 export default async function Home({ searchParams }: { searchParams: SearchParams }) {
-  const [season, { before }] = await Promise.all([getCurrentSeason(), searchParams]);
+  const [season, { before, boardSeason }] = await Promise.all([getCurrentSeason(), searchParams]);
   if (!season) {
     return (
       <div className="space-y-6 sm:space-y-10">
         <NoSeason isAdmin={!!(await getSessionIfRole(["admin"]))} />
-        <HomeBoard before={before} />
+        <HomeBoard before={before} boardSeason={boardSeason} />
       </div>
     );
   }
@@ -107,7 +107,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
       </section>
 
       {/* MESSAGE BOARD */}
-      <HomeBoard eyebrow="01" before={before} />
+      <HomeBoard eyebrow="01" before={before} boardSeason={boardSeason} />
 
       {/* UPCOMING */}
       <section

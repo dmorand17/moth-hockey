@@ -107,6 +107,37 @@ export function pickTeams(rows: RosterRow[]): Map<string, PostTeam> {
   return new Map([...best].map(([id, r]) => [id, r.team!]));
 }
 
+export type BoardSeason = { id: string; name: string; start_date: string; is_current: boolean };
+
+export type BoardSeasonWindow = {
+  season: { id: string; name: string };
+  /** Inclusive lower bound (season start), or null for the oldest season. */
+  from: string | null;
+  /** Exclusive upper bound (the next season's start), or null for the newest. */
+  to: string | null;
+  older: { id: string; name: string } | null;
+  isDefault: boolean;
+};
+
+// Splits the board's timeline into seasons: a season owns every post from its
+// start date until the next season starts, so off-season chatter belongs to the
+// season before it. Defaults to the current season (else the most recent one).
+export function boardSeasonWindow(seasons: BoardSeason[], requestedId: string | undefined): BoardSeasonWindow | null {
+  const list = [...seasons].sort((a, b) => b.start_date.localeCompare(a.start_date));
+  if (list.length === 0) return null;
+  const fallback = Math.max(0, list.findIndex((x) => x.is_current));
+  const requested = requestedId ? list.findIndex((x) => x.id === requestedId) : -1;
+  const i = requested >= 0 ? requested : fallback;
+  const pick = (x: BoardSeason | undefined) => (x ? { id: x.id, name: x.name } : null);
+  return {
+    season: pick(list[i])!,
+    from: i === list.length - 1 ? null : list[i].start_date,
+    to: i === 0 ? null : list[i - 1].start_date,
+    older: pick(list[i + 1]),
+    isDefault: i === fallback,
+  };
+}
+
 export function formatRelative(iso: string, now: Date = new Date()): string {
   const secs = Math.floor((now.getTime() - new Date(iso).getTime()) / 1000);
   if (secs < 60) return "just now";

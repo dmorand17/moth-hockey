@@ -15,6 +15,7 @@ export function PostThread({
   gameId,
   empty,
   visible,
+  archived,
 }: {
   threads: Thread[];
   viewer: BoardViewer | null;
@@ -22,9 +23,11 @@ export function PostThread({
   empty: string;
   /** Show only this many threads until "Show more" is clicked. Omit to show all. */
   visible?: number;
+  /** Season name when showing a past season: read-only, no composer or replies. */
+  archived?: string;
 }) {
   const now = new Date();
-  const canPost = !!viewer?.isLinked;
+  const canPost = !!viewer?.isLinked && !archived;
   const card = (post: Post, opts: { replyCount?: number; size?: "md" | "sm" } = {}) => (
     <PostCard
       post={post}
@@ -42,7 +45,11 @@ export function PostThread({
   return (
     <div className="panel overflow-hidden">
       <div className="px-4 py-3 border-b border-rule">
-        {!viewer ? (
+        {archived ? (
+          <p className="py-1 text-[14px] text-ink-dim">
+            {archived} archive — read only. New posts go on the current season&apos;s board.
+          </p>
+        ) : !viewer ? (
           <div className="flex items-center justify-between gap-3 py-1">
             <p className="text-[14px] text-ink-dim">Join the conversation.</p>
             <Link

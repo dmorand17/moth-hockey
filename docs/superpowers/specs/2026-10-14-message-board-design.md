@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-14
 **Status:** Approved 2026-10-14.
-**Revised 2026-10-14:** the board moved from `/board` onto the homepage as section 01 (above Upcoming), also rendered off-season; `/board` and its nav link were removed. Actions live in `app/post-actions.ts`; pagination uses `/?before=<cursor>#board`. The homepage shows the newest 5 threads with a "Show N more" button for the rest of the page. Each post shows the author's team (current season, else most recent) as a team-color chip next to their name and a team-color initials avatar (X-style feed), on the homepage and game discussions.
+**Revised 2026-10-14:** the board moved from `/board` onto the homepage as section 01 (above Upcoming), also rendered off-season; `/board` and its nav link were removed. Actions live in `app/post-actions.ts`; pagination uses `/?before=<cursor>#board`. The homepage shows the newest 5 threads with a "Show N more" button for the rest of the page. Each post shows the author's team (current season, else most recent) as a team-color chip next to their name and a team-color initials avatar (X-style feed), on the homepage and game discussions. The homepage board is season-scoped: a season owns posts from its start date until the next season starts; it shows the current season (else the most recent), and older seasons are a read-only archive at `/?boardSeason=<id>`, linked from the end of each season. No posts are deleted.
 **Issue:** #140
 
 ## Problem

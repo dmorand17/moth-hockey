@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   BODY_MAX,
+  boardSeasonWindow,
   buildThreads,
   formatRelative,
   parseCursor,
@@ -180,5 +181,49 @@ describe("pickTeams", () => {
   test("ignores rows missing a team or season", () => {
     const rows: RosterRow[] = [{ player_id: "p1", team: null, season: null }, r("p1", bears, false, "2024-09-01")];
     expect(pickTeams(rows).get("p1")).toEqual(bears);
+  });
+});
+
+describe("boardSeasonWindow", () => {
+  const seasons = [
+    { id: "s3", name: "Fall 2026", start_date: "2026-09-01", is_current: false },
+    { id: "s2", name: "Spring 2026", start_date: "2026-03-01", is_current: true },
+    { id: "s1", name: "Fall 2025", start_date: "2025-09-01", is_current: false },
+  ];
+
+  test("defaults to the current season, bounded by the next season's start", () => {
+    expect(boardSeasonWindow(seasons, undefined)).toEqual({
+      season: { id: "s2", name: "Spring 2026" },
+      from: "2026-03-01",
+      to: "2026-09-01",
+      older: { id: "s1", name: "Fall 2025" },
+      isDefault: true,
+    });
+  });
+
+  test("falls back to the most recent season when none is current", () => {
+    const offSeason = seasons.map((s) => ({ ...s, is_current: false }));
+    const w = boardSeasonWindow(offSeason, undefined);
+    expect(w?.season.id).toBe("s3");
+    expect(w?.to).toBeNull();
+  });
+
+  test("a requested season; the oldest window is open-ended backwards", () => {
+    const w = boardSeasonWindow(seasons, "s1");
+    expect(w).toEqual({
+      season: { id: "s1", name: "Fall 2025" },
+      from: null,
+      to: "2026-03-01",
+      older: null,
+      isDefault: false,
+    });
+  });
+
+  test("an unknown id falls back to the default", () => {
+    expect(boardSeasonWindow(seasons, "nope")?.season.id).toBe("s2");
+  });
+
+  test("no seasons → no window", () => {
+    expect(boardSeasonWindow([], undefined)).toBeNull();
   });
 });

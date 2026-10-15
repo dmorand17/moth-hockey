@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "./supabase/server";
-import { buildThreads, pickTeams, type AuthorRow, type PostRow, type RosterRow, type Thread } from "./board";
+import { buildThreads, pickTeams, type AuthorRow, type BoardSeason, type PostRow, type RosterRow, type Thread } from "./board";
 
 export type PointSystem = "2-1-0" | "3-2-1";
 export type TieKey = "wins" | "diff" | "gf" | "ga" | "h2h";
@@ -447,9 +447,18 @@ async function hydrateThreads(top: PostRow[]): Promise<Thread[]> {
   return buildThreads(top, (replies ?? []) as PostRow[], withTeams);
 }
 
-// Site board: newest 20 top-level posts older than `before` (an ISO timestamp cursor).
+// Seasons for scoping the board (see boardSeasonWindow in lib/board.ts).
+export async function getBoardSeasons(): Promise<BoardSeason[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("seasons").select("id, name, start_date, is_current");
+  if (error) throw error;
+  return data ?? [];
+}
+
+// Site board: newest 20 top-level posts older than `before` (an ISO timestamp
+// cursor), optionally limited to a season window [from, to).
 export async function getBoardPosts(
-  opts: { before?: string } = {},
+  opts: { before?: string; from?: string | null; to?: string | null } = {},
 ): Promise<{ threads: Thread[]; nextCursor: string | null }> {
   const supabase = await createSupabaseServerClient();
   let query = supabase
@@ -460,6 +469,8 @@ export async function getBoardPosts(
     .order("created_at", { ascending: false })
     .limit(BOARD_PAGE_SIZE + 1);
   if (opts.before) query = query.lt("created_at", opts.before);
+  if (opts.from) query = query.gte("created_at", opts.from);
+  if (opts.to) query = query.lt("created_at", opts.to);
   const { data, error } = await query;
   if (error) throw error;
   const rows = (data ?? []) as PostRow[];

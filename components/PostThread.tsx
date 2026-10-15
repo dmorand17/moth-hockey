@@ -24,12 +24,14 @@ export function PostThread({
 }) {
   const now = new Date();
   const canPost = !!viewer?.isLinked;
-  const card = (post: Post) => (
+  const card = (post: Post, replyCount?: number) => (
     <PostCard
       post={post}
       when={formatRelative(post.createdAt, now)}
       canEdit={!!viewer && (viewer.userId === post.authorId || viewer.isAdmin)}
       canDelete={!!viewer?.isAdmin}
+      reply={canPost && replyCount !== undefined ? { gameId } : undefined}
+      replyCount={replyCount}
     >
       <PostBody body={post.body} />
     </PostCard>
@@ -54,21 +56,16 @@ export function PostThread({
       {threads.length === 0 ? (
         <p className="text-[14px] text-ink-dim">{empty}</p>
       ) : (
-        <ol className="space-y-3">
+        <ol className="panel divide-y divide-rule">
           <ShowMore visible={visible ?? threads.length}>
             {threads.map((t) => (
-              <li key={t.id} className="panel p-4 space-y-3">
-                {card(t)}
-                {(t.replies.length > 0 || canPost) && (
-                  <ol className="space-y-3 pl-4">
+              <li key={t.id} className="px-4 py-3 space-y-3">
+                {card(t, t.replies.length)}
+                {t.replies.length > 0 && (
+                  <ol className="space-y-3 pl-5">
                     {t.replies.map((r) => (
                       <li key={r.id}>{card(r)}</li>
                     ))}
-                    {canPost && (
-                      <li>
-                        <PostForm gameId={gameId} parentId={t.id} />
-                      </li>
-                    )}
                   </ol>
                 )}
               </li>

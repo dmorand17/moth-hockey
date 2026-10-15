@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { deletePost, editPost } from "@/app/board/actions";
+import { deletePost, editPost } from "@/app/post-actions";
 import type { ActionResult } from "@/lib/action-result";
 import { BODY_MAX, type Post } from "@/lib/board";
 

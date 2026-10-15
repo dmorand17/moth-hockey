@@ -7,7 +7,7 @@ import { ok, fail, type ActionResult } from "@/lib/action-result";
 import { postErrorMessage, validateBody } from "@/lib/board";
 
 function revalidateBoard(gameId: string | null) {
-  revalidatePath("/board");
+  revalidatePath("/");
   if (gameId) revalidatePath(`/games/${gameId}`);
 }
 

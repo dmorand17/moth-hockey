@@ -6,7 +6,7 @@ import type { BoardViewer } from "@/lib/auth";
 import { formatRelative, type Post, type Thread } from "@/lib/board";
 
 // Composer (or why you can't post) followed by top-level posts and their replies.
-// Shared by /board (gameId = null) and the game page discussion.
+// Shared by the homepage board (gameId = null) and the game page discussion.
 export function PostThread({
   threads,
   viewer,

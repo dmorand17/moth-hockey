@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-14
 **Status:** Approved 2026-10-14.
+**Revised 2026-10-14:** the board moved from `/board` onto the homepage as section 01 (above Upcoming), also rendered off-season; `/board` and its nav link were removed. Actions live in `app/post-actions.ts`; pagination uses `/?before=<cursor>#board`.
 **Issue:** #140
 
 ## Problem

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createPost } from "@/app/board/actions";
+import { createPost } from "@/app/post-actions";
 import { BODY_MAX } from "@/lib/board";
 
 const btn =

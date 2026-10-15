@@ -86,7 +86,7 @@ client (`createServerClient<Database>`, etc.).
 ## Routes
 
 Public (anonymous read): `/`, `/teams`, `/teams/[slug]`, `/players/[id]`,
-`/schedule`, `/games/[id]`, `/standings`, `/stats`, `/board`, `/about`, `/about/[section]`.
+`/schedule`, `/games/[id]`, `/standings`, `/stats`, `/about`, `/about/[section]`.
 
 Auth flows: `/login`, `/signup`, `/account`, `/auth/callback`.
 
@@ -101,6 +101,8 @@ Role-gated (enforced by `requireRole` + RLS):
 Contact info on `/players/[id]` is revealed only to `admin` / `team_captain` via
 `getSessionIfRole`.
 
-Posting on `/board` and in the game-page discussion requires a signed-in user
+The message board lives on the homepage (`components/HomeBoard.tsx`, section 01,
+paginated with `?before=`; also shown off-season) with mutations in
+`app/post-actions.ts`. Posting there and in the game-page discussion requires a signed-in user
 linked to a roster player (`getBoardViewer()` in `lib/auth.ts`, plus RLS);
 reading is public.

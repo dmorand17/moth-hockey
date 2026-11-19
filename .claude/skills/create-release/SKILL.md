@@ -38,7 +38,8 @@ Pass an explicit version to skip the prompt:
    argument if provided.
 4. Builds release notes from merged PRs on `main` since the previous tag.
 5. Creates an annotated git tag on `origin/main` and pushes it with `git push`.
-6. Creates a GitHub release via `gh release create`.
+6. Creates a GitHub release via `gh release create`, titled with just the tag
+   (e.g. `v3.6.0`, never "Release v3.6.0").
 
 ## Notes
 

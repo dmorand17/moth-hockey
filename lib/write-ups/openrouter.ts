@@ -14,14 +14,14 @@ const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-6-luna";
 const DEFAULT_FALLBACK = "google/gemini-2.5-flash-lite";
 
-async function callOnce(apiKey: string, model: string, system: string, user: string): Promise<ModelResult> {
+async function callOnce(apiKey: string, model: string, system: string, user: string, maxTokens: number): Promise<ModelResult> {
   const body: Record<string, unknown> = {
     model,
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    max_tokens: 1000,
+    max_tokens: maxTokens,
     usage: { include: true },
   };
   // OpenAI's reasoning models default to medium effort; a 150-word write-up
@@ -58,17 +58,20 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
   };
 }
 
-export async function generateText(system: string, user: string): Promise<ModelResult> {
+// `maxTokens` caps output (reasoning tokens count too); game write-ups use the
+// default, the season summary asks for more.
+export async function generateText(system: string, user: string, opts: { maxTokens?: number } = {}): Promise<ModelResult> {
+  const maxTokens = opts.maxTokens ?? 1000;
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
   const primary = process.env.WRITE_UP_MODEL || DEFAULT_MODEL;
   const fallback = process.env.WRITE_UP_FALLBACK_MODEL || DEFAULT_FALLBACK;
 
   try {
-    return await callOnce(apiKey, primary, system, user);
+    return await callOnce(apiKey, primary, system, user, maxTokens);
   } catch (first) {
     try {
-      return await callOnce(apiKey, fallback, system, user);
+      return await callOnce(apiKey, fallback, system, user, maxTokens);
     } catch (second) {
       throw new Error(`both models failed — ${String(first)}; ${String(second)}`);
     }

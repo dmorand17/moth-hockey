@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { recapState, seasonSlug } from "@/lib/seasons";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
@@ -79,6 +80,7 @@ export default async function AdminSeasonsPage() {
     .order("start_date", { ascending: false });
 
   const seasons = (seasonsRaw ?? []) as SeasonRow[];
+  const today = new Date().toISOString().slice(0, 10);
 
   // Aggregate counts per season for the summary chips + playoff bracket details.
   const [{ data: teamRows }, { data: gameRows }, { data: playoffRows }, { data: rosterRows }, { data: allPlayers }] =
@@ -296,6 +298,14 @@ export default async function AdminSeasonsPage() {
                       <span className="chip chip-final text-[10px] px-1.5 py-0.5 shrink-0">
                         FINALIZED
                       </span>
+                    )}
+                    {recapState(season, seasons, today) === "complete" && (
+                      <Link
+                        href={`/seasons/${seasonSlug(season.name)}/recap`}
+                        className="shrink-0 inline-flex items-center min-h-11 text-[13px] font-semibold text-ice hover:text-ink transition-colors"
+                      >
+                        Recap →
+                      </Link>
                     )}
                     <span className="font-mono text-[11px] text-ink-faint shrink-0">
                       {teamCount} teams · {gameTotal} games

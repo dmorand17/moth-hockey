@@ -4,16 +4,17 @@ import {
   type StatsEvent,
   type PrecomputedSkater,
   type PrecomputedGoalie,
+  type StatsRecapLink,
 } from "@/components/StatsExplorer";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSeasons } from "@/lib/queries";
+import { getChampionTeamId, getRecapSeasons, getSeasons } from "@/lib/queries";
+import { recapState, seasonSlug } from "@/lib/seasons";
 import { NoSeason } from "@/components/NoSeason";
-import { groupAwards } from "@/lib/awards";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Stats",
-  description: "League leaders, skater and goalie stats, and award winners.",
+  description: "League leaders and skater and goalie stats, with a link to each season's recap.",
 };
 
 type SearchParams = Promise<{ season?: string }>;
@@ -38,7 +39,8 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
     supabase
       .from("player_awards")
       .select("award_type, player:player_id(id, first_name, last_name)")
-      .eq("season_id", season.id),
+      .eq("season_id", season.id)
+      .eq("award_type", "champion"),
   ]);
   const teams = teamsRes.data ?? [];
 
@@ -47,7 +49,21 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
   const championPlayerIds = new Set(
     (awardsRes.data ?? []).filter((a) => a.award_type === "champion" && a.player).map((a) => a.player!.id),
   );
-  const awardWinners = groupAwards(awardsRes.data ?? []);
+
+  // Link to the season recap (award winners live there now).
+  const [recapSeasons, finalWinnerId] = await Promise.all([getRecapSeasons(), getChampionTeamId(season.id)]);
+  const recapSeason = recapSeasons.find((x) => x.id === season.id);
+  const state = recapSeason ? recapState(recapSeason, recapSeasons, new Date().toISOString().slice(0, 10)) : "upcoming";
+  const recapFor = (championTeamId: string | null): StatsRecapLink | null => {
+    if (state === "upcoming") return null;
+    const champ = teams.find((t) => t.id === championTeamId);
+    return {
+      href: `/seasons/${seasonSlug(season.name)}/recap`,
+      seasonName: season.name,
+      champion: champ ? { name: champ.name, color: champ.color } : null,
+      inProgress: state === "in-progress",
+    };
+  };
 
   // ---- Past season: pre-aggregated totals (imported, or saved by finalize). ----
   if (!season.is_current) {
@@ -118,8 +134,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
           seasons={seasons}
           selectedSeasonId={season.id}
           teams={teams}
-          awardWinners={awardWinners}
-          awardsPending={season.is_current}
+          recap={recapFor(finalWinnerId ?? [...championTeamIds][0] ?? null)}
           precomputed={{ skaters, goalies }}
         />
       </div>
@@ -213,8 +228,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
         seasons={seasons}
         selectedSeasonId={season.id}
         teams={teams}
-        awardWinners={awardWinners}
-        awardsPending={season.is_current}
+        recap={recapFor(finalWinnerId)}
         games={games}
         roster={roster}
         appearances={appearances}

@@ -105,7 +105,12 @@ const isActive = (pathname: string, href: string, exact?: boolean) =>
 export function BottomNav({ authLinks }: { authLinks: AuthLink[] }) {
   const pathname = usePathname();
   const dialog = useRef<HTMLDialogElement>(null);
-  const moreLinks = [{ href: "/teams", label: "Teams" }, { href: "/about", label: "About" }, ...authLinks];
+  const moreLinks = [
+    { href: "/teams", label: "Teams" },
+    { href: "/about", label: "About" },
+    { href: "/recap", label: "Season recap" },
+    ...authLinks,
+  ];
   const moreActive = moreLinks.some((l) => isActive(pathname, l.href));
   const close = () => dialog.current?.close();
 

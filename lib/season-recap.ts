@@ -233,6 +233,7 @@ const JUMP_LINKS = [
   ["awards", "Awards"],
   ["season", "Season"],
   ["playoffs", "Playoffs"],
+  ["media", "Photos"],
   ["board", "Board"],
 ] as const;
 

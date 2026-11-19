@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { ok, fail, type ActionResult } from "@/lib/action-result";
 import { getAuthSession } from "@/lib/auth";
+import { logEvent } from "@/lib/log";
 import { getSeasonRecap } from "@/lib/queries";
 import { numbersNotInFacts, parseRecapSummary } from "@/lib/recap-summary/check";
 import { buildRecapFacts, computeRecap } from "@/lib/recap-summary/facts";
@@ -34,16 +35,23 @@ export async function generateRecapSummary({ slug }: { slug: string }): Promise<
   if (r.state !== "complete") return fail("Season isn't complete yet.");
 
   const facts = buildRecapFacts(r, computeRecap(r));
+  // One "ai.summary" line per attempt: the outcome after the model call(s).
+  const outcome = (data: Record<string, unknown>, level: "info" | "error" = "info") =>
+    logEvent("ai.summary", { season: slug, ...data }, level);
   let result;
   try {
-    result = await generateText(RECAP_SYSTEM, buildRecapPrompt(facts), { maxTokens: 6000, timeoutMs: 75_000 });
+    result = await generateText(RECAP_SYSTEM, buildRecapPrompt(facts), {
+      maxTokens: 6000,
+      timeoutMs: 75_000,
+      context: { feature: "season-summary", season: slug },
+    });
   } catch (e) {
-    console.error("recap summary generation failed", e);
+    outcome({ outcome: "error", error: String(e) }, "error");
     return fail("The AI didn't respond. Try again in a minute.");
   }
   const parsed = parseRecapSummary(result.text);
   if (!parsed.ok) {
-    console.error("recap summary rejected:", parsed.reason);
+    outcome({ outcome: "rejected", model: result.model, reason: parsed.reason }, "error");
     return fail(`The AI's draft was unusable (${parsed.reason}). Try again.`);
   }
 
@@ -56,9 +64,19 @@ export async function generateRecapSummary({ slug }: { slug: string }): Promise<
     edited_by: null,
     edited_at: null,
   });
-  if (error) return fail(error.message);
+  if (error) {
+    outcome({ outcome: "error", model: result.model, error: error.message }, "error");
+    return fail(error.message);
+  }
   revalidatePath(`/seasons/${slug}/recap`);
   const unknown = numbersNotInFacts(parsed.markdown, facts);
+  outcome({
+    outcome: "saved",
+    model: result.model,
+    words: parsed.markdown.split(/\s+/).length,
+    sections: (parsed.markdown.match(/^## /gm) ?? []).length,
+    unknownNumbers: unknown,
+  });
   return ok(unknown.length ? `Draft ready — check: ${unknown.join(", ")}` : "Draft ready");
 }
 

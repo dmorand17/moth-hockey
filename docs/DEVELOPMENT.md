@@ -143,16 +143,27 @@ is already seeded as admin.)
 
 Game previews and recaps, and the season recap report, are written by a model through OpenRouter.
 
-- **Model:** `WRITE_UP_MODEL` (default `openai/gpt-6-luna`), falling back to
-  `WRITE_UP_FALLBACK_MODEL` (default `google/gemini-2.5-flash-lite`). Change either in
+- **Model:** `WRITE_UP_MODEL` (default `deepseek/deepseek-v4.1-flash-1017`), falling back to
+  `WRITE_UP_FALLBACK_MODEL` (default `openai/gpt-6-luna`). Change either in
   Vercel's env settings; no deploy needed.
 - **Reasoning:** every call sends OpenRouter's `reasoning: { effort: "low" }`, which
   caps reasoning at ~20% of `max_tokens`. Reasoning tokens count against
   `max_tokens` and the timeout, so a model reasoning at its default can come back
   truncated or empty and trigger the fallback.
-- **Logs:** each model call writes one `[ai]` line to the Vercel runtime logs
-  (model, duration, tokens, cost, or the error), plus a `[ai] primary … failed,
-  using fallback` warning when the fallback runs. Filter the Vercel logs on `[ai]`.
+- **Logs (Vercel → Logs; search an event name or any value):** one JSON line per event.
+  - `ai.call` — every OpenRouter call: `feature` (`write-up` with `kind`/`game`, or
+    `season-summary` with `season`), `role` (primary/fallback), `requested` vs. the
+    `model` that answered, `provider`, OpenRouter generation `id` (look it up in the
+    OpenRouter activity page), `ms`, `finish` reason, `promptTokens`/`completionTokens`/
+    `reasoningTokens`, `costUsd`, `promptChars`/`outputChars`, `maxTokens`/`timeoutMs`;
+    on failure `ok:false` with the `error` and HTTP `status` (warning level).
+  - `ai.fallback` — the primary failed and the fallback is being tried (`from`, `to`, `reason`).
+  - `ai.write-up` — a write-up's outcome: `gameId`, `kind`, `status`
+    (created/exists/not_ready/failed), `detail`.
+  - `ai.summary` — a season report's outcome: `season`, `outcome`
+    (saved/rejected/error), `model`, `words`, `sections`, `unknownNumbers`, or the `reason`/`error`.
+
+  Prompts and outputs are never logged, only their sizes.
 - **When:** a Vercel Cron job (`vercel.json`, daily 18:00 UTC) calls
   `/api/cron/write-ups` for previews of games in the next 36h and recaps missing
   from the last 7 days. Finalizing a game also writes its recap in the background.
@@ -160,8 +171,8 @@ Game previews and recaps, and the season recap report, are written by a model th
   `curl -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3001/api/cron/write-ups`
 - **Env:** `OPENROUTER_API_KEY`, `SUPABASE_SECRET_KEY` (server-only), `CRON_SECRET`,
   plus the two model vars. See `.env.example`.
-- **OpenRouter guardrails:** the workspace must allow the OpenAI and Google
-  providers. With Zero Data Retention on, at least one ZDR-compliant endpoint per
+- **OpenRouter guardrails:** the workspace must allow the DeepSeek and OpenAI
+  providers (plus any provider of a model set in Vercel). With Zero Data Retention on, at least one ZDR-compliant endpoint per
   model must stay allowed.
 - **Tests:** `bun run test` runs the pure-module tests in `lib/`.
 - **Generate (admin):** a game with no write-up shows admins a "Generate preview" (scheduled) or "Generate recap" (final) button — useful for finals outside the cron's 7-day window. It never replaces an existing write-up.
@@ -170,5 +181,4 @@ Game previews and recaps, and the season recap report, are written by a model th
 - **Season context:** Inputs include each team's standings place, top-3 season points leaders with league ranks, the expected goalie's season record, head-to-head this season, and (recaps) every scorer's season totals after the game.
 - **AI input stored:** each write-up stores the exact model input (`input`); admins
   can open "View AI input" on the card to inspect it.
-- **Generation log line format:**
-  `[write-ups] {"gameId":…,"kind":…,"status":…,"detail":"<model> in=<prompt tokens> out=<completion tokens> $<cost>"}`
+- **Generation log line format:** see **Logs** above (`ai.write-up`, plus one `ai.call` per model call).

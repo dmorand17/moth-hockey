@@ -38,7 +38,7 @@ describe("generateText", () => {
     }) as unknown as typeof fetch;
 
     const r = await generateText("sys", "user");
-    expect(r).toEqual({ text: "Headline\n\nBody", model: "openai/gpt-6-luna", costUsd: 0.0002, promptTokens: 900, completionTokens: 210 });
+    expect(r).toMatchObject({ text: "Headline\n\nBody", model: "openai/gpt-6-luna", costUsd: 0.0002, promptTokens: 900, completionTokens: 210 });
     expect(calls).toEqual([{ model: "openai/gpt-6-luna", reasoning: { effort: "low" } }]);
   });
 
@@ -138,5 +138,44 @@ describe("generateText", () => {
     await generateText("s", "u");
     expect(spy.mock.calls.map((c) => c[0])).toEqual([75_000, 30_000]);
     spy.mockRestore();
+  });
+  test("logs each call as structured JSON with context and OpenRouter details", async () => {
+    const info = spyOn(console, "info").mockImplementation(() => {});
+    globalThis.fetch = mock(async () =>
+      respond(200, {
+        id: "gen-123",
+        provider: "DeepInfra",
+        model: "openai/gpt-6-luna",
+        choices: [{ message: { content: "Hello there" }, finish_reason: "stop" }],
+        usage: { cost: 0.001, prompt_tokens: 900, completion_tokens: 400, completion_tokens_details: { reasoning_tokens: 120 } },
+      }),
+    ) as unknown as typeof fetch;
+    await generateText("sys", "user msg", { maxTokens: 6000, timeoutMs: 75_000, context: { feature: "season-summary", season: "spring-2026" } });
+    const line = JSON.parse(info.mock.calls.map((c) => String(c[0])).find((c) => c.includes('"ai.call"'))!);
+    expect(line).toMatchObject({
+      event: "ai.call", feature: "season-summary", season: "spring-2026", role: "primary", ok: true,
+      requested: "openai/gpt-6-luna", model: "openai/gpt-6-luna", provider: "DeepInfra", id: "gen-123", finish: "stop",
+      promptTokens: 900, completionTokens: 400, reasoningTokens: 120, costUsd: 0.001,
+      promptChars: 11, outputChars: 11, maxTokens: 6000, timeoutMs: 75_000,
+    });
+    expect(typeof line.ms).toBe("number");
+    info.mockRestore();
+  });
+
+  test("a failed primary logs ok:false with status, then an ai.fallback warning", async () => {
+    const info = spyOn(console, "info").mockImplementation(() => {});
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init!.body));
+      if (body.model.startsWith("openai/")) return respond(503, { error: { message: "overloaded" } });
+      return respond(200, { choices: [{ message: { content: "ok" }, finish_reason: "stop" }] });
+    }) as unknown as typeof fetch;
+    await generateText("s", "u", { context: { feature: "write-up" } });
+    const lines = [...warn.mock.calls, ...info.mock.calls].map((c) => JSON.parse(String(c[0])));
+    expect(lines).toContainEqual(expect.objectContaining({ event: "ai.call", role: "primary", ok: false, status: 503, feature: "write-up" }));
+    expect(lines).toContainEqual(expect.objectContaining({ event: "ai.fallback", from: "openai/gpt-6-luna", to: "google/gemini-2.5-flash-lite" }));
+    expect(lines).toContainEqual(expect.objectContaining({ event: "ai.call", role: "fallback", ok: true }));
+    info.mockRestore();
+    warn.mockRestore();
   });
 });

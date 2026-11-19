@@ -10,13 +10,18 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
 import { RecapGameRow, RecapLeaders, RecapMoments, RecapNumbers, RecapPath, type Names } from "@/components/recap/parts";
 import { JumpBar } from "@/components/recap/JumpBar";
+import { RecapSummary } from "@/components/recap/RecapSummary";
+import { SummaryAdmin } from "@/components/recap/SummaryAdmin";
 import { ShareButton } from "@/components/recap/ShareButton";
-import { getBoardViewer } from "@/lib/auth";
-import { getSeasonRecap } from "@/lib/queries";
+import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
+import { getRecapSummary, getSeasonRecap } from "@/lib/queries";
 import { computeRecap } from "@/lib/recap-summary/facts";
 import { jumpLinks } from "@/lib/season-recap";
 
 type Params = Promise<{ slug: string }>;
+
+// Generating the AI summary (a server action on this page) can take a while.
+export const maxDuration = 90;
 
 // One fetch per request for both metadata and the page.
 const load = cache(getSeasonRecap);
@@ -96,9 +101,11 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
     );
   }
 
-  const viewer = await getBoardViewer();
+  const [viewer, admin, summary] = await Promise.all([getBoardViewer(), getSessionIfRole(["admin"]), getRecapSummary(r.season.id)]);
+  const livePublished = summary.published?.published ? summary.published : null;
+  const showSummary = !!admin || !!livePublished;
   const hasSeason = !!regNumbers || !!r.standings || !!r.historical || regular.length > 0;
-  const links = jumpLinks({ summary: false, awards: r.awards.length > 0, season: hasSeason, playoffs: path.length > 0, board: true });
+  const links = jumpLinks({ summary: showSummary, awards: r.awards.length > 0, season: hasSeason, playoffs: path.length > 0, board: true });
   // Headings clear the sticky header plus the jump bar.
   const anchor = "scroll-mt-[calc(var(--header-h)+64px)]!";
 
@@ -107,7 +114,16 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
       {hero}
       <JumpBar links={links} />
 
-      {/* AI summary (PR 2) goes here */}
+      {showSummary && (
+        <section id="summary" className={anchor}>
+          <SectionHeader eyebrow="Season summary" title="The story of the season" />
+          {admin ? (
+            <SummaryAdmin slug={slug} published={summary.published} draft={summary.draft} />
+          ) : (
+            livePublished && <RecapSummary markdown={livePublished.markdown} editedAt={livePublished.edited_at} />
+          )}
+        </section>
+      )}
 
       {r.awards.length > 0 && (
         <section id="awards" className={anchor}>

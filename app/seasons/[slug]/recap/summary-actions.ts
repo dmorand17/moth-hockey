@@ -104,7 +104,18 @@ export async function publishRecapSummary({ slug }: { slug: string }): Promise<A
   const db = auth.supabase;
   const { data: draft, error: readError } = await db.from("season_recap_drafts").select("*").eq("season_id", seasonId).maybeSingle();
   if (readError) return fail(readError.message);
-  if (!draft) return fail("Nothing to publish.");
+  if (!draft) {
+    // No pending edits: re-publish an unpublished summary as it stands.
+    const { data, error: republishError } = await db
+      .from("season_recaps")
+      .update({ published: true, published_at: new Date().toISOString() })
+      .eq("season_id", seasonId)
+      .select("season_id");
+    if (republishError) return fail(republishError.message);
+    if (!data?.length) return fail("Nothing to publish.");
+    revalidatePath(`/seasons/${slug}/recap`);
+    return ok("Published");
+  }
 
   const { error } = await db.from("season_recaps").upsert({
     season_id: seasonId,

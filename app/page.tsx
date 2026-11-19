@@ -42,14 +42,15 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   return (
     <div className="space-y-8 md:space-y-10">
       {/* HERO */}
-      <section className="rise flex items-center gap-4 md:gap-6">
+      <section className="rise flex flex-col sm:flex-row sm:items-center gap-4 md:gap-8">
         <Image
           src="/moth-banner-strip.png"
           alt="M.O.T.H Hockey League — Mostly Over the Hill"
           width={1200}
           height={432}
           priority
-          className="hidden sm:block h-20 md:h-24 w-auto rounded-lg border border-rule"
+          sizes="(min-width: 768px) 400px, (min-width: 640px) 334px, 267px"
+          className="h-24 sm:h-30 md:h-36 w-auto self-start rounded-lg border border-rule"
         />
         <div className="min-w-0">
           <p className="eyebrow">Mostly Over The Hill Hockey League</p>
@@ -160,7 +161,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         </div>
 
         {/* SIDEBAR */}
-        <aside className="space-y-8 md:space-y-10 min-w-0" aria-label="Leaders and Locker Room">
+        <aside className="space-y-8 md:space-y-10 min-w-0" aria-label="League leaders">
           <section className="rise delay-2">
             <SectionHeader eyebrow={season.name} title="League leaders" linkHref="/stats" linkLabel="All stats" />
             <ul className="panel overflow-clip divide-y divide-rule">
@@ -197,9 +198,11 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             </ul>
           </section>
 
-          <HomeBoard before={before} boardSeason={boardSeason} />
         </aside>
       </div>
+
+      {/* MESSAGE BOARD — full width so posts have room to breathe */}
+      <HomeBoard before={before} boardSeason={boardSeason} />
     </div>
   );
 }

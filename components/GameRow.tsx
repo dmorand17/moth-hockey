@@ -90,6 +90,8 @@ export function GameRow({
         {/* Mobile: two stacked team lines + status column */}
         <div className={`${stacked ? "" : "sm:hidden "}flex items-center gap-3`}>
           <div className="flex-1 min-w-0 space-y-1">
+            {/* Playoff label gets its own line: the status column is too narrow. */}
+            {playoff && <div>{playoff}</div>}
             {[away, home].map((side, i) => (
               <div key={i} className="flex items-center gap-2">
                 <Bar team={side.team} />
@@ -107,7 +109,6 @@ export function GameRow({
           <div className="shrink-0 w-[5.5rem] flex flex-col items-end gap-1 text-right">
             {status_}
             {showDate && <span className="text-[12px] text-ink-faint">{formatDate(scheduled_at)}</span>}
-            {playoff}
           </div>
         </div>
 

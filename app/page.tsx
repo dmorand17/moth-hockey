@@ -49,8 +49,8 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           width={1200}
           height={432}
           priority
-          sizes="(min-width: 768px) 400px, (min-width: 640px) 334px, 267px"
-          className="h-24 sm:h-30 md:h-36 w-auto self-start rounded-lg border border-rule"
+          sizes="(min-width: 768px) 400px, (min-width: 640px) 334px, 100vw"
+          className="w-full h-auto sm:w-auto sm:h-30 md:h-36 self-start rounded-lg border border-rule"
         />
         <div className="min-w-0">
           <p className="eyebrow">Mostly Over The Hill Hockey League</p>

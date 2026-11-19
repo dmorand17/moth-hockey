@@ -89,7 +89,7 @@ export function GameRow({
       <Link
         href={`/games/${id}`}
         aria-label={`${label} — ${formatDate(scheduled_at)}`}
-        className="block px-3 sm:px-4 py-2.5 hover:bg-board-hover transition-colors"
+        className="block px-3 sm:px-4 py-2 hover:bg-board-hover transition-colors"
       >
         {/* Mobile: two stacked team lines + status column */}
         <div className={`${stacked ? "" : "sm:hidden "}flex items-center gap-3`}>

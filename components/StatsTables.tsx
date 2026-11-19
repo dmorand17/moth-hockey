@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { useRef, useState, useMemo, type ReactNode } from "react";
 import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
 import { TeamTag } from "./TeamBadge";
@@ -115,7 +115,13 @@ function StatTable<T extends Row>({
   const [sortKey, setSortKey] = useState<string>(initialSort);
   const [dir, setDir] = useState<Direction>("desc");
   const [moreCols, setMoreCols] = useState(false);
-  const [pageReq, setPage] = useState(1);
+  const [pageReq, setPageState] = useState(1);
+  const top = useRef<HTMLDivElement>(null);
+  // Changing page brings the table's first row back into view.
+  const setPage = (n: number) => {
+    setPageState(n);
+    requestAnimationFrame(() => top.current?.scrollIntoView({ block: "start" }));
+  };
 
   const sorted = useMemo(() => {
     const copy = [...rows];
@@ -132,7 +138,7 @@ function StatTable<T extends Row>({
   const offset = pageSize ? (view.page - 1) * pageSize : 0;
 
   const sortBy = (key: string, defaultDir: Direction) => {
-    setPage(1);
+    setPageState(1);
     if (sortKey === key) setDir((d) => (d === "desc" ? "asc" : "desc"));
     else {
       setSortKey(key);
@@ -170,7 +176,7 @@ function StatTable<T extends Row>({
   };
 
   return (
-    <div>
+    <div ref={top} style={{ scrollMarginTop: "calc(var(--header-h) + 12px)" }}>
       {/* Mobile sort chips */}
       <div className="sm:hidden mb-3 flex items-center gap-2 overflow-x-auto pb-1" role="group" aria-label={`Sort ${noun}`}>
         <span className="eyebrow shrink-0">Sort</span>

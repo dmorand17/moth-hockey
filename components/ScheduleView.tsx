@@ -73,7 +73,9 @@ export function ScheduleView({
   const focusDate = nextDate ?? latestDate;
 
   // Open at the latest results night (unless the URL already targets an
-  // anchor). Runs on mount, i.e. on load and after a team filter change.
+  // anchor). Runs on mount: a fresh visit, or a back/forward that remounts
+  // the view (keyed on ?team=); team filter clicks use router.replace and
+  // don't remount it.
   useEffect(() => {
     if (window.location.hash || !latestDate) return;
     document.getElementById(latestDate === focusDate ? "focus-night" : `night-${latestDate}`)?.scrollIntoView({ block: "start" });

@@ -71,6 +71,9 @@ html {
 }
 
 body {
+  /* viewport-fit=cover: keep content clear of the notch in landscape. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 16px;

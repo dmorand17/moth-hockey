@@ -9,7 +9,7 @@ const MOBILE = "(max-width: 767px)";
 
 // Hides the sticky site header on downward scroll and shows it on upward
 // scroll (phones only). Sticky bars below it read --header-h, so they move up
-// with it instead of leaving a gap.
+// with it instead of leaving a gap (stopping at the notch safe area).
 export function MobileHeaderController() {
   useEffect(() => {
     const header = document.querySelector<HTMLElement>("body > header");
@@ -29,7 +29,9 @@ export function MobileHeaderController() {
         root.style.removeProperty("--header-h");
         root.style.removeProperty("--header-shown");
       } else {
-        root.style.setProperty("--header-h", "0px");
+        // Not 0: in the installed app the status bar overlays the page, so
+        // sticky bars must still stop below the safe area.
+        root.style.setProperty("--header-h", "env(safe-area-inset-top)");
         root.style.setProperty("--header-shown", "0");
       }
     };
@@ -37,7 +39,8 @@ export function MobileHeaderController() {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const y = window.scrollY;
-        if (mq.matches && !header.contains(document.activeElement)) apply(headerVisible(prevY, y, visible));
+        const maxY = document.documentElement.scrollHeight - window.innerHeight;
+        if (mq.matches && !header.contains(document.activeElement)) apply(headerVisible(prevY, y, visible, 8, maxY));
         prevY = y;
       });
     };
@@ -115,7 +118,7 @@ export function BottomNav({ authLinks }: { authLinks: AuthLink[] }) {
       <nav
         data-bottom-nav
         aria-label="Primary"
-        className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-rule bg-board/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-rule bg-board/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
       >
         <ul className="grid grid-cols-5">
           {TABS.map((t) => {

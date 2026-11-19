@@ -21,3 +21,15 @@ describe("headerVisible", () => {
     expect(headerVisible(300, 280, false)).toBe(true);
   });
 });
+
+describe("headerVisible at the bottom of the page", () => {
+  test("settling back from iOS bottom overscroll keeps the header hidden", () => {
+    // maxY 990: bounce reported 1010, then the page settles back to 990
+    expect(headerVisible(1010, 990, false, 8, 990)).toBe(false);
+    expect(headerVisible(1010, 1001, false, 8, 990)).toBe(false);
+  });
+
+  test("a real upward scroll from the bottom still shows it", () => {
+    expect(headerVisible(990, 900, false, 8, 990)).toBe(true);
+  });
+});

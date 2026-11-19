@@ -38,7 +38,7 @@ export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
                   <li key={w.id}>
                     <Link
                       href={`/players/${w.id}`}
-                      className="text-[16px] font-semibold leading-6 text-ink hover:text-ice transition-colors inline-flex items-center min-h-[32px]"
+                      className="text-[16px] font-semibold leading-6 text-ink hover:text-ice transition-colors inline-flex items-center min-h-[44px]"
                     >
                       {w.name}
                     </Link>

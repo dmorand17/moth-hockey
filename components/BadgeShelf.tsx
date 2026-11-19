@@ -57,7 +57,7 @@ export function BadgeShelf({ awards }: { awards: Award[] }) {
               onClick={() => setSelectedType(type)}
               aria-pressed={active}
               aria-label={`${label}${seasons.length > 1 ? `, ${seasons.length} seasons` : ""}`}
-              className={`inline-flex items-center gap-1.5 px-2.5 min-h-[36px] rounded-md border text-[12px] font-bold uppercase tracking-[0.06em] cursor-pointer transition-colors whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-3 min-h-[44px] rounded-md border text-[12px] font-bold uppercase tracking-[0.06em] cursor-pointer transition-colors whitespace-nowrap ${
                 active ? "bg-board-3 border-ice" : "bg-board-2 hover:bg-board-3"
               } ${headline ? "text-gold" : "text-ink-dim"} ${!active ? (headline ? "border-gold/50" : "border-rule-strong") : ""}`}
             >

@@ -22,7 +22,7 @@ function SubBadge() {
 
 function Name({ id, name, jersey, isSub }: { id: string; name: string; jersey: number | null; isSub: boolean }) {
   return (
-    <Link href={`/players/${id}`} className="inline-flex items-center min-h-[36px] text-ink hover:text-ice transition-colors">
+    <Link href={`/players/${id}`} className="inline-flex items-center min-h-[44px] text-ink hover:text-ice transition-colors">
       {jersey != null && <span className="tnum text-ink-faint w-7 shrink-0">{jersey}</span>}
       <span>{name}</span>
       {isSub && <SubBadge />}

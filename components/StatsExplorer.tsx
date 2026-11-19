@@ -420,9 +420,9 @@ function LeaderTile({ label, leader, stat }: { label: string; leader: Skater | n
           <div className="digit text-[32px] sm:text-[44px] leading-none text-gold">{stat}</div>
           <Link
             href={`/players/${leader.id}`}
-            className="mt-1 text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors line-clamp-2 break-words"
+            className="flex items-center min-h-[44px] text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors"
           >
-            {leader.name}
+            <span className="line-clamp-2 break-words">{leader.name}</span>
           </Link>
           {leader.team && (
             <div className="flex items-start gap-1.5 min-w-0">
@@ -459,7 +459,7 @@ function SegmentedFilter<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`px-3 text-[14px] font-semibold transition-colors min-h-[44px] ${
+            className={`px-3 min-w-[44px] text-[14px] font-semibold transition-colors min-h-[44px] ${
               active ? "bg-ice text-board" : "text-ink-dim hover:text-ink hover:bg-board-3"
             } ${i > 0 ? "border-l border-rule-strong" : ""}`}
             aria-pressed={active}

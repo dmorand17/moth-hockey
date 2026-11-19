@@ -175,7 +175,7 @@ function StatTable<T extends Row>({
                 type="button"
                 aria-pressed={active}
                 onClick={() => sortBy(c.key, c.defaultDir)}
-                className={`shrink-0 inline-flex items-center gap-1 min-h-[44px] px-3 rounded-full border text-[14px] font-semibold transition-colors ${
+                className={`shrink-0 inline-flex items-center justify-center gap-1 min-h-[44px] min-w-[44px] px-3 rounded-full border text-[14px] font-semibold transition-colors ${
                   active ? "bg-ice text-board border-ice" : "border-rule-strong text-ink-dim hover:text-ink"
                 }`}
               >
@@ -193,7 +193,7 @@ function StatTable<T extends Row>({
               {th("name", noun === "goalies" ? "Goalie" : "Player", "name", "asc", "", "left")}
               {th("team", "Team", "team", "asc", "hidden sm:table-cell w-20", "left")}
               {cols.map((c) =>
-                th(c.key, c.label, c.title, c.defaultDir, `${c.secondary ? `${secondaryVis} col-dim` : ""} w-10 sm:w-14`, "right"),
+                th(c.key, c.label, c.title, c.defaultDir, `${c.secondary ? `${secondaryVis} col-dim` : ""} w-11 sm:w-14`, "right"),
               )}
             </tr>
           </thead>

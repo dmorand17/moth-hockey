@@ -15,7 +15,8 @@ import { GenerateWriteUpButton, WriteUpAdminControls } from "@/components/WriteU
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
 import type { PreviewSource } from "@/lib/write-ups/prompt";
 import { BoxScore } from "@/components/BoxScore";
-import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { GameTabs } from "@/components/GameTabs";
+import { EmptyState } from "@/components/EmptyState";
 import { buildBoxScore, resolvePosition, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
@@ -364,20 +365,19 @@ export default async function GamePage({
   // most before puck drop) and near the end, collapsed, for live/final games.
   // Discussion always sits directly under Availability.
   const discussionSection = (
-    <section className="rise delay-1 space-y-4">
+    <section className="space-y-4">
       <SectionHeader eyebrow="Locker Room" title="Discussion" />
       <PostThread threads={gamePosts} viewer={boardViewer} gameId={game.id} empty="No posts about this game yet." />
     </section>
   );
 
   const availabilitySection = availability && (
-    <CollapsibleSection
-      eyebrow="Roster"
-      title="Availability"
-      subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
-      defaultOpen={false}
-      className="rise delay-1 space-y-4"
-    >
+    <section className="space-y-4">
+      <SectionHeader
+        eyebrow="Roster"
+        title="Availability"
+        subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
+      />
       {isScheduled && availability.viewerCanCheckIn && (
         <div className="panel p-4 space-y-3">
           <p className="text-[14px] text-ink">
@@ -430,14 +430,14 @@ export default async function GamePage({
           />
         )}
       </div>
-    </CollapsibleSection>
+    </section>
   );
 
   return (
-    <div className="space-y-6 md:space-y-12">
+    <div className="space-y-6 md:space-y-8">
       <Link
         href="/schedule"
-        className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 -mb-4 md:-mb-8"
+        className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 -mb-4 md:-mb-6"
       >
         <span aria-hidden className="mr-1">←</span> Schedule
       </Link>
@@ -484,61 +484,62 @@ export default async function GamePage({
         )}
       </section>
 
-      {/* AVAILABILITY (scheduled games: right under the scoreboard) */}
-      {isScheduled && availabilitySection}
-      {isScheduled && discussionSection}
-
-      {/* WRITE-UP (right after scoreboard for visibility) */}
-      {isScheduled && previewWriteUp && (
-        <section className="rise">
-          <WriteUpCard
-            writeUp={previewWriteUp}
-            footer={
-              previewSource?.projection && (
-                <OddsBoard projection={previewSource.projection} awayName={previewSource.away.name} homeName={previewSource.home.name} />
-              )
-            }
-            admin={adminSlot(previewWriteUp)}
-          />
-        </section>
-      )}
-      {isFinal && recapWriteUp && (
-        <section className="rise">
-          <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
-        </section>
-      )}
-      {viewerIsAdmin && isScheduled && !previewWriteUp && (
-        <section className="rise">
-          <GenerateWriteUpButton gameId={id} kind="preview" />
-        </section>
-      )}
-      {viewerIsAdmin && isFinal && !recapWriteUp && (
-        <section className="rise">
-          <GenerateWriteUpButton gameId={id} kind="recap" />
-        </section>
-      )}
-
-      {/* BOX SCORE (live and final games) */}
-      {(isLive || isFinal) && box && (
-        <CollapsibleSection eyebrow="Box score" title="Player stats" defaultOpen className="rise delay-1 space-y-4">
-          {hasLineup ? (
-            <BoxScore box={box} home={homeView} away={awayView} />
-          ) : (
-            <p className="text-[14px] text-ink-dim">No lineup recorded for this game.</p>
-          )}
-        </CollapsibleSection>
-      )}
-
-      {/* MATCHUP (scheduled games) */}
-      {previewSource && (
-        <section className="rise delay-1 space-y-4">
-          <SectionHeader eyebrow="Preview" title="Matchup" />
-          <MatchupPanel source={previewSource} />
-        </section>
-      )}
-
-      {/* EVENTS LOG */}
-      <CollapsibleSection eyebrow="Play-by-play" title="Scoring & penalties" defaultOpen className="rise delay-1">
+      <GameTabs
+        label="Game details"
+        tabs={[
+          {
+            id: "recap",
+            label: isScheduled ? "Preview" : "Recap",
+            content: (
+              <>
+                {isScheduled && previewWriteUp && (
+                  <WriteUpCard
+                    writeUp={previewWriteUp}
+                    footer={
+                      previewSource?.projection && (
+                        <OddsBoard projection={previewSource.projection} awayName={previewSource.away.name} homeName={previewSource.home.name} />
+                      )
+                    }
+                    admin={adminSlot(previewWriteUp)}
+                  />
+                )}
+                {isFinal && recapWriteUp && <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />}
+                {viewerIsAdmin && isScheduled && !previewWriteUp && <GenerateWriteUpButton gameId={id} kind="preview" />}
+                {viewerIsAdmin && isFinal && !recapWriteUp && <GenerateWriteUpButton gameId={id} kind="recap" />}
+                {!(isScheduled ? previewWriteUp : isFinal ? recapWriteUp : null) && (
+                  <EmptyState title={isScheduled ? "No preview yet." : isLive ? "Game in progress." : "No recap for this game yet."}>
+                    {isScheduled ? "Check the matchup below." : "The box score and play-by-play have the details."}
+                  </EmptyState>
+                )}
+                {previewSource && (
+                  <section className="space-y-4">
+                    <SectionHeader eyebrow="Preview" title="Matchup" />
+                    <MatchupPanel source={previewSource} />
+                  </section>
+                )}
+                {isScheduled && availabilitySection}
+              </>
+            ),
+          },
+          {
+            id: "box-score",
+            label: "Box Score",
+            content: (
+              <>
+                {(isLive || isFinal) && box && hasLineup ? (
+                  <BoxScore box={box} home={homeView} away={awayView} />
+                ) : (
+                  <EmptyState title={isScheduled ? "The box score appears once the game starts." : "No lineup recorded for this game."} />
+                )}
+                {!isScheduled && availabilitySection}
+              </>
+            ),
+          },
+          {
+            id: "play-by-play",
+            label: "Play-by-Play",
+            content: (
+              <>
         {events.length === 0 ? (
           <p className="text-[14px] text-ink-faint">No events recorded.</p>
         ) : (
@@ -602,13 +603,12 @@ export default async function GamePage({
             ))}
           </ol>
         )}
-      </CollapsibleSection>
-
-      {/* AVAILABILITY (live/final games: near the end, collapsed by default) */}
-      {!isScheduled && availabilitySection}
-
-      {/* DISCUSSION (live/final games: under availability) */}
-      {!isScheduled && discussionSection}
+              </>
+            ),
+          },
+          { id: "discussion", label: "Discussion", content: discussionSection },
+        ]}
+      />
     </div>
   );
 }

@@ -53,8 +53,8 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           width={1200}
           height={432}
           priority
-          sizes="(min-width: 640px) 400px, calc(100vw - 32px)"
-          className="block w-full h-auto rounded-lg border border-rule sm:w-[400px] sm:shrink-0"
+          sizes="(min-width: 1024px) 560px, (min-width: 768px) 460px, (min-width: 640px) 400px, calc(100vw - 32px)"
+          className="block w-full h-auto rounded-lg border border-rule sm:w-[400px] md:w-[460px] lg:w-[560px] sm:shrink-0"
         />
         {/* Phones: title and games-played share one row to keep the hero short. */}
         <div className="min-w-0 flex items-baseline justify-between gap-3 sm:block">

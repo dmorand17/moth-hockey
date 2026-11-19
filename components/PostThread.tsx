@@ -47,7 +47,7 @@ export function PostThread({
       <div className="px-4 py-3 border-b border-rule">
         {archived ? (
           <p className="py-1 text-[14px] text-ink-dim">
-            {archived} archive — read only. New posts go on the current season&apos;s board.
+            {`${archived} archive — read only. New posts go on the current season's board.`}
           </p>
         ) : !viewer ? (
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-1">

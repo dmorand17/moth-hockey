@@ -45,7 +45,7 @@ export function TeamBadge({
 
   if (asChild) return <span className={layout}>{inner}</span>;
   return (
-    <Link href={`/teams/${slug}`} className={`${layout} min-h-11 hover:text-ink transition-colors`}>
+    <Link href={`/teams/${slug}`} className={`${layout} min-h-11 min-w-11 hover:text-ink transition-colors`}>
       {inner}
     </Link>
   );

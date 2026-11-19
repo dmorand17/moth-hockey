@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Link this repo to the staging or production Supabase project, non-interactively,
-# from environment variables. Wraps `supabase link` so you don't paste refs or
-# passwords by hand (and can't fat-finger the wrong project).
+# Push pending migrations to the staging or production Supabase project.
+# Links the target's baked-in ref first on every run, so a push can never land
+# on whichever project happened to be linked before.
 #
-# If SUPABASE_ACCESS_TOKEN isn't already set, the
+# If SUPABASE_ACCESS_TOKEN or SUPABASE_DB_PASSWORD isn't already set, the
 # matching per-environment file (.env.staging or .env.production) is loaded
 # automatically — only inside this script, so secrets never leak into your shell:
-#   ./scripts/supabase-link.sh staging
+#   ./scripts/supabase-push.sh staging --dry-run
 
 DEPENDENCIES=(bunx)
 SCRIPT_NAME=$(basename "$0")
@@ -26,21 +26,25 @@ log_error() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR $*" >&2; }
 function usage() {
     cat <<EOF
 
-Link this repo to a Supabase cloud project using environment variables.
+Link a Supabase cloud project and push pending migrations to it.
 
 Usage: ${SCRIPT_NAME} <staging|prod> [OPTIONS]
 
 Arguments:
-    staging | prod          Which project to link (prod requires confirmation)
+    staging | prod          Which project to push to (prod requires confirmation)
 
 Options:
+    -n, --dry-run           Show which migrations would be applied; change nothing
     -y, --yes               Skip the production confirmation prompt (for CI)
     -h, --help              Show this help message
 
-Environment (read from the shell; if the token is missing, the
+Environment (read from the shell; if either secret is missing, the
 matching .env.staging / .env.production in the repo root is loaded for you):
-    SUPABASE_ACCESS_TOKEN   Personal access token (required)
+    SUPABASE_ACCESS_TOKEN   Personal access token (required). Needs Read on
+                            Project Settings, API Keys, API Key Secrets and
+                            Database Pooling Config.
                             Create one at https://supabase.com/dashboard/account/tokens
+    SUPABASE_DB_PASSWORD    Database password for the target project (required)
     SUPABASE_PROJECT_REF    Project ref (optional; defaults per target)
     SUPABASE_ENV            staging|production (optional; cross-checked vs the
                             target argument to catch a wrong sourced file)
@@ -48,9 +52,10 @@ matching .env.staging / .env.production in the repo root is loaded for you):
 Dependencies: ${DEPENDENCIES[*]}
 
 Examples:
-    ${SCRIPT_NAME} staging                 # loads .env.staging if needed
+    ${SCRIPT_NAME} staging --dry-run       # loads .env.staging, lists pending migrations
+    ${SCRIPT_NAME} staging                 # applies them
     ${SCRIPT_NAME} prod                    # loads .env.production, asks to confirm
-    SUPABASE_ACCESS_TOKEN=... ${SCRIPT_NAME} prod --yes   # CI
+    SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... ${SCRIPT_NAME} prod --yes   # CI
 
 EOF
     exit "${1:-0}"
@@ -59,9 +64,11 @@ EOF
 function main() {
     local target=""
     local assume_yes=false
+    local dry_run=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
+        -n | --dry-run) dry_run=true; shift ;;
         -y | --yes)  assume_yes=true; shift ;;
         -h | --help) usage 0 ;;
         staging | stage) target="staging"; shift ;;
@@ -76,8 +83,9 @@ function main() {
     [[ -z "$target" ]] && log_error "Target is required: staging or prod" && usage 1
 
     exit_on_missing_tools "${DEPENDENCIES[@]}"
+    cd "$REPO_ROOT"   # the CLI reads supabase/ from the working directory
 
-    if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
+    if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" || -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
         load_env_file "$target"
     fi
 
@@ -90,6 +98,7 @@ function main() {
     fi
 
     : "${SUPABASE_ACCESS_TOKEN:?set SUPABASE_ACCESS_TOKEN (https://supabase.com/dashboard/account/tokens)}"
+    : "${SUPABASE_DB_PASSWORD:?set SUPABASE_DB_PASSWORD (in .env.${target})}"
 
     local default_ref ref
     if [[ "$target" == "production" ]]; then
@@ -102,6 +111,7 @@ function main() {
     [[ "$target" == "production" ]] && confirm_production "$ref" "$assume_yes"
 
     link_project "$target" "$ref"
+    push_migrations "$target" "$ref" "$dry_run"
 }
 
 # Export every variable from .env.<target> into this script's environment only.
@@ -110,7 +120,7 @@ function load_env_file() {
     local env_file="$REPO_ROOT/.env.$target"
 
     if [[ ! -f "$env_file" ]]; then
-        log_error "SUPABASE_ACCESS_TOKEN not set and $env_file not found."
+        log_error "SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD not set and $env_file not found."
         log_error "Copy .env.$target.example to .env.$target and fill it in, or export the variables."
         exit 1
     fi
@@ -126,11 +136,11 @@ function confirm_production() {
     local ref="$1" assume_yes="$2"
 
     if [[ "$assume_yes" == true ]]; then
-        log_warn "Linking PRODUCTION ($ref) — confirmation skipped via --yes."
+        log_warn "Pushing to PRODUCTION ($ref) — confirmation skipped via --yes."
         return 0
     fi
 
-    log_warn "You are about to link the PRODUCTION project ($ref)."
+    log_warn "You are about to push migrations to the PRODUCTION project ($ref)."
     read -r -p "Type 'prod' to confirm: " reply
     [[ "$reply" == "prod" ]] || { log_error "Confirmation failed — aborting."; exit 1; }
 }
@@ -139,18 +149,32 @@ function link_project() {
     local target="$1" ref="$2"
 
     log_info "Linking $target project ($ref)…"
-    # SUPABASE_ACCESS_TOKEN is read from the environment by the CLI. Linking
-    # needs no DB password (CLI v3 ignores --password); db push reads
-    # SUPABASE_DB_PASSWORD from the environment instead.
+    # SUPABASE_ACCESS_TOKEN is read from the environment by the CLI.
     if ! bunx supabase link --project-ref "$ref"; then
         log_error "supabase link failed for $target ($ref)."
         exit 1
     fi
 
-    log_info "Linked to $target ($ref). Verify before any db push/reset:"
-    log_info "  cat supabase/.temp/project-ref    # should print $ref"
-    log_info "Then push migrations (loads the DB password into a subshell only):"
-    log_info "  ( set -a; source .env.$target; set +a; bunx supabase db push --remote --dry-run )"
+    local linked
+    linked=$(cat supabase/.temp/project-ref 2>/dev/null || true)
+    if [[ "$linked" != "$ref" ]]; then
+        log_error "Linked project is '${linked:-none}', expected $ref — aborting before push."
+        exit 1
+    fi
+}
+
+function push_migrations() {
+    local target="$1" ref="$2" dry_run="$3"
+    local args=(db push --remote)
+    [[ "$dry_run" == true ]] && args+=(--dry-run)
+
+    # --remote targets the linked project (CLI v3 defaults to the local stack).
+    # SUPABASE_DB_PASSWORD is read from the environment by the CLI.
+    log_info "Pushing migrations to $target ($ref)$([[ "$dry_run" == true ]] && echo " — dry run")…"
+    if ! bunx supabase "${args[@]}"; then
+        log_error "supabase db push failed for $target ($ref)."
+        exit 1
+    fi
 }
 
 function exit_on_missing_tools() {

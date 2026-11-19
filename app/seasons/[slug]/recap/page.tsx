@@ -97,10 +97,11 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
   }
 
   const regNumbers = seasonNumbers(r.games, events, "regular");
-  const regMoments = notableMoments(r.games, events, "regular");
+  const rosterTeam = new Map(roster.map((x) => [x.player_id, x.team_id]));
+  const regMoments = notableMoments(r.games, events, "regular", rosterTeam);
   const playoffTotals = r.hasGames ? computeSeasonTotals(fGames, roster, appearances, events, { kind: "playoff" }) : [];
   const poNumbers = seasonNumbers(r.games, events, "playoff");
-  const poMoments = notableMoments(r.games, events, "playoff");
+  const poMoments = notableMoments(r.games, events, "playoff", rosterTeam);
   const viewer = await getBoardViewer();
 
   return (

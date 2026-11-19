@@ -129,3 +129,31 @@ describe("leaders", () => {
     expect(goalieMinGames(games, "regular")).toBe(2);
   });
 });
+
+describe("player moments follow the roster-team rule", () => {
+  test("a sub's hat trick for another team (or with no roster spot) isn't a moment", () => {
+    const games = [g("x", "A", "B", 3, 0)];
+    const events = [goal("x", "A", "sub"), goal("x", "A", "sub"), goal("x", "A", "sub")];
+    const rosterTeam = new Map([["sub", "C"]]);
+    const m = notableMoments(games, events, "regular", rosterTeam);
+    expect(m.filter((x) => x.kind === "hat-trick" || x.kind === "points-game")).toEqual([]);
+    const unrostered = notableMoments(games, events, "regular", new Map());
+    expect(unrostered.filter((x) => x.kind === "hat-trick" || x.kind === "points-game")).toEqual([]);
+  });
+
+  test("a rostered player's hat trick for their own team still counts", () => {
+    const games = [g("y", "A", "B", 3, 0)];
+    const events = [goal("y", "A", "p"), goal("y", "A", "p"), goal("y", "A", "p")];
+    expect(notableMoments(games, events, "regular", new Map([["p", "A"]]))).toContainEqual(
+      expect.objectContaining({ kind: "hat-trick", playerId: "p" }),
+    );
+  });
+});
+
+describe("best single game", () => {
+  test("needs at least 2 points", () => {
+    const games = [g("z", "A", "B", 1, 0)];
+    const events = [goal("z", "A", "p")];
+    expect(notableMoments(games, events, "regular").filter((x) => x.kind === "points-game")).toEqual([]);
+  });
+});

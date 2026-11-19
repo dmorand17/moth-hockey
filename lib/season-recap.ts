@@ -72,7 +72,15 @@ function best(list: RecapGame[], value: (g: RecapGame) => number): { game: Recap
   return top;
 }
 
-export function notableMoments(games: RecapGame[], events: FinalizeEvent[], kind: Kind): Moment[] {
+// `rosterTeam` (player → their roster team this season) applies the leaders'
+// rule to player moments: only goals/assists for the player's own team count,
+// so sub appearances (including unrostered subs) are left out.
+export function notableMoments(
+  games: RecapGame[],
+  events: FinalizeEvent[],
+  kind: Kind,
+  rosterTeam?: Map<string, string>,
+): Moment[] {
   const list = finalGames(games, kind);
   const out: Moment[] = [];
   const moment = (m: Omit<Moment, "date"> & { game: RecapGame }): Moment => {
@@ -91,13 +99,16 @@ export function notableMoments(games: RecapGame[], events: FinalizeEvent[], kind
   const goals = new Map<string, number>();
   const points = new Map<string, number>();
   const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
+  const counts = (playerId: string, teamId: string) => !rosterTeam || rosterTeam.get(playerId) === teamId;
   for (const e of events) {
     if (e.type !== "goal" || !byGame.has(e.game_id)) continue;
-    if (e.player_id) {
+    if (e.player_id && counts(e.player_id, e.team_id)) {
       bump(goals, `${e.game_id}|${e.player_id}`);
       bump(points, `${e.game_id}|${e.player_id}`);
     }
-    for (const a of [e.assist1_player_id, e.assist2_player_id]) if (a) bump(points, `${e.game_id}|${a}`);
+    for (const a of [e.assist1_player_id, e.assist2_player_id]) {
+      if (a && counts(a, e.team_id)) bump(points, `${e.game_id}|${a}`);
+    }
   }
   const split = (k: string) => k.split("|") as [string, string];
   const byDate = (a: [string, number], b: [string, number]) =>
@@ -111,7 +122,7 @@ export function notableMoments(games: RecapGame[], events: FinalizeEvent[], kind
 
   let topPoints: [string, number] | null = null;
   for (const entry of [...points].sort(byDate)) if (!topPoints || entry[1] > topPoints[1]) topPoints = entry;
-  if (topPoints) {
+  if (topPoints && topPoints[1] >= 2) {
     const [gameId, playerId] = split(topPoints[0]);
     out.push(moment({ kind: "points-game", game: byGame.get(gameId)!, gameId, teamId: null, playerId, value: topPoints[1] }));
   }

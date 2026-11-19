@@ -142,14 +142,21 @@ async function logged(info: CallInfo, call: () => Promise<ModelResult>): Promise
 export async function generateText(
   system: string,
   user: string,
-  opts: { maxTokens?: number; timeoutMs?: number; context?: Record<string, string> } = {},
+  opts: {
+    maxTokens?: number;
+    timeoutMs?: number;
+    context?: Record<string, string>;
+    // Per-feature model choice (e.g. the season report); unset or empty
+    // falls back to WRITE_UP_MODEL / WRITE_UP_FALLBACK_MODEL, then the defaults.
+    models?: { primary?: string; fallback?: string };
+  } = {},
 ): Promise<ModelResult> {
   const maxTokens = opts.maxTokens ?? 1000;
   const timeoutMs = opts.timeoutMs ?? 30_000;
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
-  const primary = process.env.WRITE_UP_MODEL || DEFAULT_MODEL;
-  const fallback = process.env.WRITE_UP_FALLBACK_MODEL || DEFAULT_FALLBACK;
+  const primary = opts.models?.primary || process.env.WRITE_UP_MODEL || DEFAULT_MODEL;
+  const fallback = opts.models?.fallback || process.env.WRITE_UP_FALLBACK_MODEL || DEFAULT_FALLBACK;
 
   const info = (role: CallInfo["role"], requested: string): CallInfo => ({
     role,

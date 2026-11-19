@@ -196,4 +196,18 @@ describe("generateText", () => {
     expect(line.reasoningBudget).toBe(1500);
     info.mockRestore();
   });
+  test("per-feature models override the write-up models; empty ones fall through", async () => {
+    const models: string[] = [];
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init!.body));
+      models.push(body.model);
+      if (body.model === "anthropic/claude-sonnet-5.5") return respond(503, { error: { message: "down" } });
+      return respond(200, { choices: [{ message: { content: "ok" }, finish_reason: "stop" }] });
+    }) as unknown as typeof fetch;
+    await generateText("s", "u", { models: { primary: "anthropic/claude-sonnet-5.5", fallback: "google/gemini-4-neon" } });
+    expect(models).toEqual(["anthropic/claude-sonnet-5.5", "google/gemini-4-neon"]);
+    models.length = 0;
+    await generateText("s", "u", { models: { primary: "", fallback: undefined } });
+    expect(models).toEqual(["openai/gpt-6-luna"]);
+  });
 });

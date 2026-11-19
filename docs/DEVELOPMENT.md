@@ -146,6 +146,11 @@ Game previews and recaps, and the season recap report, are written by a model th
 - **Model:** `WRITE_UP_MODEL` (default `deepseek/deepseek-v4.1-flash-1017`), falling back to
   `WRITE_UP_FALLBACK_MODEL` (default `openai/gpt-6-luna`). Change either in
   Vercel's env settings; no deploy needed.
+- **Season report model:** `RECAP_SUMMARY_MODEL` / `RECAP_SUMMARY_FALLBACK_MODEL`
+  override the models for the season recap report only (it's generated once a
+  season, so a stronger model such as `anthropic/claude-sonnet-5.5` costs cents).
+  Unset or empty falls back to the `WRITE_UP_*` models. The `ai.call` log's
+  `feature: "season-summary"` lines show which model answered.
 - **Reasoning:** every call sends `reasoning: { max_tokens: max_tokens / 4 }` and
   `provider: { require_parameters: true }`. Reasoning tokens count against `max_tokens`
   and the timeout; a provider that ignored the cap once spent the whole 6,000-token

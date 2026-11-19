@@ -209,6 +209,8 @@ export function MediaAdmin({
         />
       </div>
 
+      <p className="text-[13px] text-ink-faint">The first photo is the hero at the top of the recap. Move a photo to the top to change it.</p>
+
       {uploads.length > 0 && (
         <ul className="space-y-2" aria-live="polite">
           {uploads.map((u) => (

@@ -163,7 +163,7 @@ export function Lightbox({
                 width={current.width ?? 1600}
                 height={current.height ?? 1200}
                 sizes="100vw"
-                quality={80}
+               
                 draggable={false}
                 className="max-h-full max-w-full w-auto h-auto object-contain transition-transform duration-75"
                 style={{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` }}
@@ -187,7 +187,7 @@ export function Lightbox({
               .map((i) => items[i])
               .filter((m) => mediaKind(m.contentType) === "image")
               .map((m) => (
-                <Image key={m.id} src={m.url} alt="" width={m.width ?? 1600} height={m.height ?? 1200} sizes="100vw" quality={80} loading="eager" />
+                <Image key={m.id} src={m.url} alt="" width={m.width ?? 1600} height={m.height ?? 1200} sizes="100vw" loading="eager" />
               ))}
           </div>
         </>

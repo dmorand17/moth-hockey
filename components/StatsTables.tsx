@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import Link from "next/link";
-import { TeamBadge } from "./TeamBadge";
+import { TeamTag } from "./TeamBadge";
 
 type Team = { name: string; slug: string; color: string };
 
@@ -35,39 +35,42 @@ export type Goalie = {
   ps_saved: number;
 };
 
-type SkaterKey = "name" | "team" | "gp" | "goals" | "assists" | "points" | "penalties" | "ps_taken" | "ps_made";
-type GoalieKey = "name" | "team" | "gp" | "w" | "l" | "otl" | "ga" | "ps_faced" | "ps_saved";
-
 type Direction = "asc" | "desc";
 
-const MOBILE_TOP_N = 10;
-const DESKTOP_TOP_N = 20;
+type Row = { id: string; name: string; team?: Team; isChampion?: boolean };
 
-const skaterCols: { key: SkaterKey; label: string; align: "left" | "right"; defaultDir: Direction; numeric: boolean }[] = [
-  { key: "name", label: "Player", align: "left", defaultDir: "asc", numeric: false },
-  { key: "team", label: "Team", align: "left", defaultDir: "asc", numeric: false },
-  { key: "gp", label: "GP", align: "right", defaultDir: "desc", numeric: true },
-  { key: "goals", label: "G", align: "right", defaultDir: "desc", numeric: true },
-  { key: "assists", label: "A", align: "right", defaultDir: "desc", numeric: true },
-  { key: "points", label: "PTS", align: "right", defaultDir: "desc", numeric: true },
-  { key: "penalties", label: "PEN", align: "right", defaultDir: "desc", numeric: true },
-  { key: "ps_taken", label: "PS", align: "right", defaultDir: "desc", numeric: true },
-  { key: "ps_made", label: "PSG", align: "right", defaultDir: "desc", numeric: true },
+type Column<T> = {
+  key: keyof T & string;
+  label: string;
+  title: string;
+  defaultDir: Direction;
+  /** Emphasized key stat (bold). */
+  primary?: boolean;
+  /** Secondary stat: dimmed, and hidden on mobile behind "More columns". */
+  secondary?: boolean;
+};
+
+const skaterCols: Column<Skater>[] = [
+  { key: "gp", label: "GP", title: "Games played", defaultDir: "desc" },
+  { key: "goals", label: "G", title: "Goals", defaultDir: "desc" },
+  { key: "assists", label: "A", title: "Assists", defaultDir: "desc" },
+  { key: "points", label: "PTS", title: "Points", defaultDir: "desc", primary: true },
+  { key: "penalties", label: "PEN", title: "Penalties committed", defaultDir: "desc", secondary: true },
+  { key: "ps_taken", label: "PS", title: "Penalty shots taken", defaultDir: "desc", secondary: true },
+  { key: "ps_made", label: "PSG", title: "Penalty-shot goals", defaultDir: "desc", secondary: true },
 ];
 
-const goalieCols: { key: GoalieKey; label: string; align: "left" | "right"; defaultDir: Direction; numeric: boolean }[] = [
-  { key: "name", label: "Goalie", align: "left", defaultDir: "asc", numeric: false },
-  { key: "team", label: "Team", align: "left", defaultDir: "asc", numeric: false },
-  { key: "gp", label: "GP", align: "right", defaultDir: "desc", numeric: true },
-  { key: "w", label: "W", align: "right", defaultDir: "desc", numeric: true },
-  { key: "l", label: "L", align: "right", defaultDir: "asc", numeric: true },
-  { key: "otl", label: "OTL", align: "right", defaultDir: "asc", numeric: true },
-  { key: "ga", label: "GA", align: "right", defaultDir: "asc", numeric: true },
-  { key: "ps_faced", label: "PSF", align: "right", defaultDir: "desc", numeric: true },
-  { key: "ps_saved", label: "PSV", align: "right", defaultDir: "desc", numeric: true },
+const goalieCols: Column<Goalie>[] = [
+  { key: "gp", label: "GP", title: "Games played", defaultDir: "desc" },
+  { key: "w", label: "W", title: "Wins", defaultDir: "desc" },
+  { key: "l", label: "L", title: "Losses", defaultDir: "asc" },
+  { key: "otl", label: "OTL", title: "Overtime/shootout losses", defaultDir: "asc" },
+  { key: "ga", label: "GA", title: "Goals against", defaultDir: "asc" },
+  { key: "ps_faced", label: "PSF", title: "Penalty shots faced", defaultDir: "desc", secondary: true },
+  { key: "ps_saved", label: "PSV", title: "Penalty shots saved", defaultDir: "desc", primary: true },
 ];
 
-function compare<T>(a: T, b: T): number {
+function compare(a: unknown, b: unknown): number {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
   if (b == null) return -1;
@@ -75,370 +78,235 @@ function compare<T>(a: T, b: T): number {
   return String(a).localeCompare(String(b));
 }
 
-function arrow(active: boolean, dir: Direction) {
-  if (!active) return <span className="text-ink-faint/60 ml-1">↕</span>;
-  return <span className="text-ice ml-1">{dir === "desc" ? "↓" : "↑"}</span>;
+// Gold / silver / bronze rank for the top three — only when the table is
+// sorted by a stat (a leaderboard), not alphabetically.
+const MEDAL = ["#fbbf24", "#c9d2de", "#d9925f"];
+const MEDAL_NAME = ["first", "second", "third"];
+
+function SortIcon({ active, dir }: { active: boolean; dir: Direction }) {
+  return (
+    <svg viewBox="0 0 10 14" aria-hidden className="h-3 w-2.5 shrink-0">
+      <path d="M5 1 9 5H1Z" fill={active && dir === "asc" ? "var(--ice)" : "var(--rule-strong)"} />
+      <path d="M5 13 1 9h8Z" fill={active && dir === "desc" ? "var(--ice)" : "var(--rule-strong)"} />
+    </svg>
+  );
 }
 
-// Gold / silver / bronze for the top three rows — but only when the table is
-// sorted by a stat (a leaderboard), not alphabetically by name/team.
-const MEDAL = ["#fbbf24", "#c9d2de", "#cd7f52"];
-function medalColor(rankIdx: number, isLeaderboard: boolean): string | null {
-  return isLeaderboard && rankIdx < 3 ? MEDAL[rankIdx] : null;
-}
-
-export function SkaterTable({ rows }: { rows: Skater[] }) {
-  const [sortKey, setSortKey] = useState<SkaterKey>("points");
+function StatTable<T extends Row>({
+  rows,
+  cols,
+  initialSort,
+  noun,
+  caption,
+  empty,
+}: {
+  rows: T[];
+  cols: Column<T>[];
+  initialSort: keyof T & string;
+  noun: string;
+  caption: string;
+  empty: string;
+}) {
+  const [sortKey, setSortKey] = useState<string>(initialSort);
   const [dir, setDir] = useState<Direction>("desc");
-  const [expanded, setExpanded] = useState(false);
+  const [moreCols, setMoreCols] = useState(false);
 
   const sorted = useMemo(() => {
     const copy = [...rows];
     copy.sort((a, b) => {
-      const av = sortKey === "team" ? a.team?.name : a[sortKey];
-      const bv = sortKey === "team" ? b.team?.name : b[sortKey];
+      const av = sortKey === "team" ? a.team?.name : sortKey === "name" ? a.name : a[sortKey as keyof T];
+      const bv = sortKey === "team" ? b.team?.name : sortKey === "name" ? b.name : b[sortKey as keyof T];
       const c = compare(av, bv);
       return dir === "desc" ? -c : c;
     });
     return copy;
   }, [rows, sortKey, dir]);
 
-  const onSort = (key: SkaterKey, defaultDir: Direction) => {
-    if (sortKey === key) {
-      setDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
+  const sortBy = (key: string, defaultDir: Direction) => {
+    if (sortKey === key) setDir((d) => (d === "desc" ? "asc" : "desc"));
+    else {
       setSortKey(key);
       setDir(defaultDir);
     }
   };
 
   const isLeaderboard = sortKey !== "name" && sortKey !== "team";
+  const hasSecondary = cols.some((c) => c.secondary);
+  // Secondary columns: hidden on mobile unless "More columns" is on.
+  const secondaryVis = moreCols ? "" : "hidden sm:table-cell";
+
+  const th = (key: string, label: ReactNode, title: string, defaultDir: Direction, cls: string, align: "left" | "right") => {
+    const active = sortKey === key;
+    return (
+      <th
+        key={key}
+        scope="col"
+        aria-sort={active ? (dir === "desc" ? "descending" : "ascending") : "none"}
+        className={`${cls} !p-0 ${align === "right" ? "text-right" : "text-left"}`}
+      >
+        <button
+          type="button"
+          onClick={() => sortBy(key, defaultDir)}
+          title={`Sort by ${title}`}
+          className={`inline-flex items-center gap-1 min-h-[44px] w-full px-2 uppercase tracking-[0.06em] hover:text-ink transition-colors ${
+            align === "right" ? "justify-end" : "justify-start"
+          } ${active ? "text-ice" : ""}`}
+        >
+          {label}
+          <SortIcon active={active} dir={dir} />
+        </button>
+      </th>
+    );
+  };
 
   return (
-    <>
-      {/* Mobile: stacked rows, sort via dropdown */}
-      <div className="sm:hidden">
-        <MobileSortControls
-          value={sortKey}
-          dir={dir}
-          options={skaterCols.filter((c) => c.numeric)}
-          onChange={(k, d) => {
-            setSortKey(k as SkaterKey);
-            setDir(d);
-          }}
-        />
-        <div className="space-y-1.5">
-          {sorted.length === 0 ? (
-            <div className="panel px-5 py-4 eyebrow">No stats yet</div>
-          ) : (
-            (expanded ? sorted : sorted.slice(0, MOBILE_TOP_N)).map((s, i) => {
-              const medal = medalColor(i, isLeaderboard);
-              return (
-              <Link
-                key={s.id}
-                href={`/players/${s.id}`}
-                className="panel px-3 py-2 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
-                style={medal ? { borderColor: `${medal}66` } : undefined}
+    <div>
+      {/* Mobile sort chips */}
+      <div className="sm:hidden mb-3 flex items-center gap-2 overflow-x-auto pb-1" role="group" aria-label={`Sort ${noun}`}>
+        <span className="eyebrow shrink-0">Sort</span>
+        {cols
+          .filter((c) => !c.secondary || moreCols)
+          .map((c) => {
+            const active = sortKey === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => sortBy(c.key, c.defaultDir)}
+                className={`shrink-0 inline-flex items-center gap-1 min-h-[44px] px-3 rounded-full border text-[14px] font-semibold transition-colors ${
+                  active ? "bg-ice text-board border-ice" : "border-rule-strong text-ink-dim hover:text-ink"
+                }`}
               >
-                <span
-                  className={`digit w-7 shrink-0 ${medal ? "font-bold" : "text-ink-faint"}`}
-                  style={medal ? { color: medal } : undefined}
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate">{s.name}</span>
-                  <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
-                    {s.team && <TeamBadge {...s.team} size="sm" asChild />}
-                    {s.isChampion && <span title="Season champion">🏆</span>}
-                    <span>
-                      {s.gp}GP · {s.goals}G · {s.assists}A · {s.penalties}P
-                    </span>
-                  </div>
-                </div>
-                <span className="digit text-2xl text-ink shrink-0 tnum">
-                  {sortKey === "points" || !["goals", "assists", "penalties", "gp", "ps_taken", "ps_made"].includes(sortKey)
-                    ? s.points
-                    : (s[sortKey as keyof Skater] as number)}
-                </span>
-              </Link>
-              );
-            })
-          )}
-        </div>
-        {sorted.length > MOBILE_TOP_N && (
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            className="mt-3 eyebrow inline-flex items-center justify-center w-full min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
-          >
-            {expanded ? "Show fewer" : `Show all ${sorted.length} skaters`}
-          </button>
-        )}
+                {c.label}
+                {active && <span aria-label={dir === "desc" ? "descending" : "ascending"}>{dir === "desc" ? "↓" : "↑"}</span>}
+              </button>
+            );
+          })}
       </div>
 
-      {/* Desktop sortable table */}
-      <div className="panel hidden sm:block overflow-x-auto">
-        <table className="board-table stats-table">
+      <div className={`panel ${moreCols ? "table-scroll" : "overflow-clip"}`}>
+        <table className={`board-table stats-table ${moreCols ? "" : "sticky-head"}`}>
+          <caption className="sr-only">{caption}. Column headers sort the table.</caption>
           <thead>
             <tr>
-              <th className="text-left pl-5 w-12">#</th>
-              {skaterCols.map((c) => (
-                <th key={c.key} className={c.align === "right" ? "text-right" : "text-left"}>
-                  <button
-                    type="button"
-                    onClick={() => onSort(c.key, c.defaultDir)}
-                    className="inline-flex items-center font-display tracking-[0.18em] uppercase hover:text-ink transition-colors cursor-pointer"
-                  >
-                    {c.label}
-                    {arrow(sortKey === c.key, dir)}
-                  </button>
-                </th>
-              ))}
+              <th scope="col" className="text-left w-10 pl-3 sm:pl-4">#</th>
+              {th("name", noun === "goalies" ? "Goalie" : "Player", "name", "asc", "", "left")}
+              {th("team", "Team", "team", "asc", "hidden sm:table-cell w-20", "left")}
+              {cols.map((c) =>
+                th(c.key, c.label, c.title, c.defaultDir, `${c.secondary ? `${secondaryVis} col-dim` : ""} w-10 sm:w-14`, "right"),
+              )}
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={skaterCols.length + 1} className="pl-5 py-6 eyebrow">No stats yet</td>
+                <td colSpan={cols.length + 3} className="px-4 py-5 text-[14px] text-ink-faint">
+                  {empty}
+                </td>
               </tr>
             ) : (
-              (expanded ? sorted : sorted.slice(0, DESKTOP_TOP_N)).map((s, i) => {
-                const medal = medalColor(i, isLeaderboard);
+              sorted.map((r, i) => {
+                const medal = isLeaderboard && i < 3 ? i : null;
                 return (
-                <tr key={s.id}>
-                  <td
-                    className={`pl-5 digit ${medal ? "font-bold" : "text-ink-faint"}`}
-                    style={medal ? { color: medal } : undefined}
-                  >
-                    {String(i + 1).padStart(2, "0")}
-                  </td>
-                  <td className="!p-0">
-                    <Link
-                      href={`/players/${s.id}`}
-                      className="flex items-center min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
-                    >
-                      {s.name}
-                    </Link>
-                  </td>
-                  <td>
-                    {s.team && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <TeamBadge {...s.team} size="sm" />
-                        {s.isChampion && <span title="Season champion">🏆</span>}
-                      </span>
-                    )}
-                  </td>
-                  <td className="text-right tnum text-ink-dim">{s.gp}</td>
-                  <td className="text-right tnum text-ink">{s.goals}</td>
-                  <td className="text-right tnum text-ink-dim">{s.assists}</td>
-                  <td className="text-right tnum digit text-lg text-ink">{s.points}</td>
-                  <td className="text-right tnum text-ink-dim">{s.penalties}</td>
-                  <td className="text-right tnum text-ink-dim">{s.ps_taken}</td>
-                  <td className="text-right pr-5 tnum text-ink-dim">{s.ps_made}</td>
-                </tr>
+                  <tr key={r.id}>
+                    <td className="pl-3 sm:pl-4 tnum">
+                      {medal !== null ? (
+                        <span className="font-bold" style={{ color: MEDAL[medal] }}>
+                          {i + 1}
+                          <span className="sr-only"> ({MEDAL_NAME[medal]})</span>
+                        </span>
+                      ) : (
+                        <span className="text-ink-faint">{i + 1}</span>
+                      )}
+                    </td>
+                    <td className="!py-1">
+                      <Link
+                        href={`/players/${r.id}`}
+                        className="flex flex-col justify-center min-h-[44px] hover:text-ice transition-colors"
+                      >
+                        <span className="text-ink leading-5">{r.name}</span>
+                        {r.team && (
+                          <span className="sm:hidden mt-0.5 inline-flex items-center gap-1.5">
+                            <TeamTag name={r.team.name} color={r.team.color} />
+                            {r.isChampion && <Trophy />}
+                          </span>
+                        )}
+                      </Link>
+                    </td>
+                    <td className="hidden sm:table-cell">
+                      {r.team && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <TeamTag name={r.team.name} color={r.team.color} />
+                          {r.isChampion && <Trophy />}
+                        </span>
+                      )}
+                    </td>
+                    {cols.map((c) => {
+                      const v = r[c.key as keyof T] as number | null;
+                      return (
+                        <td
+                          key={c.key}
+                          className={`text-right pr-2 ${
+                            c.secondary ? `${secondaryVis} col-dim` : c.primary ? "font-bold text-ink" : "text-ink-dim"
+                          } ${sortKey === c.key && !c.primary ? "text-ink" : ""}`}
+                        >
+                          {v ?? "—"}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })
             )}
           </tbody>
         </table>
       </div>
-      {sorted.length > DESKTOP_TOP_N && (
+      {hasSecondary && (
         <button
           type="button"
-          onClick={() => setExpanded((e) => !e)}
-          className="hidden sm:flex mt-3 eyebrow items-center justify-center w-full min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
+          aria-pressed={moreCols}
+          onClick={() => setMoreCols((m) => !m)}
+          className="sm:hidden mt-2 inline-flex items-center min-h-[44px] text-[14px] font-semibold text-ice hover:text-ink transition-colors"
         >
-          {expanded ? "Show fewer" : `Show all ${sorted.length} skaters`}
+          {moreCols ? "Fewer columns" : `More columns (${cols.filter((c) => c.secondary).map((c) => c.label).join(", ")})`}
         </button>
       )}
-    </>
+    </div>
+  );
+}
+
+function Trophy() {
+  return (
+    <span title="Season champion">
+      <span aria-hidden>🏆</span>
+      <span className="sr-only">Season champion</span>
+    </span>
+  );
+}
+
+export function SkaterTable({ rows }: { rows: Skater[] }) {
+  return (
+    <StatTable
+      rows={rows}
+      cols={skaterCols}
+      initialSort="points"
+      noun="skaters"
+      caption="Skater stats"
+      empty="No skater stats yet."
+    />
   );
 }
 
 export function GoalieTable({ rows }: { rows: Goalie[] }) {
-  const [sortKey, setSortKey] = useState<GoalieKey>("ps_saved");
-  const [dir, setDir] = useState<Direction>("desc");
-
-  const sorted = useMemo(() => {
-    const copy = [...rows];
-    copy.sort((a, b) => {
-      const av = sortKey === "team" ? a.team?.name : a[sortKey];
-      const bv = sortKey === "team" ? b.team?.name : b[sortKey];
-      const c = compare(av, bv);
-      return dir === "desc" ? -c : c;
-    });
-    return copy;
-  }, [rows, sortKey, dir]);
-
-  const onSort = (key: GoalieKey, defaultDir: Direction) => {
-    if (sortKey === key) {
-      setDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setSortKey(key);
-      setDir(defaultDir);
-    }
-  };
-
-  const isLeaderboard = sortKey !== "name" && sortKey !== "team";
-
   return (
-    <>
-      <div className="sm:hidden">
-        <MobileSortControls
-          value={sortKey}
-          dir={dir}
-          options={goalieCols.filter((c) => c.numeric)}
-          onChange={(k, d) => {
-            setSortKey(k as GoalieKey);
-            setDir(d);
-          }}
-        />
-        <div className="space-y-1.5">
-          {sorted.length === 0 ? (
-            <div className="panel px-5 py-4 eyebrow">No goalies on file</div>
-          ) : (
-            sorted.map((g, i) => {
-              const medal = medalColor(i, isLeaderboard);
-              return (
-              <Link
-                key={g.id}
-                href={`/players/${g.id}`}
-                className="panel px-3 py-2 flex items-center gap-3 min-h-[44px] hover:border-rule-strong transition-colors"
-                style={medal ? { borderColor: `${medal}66` } : undefined}
-              >
-                <span
-                  className={`digit w-7 shrink-0 ${medal ? "font-bold" : "text-ink-faint"}`}
-                  style={medal ? { color: medal } : undefined}
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate">{g.name}</span>
-                  <div className="mt-0.5 flex items-center gap-2.5 text-[12px] text-ink-dim tnum">
-                    {g.team && <TeamBadge {...g.team} size="sm" asChild />}
-                    {g.isChampion && <span title="Season champion">🏆</span>}
-                    <span>
-                      {g.gp}GP · {g.w !== null && `${g.w}-${g.l}-${g.otl} · `}{g.ga}GA · {g.ps_faced}PSF
-                    </span>
-                  </div>
-                </div>
-                <span className="digit text-2xl text-ink shrink-0 tnum">
-                  {(g[sortKey as keyof Goalie] as number | null) ?? "—"}
-                </span>
-              </Link>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      <div className="panel hidden sm:block overflow-x-auto">
-        <table className="board-table stats-table">
-          <thead>
-            <tr>
-              <th className="text-left pl-5 w-12">#</th>
-              {goalieCols.map((c) => (
-                <th key={c.key} className={c.align === "right" ? "text-right" : "text-left"}>
-                  <button
-                    type="button"
-                    onClick={() => onSort(c.key, c.defaultDir)}
-                    className="inline-flex items-center font-display tracking-[0.18em] uppercase hover:text-ink transition-colors cursor-pointer"
-                  >
-                    {c.label}
-                    {arrow(sortKey === c.key, dir)}
-                  </button>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={goalieCols.length + 1} className="pl-5 py-6 eyebrow">No goalies on file</td>
-              </tr>
-            ) : (
-              sorted.map((g, i) => {
-                const medal = medalColor(i, isLeaderboard);
-                return (
-                <tr key={g.id}>
-                  <td
-                    className={`pl-5 digit ${medal ? "font-bold" : "text-ink-faint"}`}
-                    style={medal ? { color: medal } : undefined}
-                  >
-                    {String(i + 1).padStart(2, "0")}
-                  </td>
-                  <td className="!p-0">
-                    <Link
-                      href={`/players/${g.id}`}
-                      className="flex items-center min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
-                    >
-                      {g.name}
-                    </Link>
-                  </td>
-                  <td>
-                    {g.team && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <TeamBadge {...g.team} size="sm" />
-                        {g.isChampion && <span title="Season champion">🏆</span>}
-                      </span>
-                    )}
-                  </td>
-                  <td className="text-right tnum text-ink-dim">{g.gp}</td>
-                  <td className="text-right tnum text-ink-dim">{g.w ?? "—"}</td>
-                  <td className="text-right tnum text-ink-dim">{g.l ?? "—"}</td>
-                  <td className="text-right tnum text-ink-dim">{g.otl ?? "—"}</td>
-                  <td className="text-right tnum text-ink-dim">{g.ga}</td>
-                  <td className="text-right tnum text-ink-dim">{g.ps_faced}</td>
-                  <td className="text-right pr-5 tnum digit text-lg text-ink">{g.ps_saved}</td>
-                </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
-function MobileSortControls<K extends string>({
-  value,
-  dir,
-  options,
-  onChange,
-}: {
-  value: K;
-  dir: Direction;
-  options: { key: K; label: string; defaultDir: Direction }[];
-  onChange: (key: K, dir: Direction) => void;
-}) {
-  return (
-    <div className="mb-2 flex items-center gap-2">
-      <label className="eyebrow">Sort</label>
-      <select
-        value={value}
-        onChange={(e) => {
-          const next = options.find((o) => o.key === e.target.value);
-          if (next) onChange(next.key, next.defaultDir);
-        }}
-        className="bg-board-2 border border-rule-strong text-ink text-[12px] font-mono uppercase tracking-[0.12em] px-2 py-1 rounded-[2px] flex-1 min-w-0 min-h-11"
-      >
-        {options.map((o) => (
-          <option key={o.key} value={o.key}>{o.label}</option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={() => {
-          const cur = options.find((o) => o.key === value);
-          if (cur) onChange(value, dir === "desc" ? "asc" : "desc");
-        }}
-        className="min-w-11 min-h-11 px-2 py-1 border border-rule-strong text-[12px] font-mono uppercase text-ink-dim hover:text-ink transition-colors"
-        aria-label={`Sort ${dir === "desc" ? "descending" : "ascending"}`}
-      >
-        {dir === "desc" ? "↓" : "↑"}
-      </button>
-    </div>
+    <StatTable
+      rows={rows}
+      cols={goalieCols}
+      initialSort="ps_saved"
+      noun="goalies"
+      caption="Goalie stats"
+      empty="No goalies on file."
+    />
   );
 }

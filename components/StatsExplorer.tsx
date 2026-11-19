@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { SectionHeader } from "./SectionHeader";
 import { SeasonSelect } from "./SeasonSelect";
 import { AwardWinners, type AwardWinnerGroup } from "./AwardWinners";
+import { Disclosure } from "./Disclosure";
 import {
   SkaterTable,
   GoalieTable,
@@ -76,16 +77,6 @@ type Props = {
 
 type PositionFilter = "all" | "forward" | "defense";
 type KindFilter = "all" | "regular" | "playoff";
-
-// Colored left "spine" + faint fading tint, matching the homepage sections.
-const SPINE_CLS = "border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5 rounded-r-lg";
-function spineStyle(color: string): CSSProperties {
-  return {
-    borderColor: color,
-    background: `linear-gradient(90deg, color-mix(in srgb, ${color} 9%, transparent), transparent 34%)`,
-  };
-}
-const GOLD = "#fbbf24";
 
 export function StatsExplorer({
   seasonName,
@@ -242,41 +233,41 @@ export function StatsExplorer({
   return (
     <>
       <div className="rise">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <SectionHeader
-              eyebrow="The Numbers"
-              title="Stats"
-              subtitle={`${seasonName} · league leaders`}
-              size="lg"
-              as="h1"
-            />
-          </div>
-          <div className="mt-1 shrink-0 flex flex-col items-end gap-1">
-            <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
-            <Link href="/stats/all-time" className="eyebrow text-ice hover:text-ink transition-colors inline-flex items-center min-h-11">
-              All-time →
-            </Link>
-          </div>
-        </div>
+        <SectionHeader
+          eyebrow={`${seasonName} · League leaders`}
+          title="Stats"
+          size="lg"
+          as="h1"
+          action={
+            <>
+              <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
+              <Link
+                href="/stats/all-time"
+                className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 whitespace-nowrap"
+              >
+                All-time <span aria-hidden className="ml-1">→</span>
+              </Link>
+            </>
+          }
+        />
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} accent="goal" />
-          <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} accent="ice" />
-          <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} accent="ink" />
+          <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} />
+          <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} />
+          <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} />
         </div>
       </div>
 
-      {(awardWinners.length > 0 || awardsPending) && (
-        <section className={`rise delay-1 ${SPINE_CLS}`} style={spineStyle(GOLD)}>
-          <SectionHeader eyebrow="The Hardware" title="Award Winners" />
-          {awardWinners.length > 0 ? (
-            <AwardWinners awards={awardWinners} />
-          ) : (
-            <p className="eyebrow normal-case tracking-[0.06em] text-ink-faint">
-              Awards are announced at the end of the season.
-            </p>
-          )}
+      {awardWinners.length > 0 ? (
+        <section className="rise delay-1">
+          <SectionHeader eyebrow="The hardware" title="Award winners" />
+          <AwardWinners awards={awardWinners} />
         </section>
+      ) : (
+        awardsPending && (
+          <p className="rise delay-1 text-[14px] text-ink-faint">
+            <span className="font-semibold text-ink-dim">Awards</span> are announced at the end of the season.
+          </p>
+        )
       )}
 
       <FilterBar
@@ -290,28 +281,27 @@ export function StatsExplorer({
         showKind={!precomputed}
       />
 
-      <section className={`rise delay-1 mt-2 ${SPINE_CLS}`} style={spineStyle("var(--ice)")}>
-        <div className="flex items-end justify-between gap-3 mb-3 sm:mb-5">
-          <SectionHeader eyebrow="Skaters" title="Skater Stats" />
-          <a
-            href="#goalies"
-            className="sm:hidden eyebrow shrink-0 inline-flex items-center min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
-          >
-            Goalies ↓
-          </a>
-        </div>
+      <section className="rise delay-1">
+        <SectionHeader
+          eyebrow={`${skaters.length} ${skaters.length === 1 ? "skater" : "skaters"}`}
+          title="Skater stats"
+          action={
+            <a
+              href="#goalies"
+              className="sm:hidden text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11"
+            >
+              Goalies <span aria-hidden className="ml-1">↓</span>
+            </a>
+          }
+        />
         <SkaterTable rows={skaters} />
         <Legend>
-          Tap any column header to sort. PEN = penalties committed; PS = penalty shots taken; PSG = penalty shots scored.
+          Tap a column header to sort. PEN = penalties committed; PS = penalty shots taken; PSG = penalty shots scored.
         </Legend>
       </section>
 
-      <section
-        id="goalies"
-        className={`rise delay-2 mt-5 sm:mt-10 scroll-mt-28 ${SPINE_CLS}`}
-        style={spineStyle("var(--goal)")}
-      >
-        <SectionHeader eyebrow="Between The Pipes" title="Goalies" />
+      <section id="goalies" className="rise delay-2">
+        <SectionHeader eyebrow="Between the pipes" title="Goalies" />
         <GoalieTable rows={goalies} />
         <Legend>
           W-L-OTL isn&apos;t available for imported seasons. GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
@@ -324,15 +314,9 @@ export function StatsExplorer({
 // Collapsed-by-default abbreviations key, so the tables sit higher on the page.
 function Legend({ children }: { children: ReactNode }) {
   return (
-    <details className="mt-3 group">
-      <summary className="eyebrow inline-flex items-center gap-1.5 cursor-pointer list-none select-none min-h-11 text-ink-dim hover:text-ink transition-colors">
-        <span className="text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block">
-          ▶
-        </span>
-        Legend
-      </summary>
-      <p className="eyebrow mt-1.5 normal-case tracking-[0.06em] text-ink-faint">{children}</p>
-    </details>
+    <Disclosure label="Legend" className="mt-2">
+      <p>{children}</p>
+    </Disclosure>
   );
 }
 
@@ -364,28 +348,28 @@ function FilterBar({
   };
 
   return (
-    <div className="rise delay-1 mt-4 sm:mt-5 panel-bare px-3 py-2.5 sm:px-4 sm:py-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <FilterField label="Pos">
+    <div role="toolbar" aria-label="Filter stats" className="rise delay-1 panel-bare px-3 py-3 sm:px-4">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+        <FilterField label="Position">
           <SegmentedFilter<PositionFilter>
             value={position}
             onChange={setPosition}
             options={[
               { value: "all", label: "All" },
-              { value: "forward", label: "Fwd" },
-              { value: "defense", label: "Def" },
+              { value: "forward", label: "Forwards" },
+              { value: "defense", label: "Defense" },
             ]}
           />
         </FilterField>
         {showKind && (
-          <FilterField label="Type">
+          <FilterField label="Games">
             <SegmentedFilter<KindFilter>
               value={kind}
               onChange={setKind}
               options={[
                 { value: "all", label: "All" },
-                { value: "regular", label: "Reg" },
-                { value: "playoff", label: "Pyo" },
+                { value: "regular", label: "Regular" },
+                { value: "playoff", label: "Playoffs" },
               ]}
             />
           </FilterField>
@@ -394,7 +378,10 @@ function FilterBar({
           <select
             value={teamId}
             onChange={(e) => setTeamId(e.target.value)}
-            className="bg-board-2 border border-rule-strong text-ink text-[12.5px] font-mono uppercase tracking-[0.1em] px-2 py-1.5 rounded-[2px] min-h-[36px] max-w-[180px] sm:max-w-[220px]"
+            aria-label="Team"
+            className={`border text-[14px] font-semibold px-3 rounded-md min-h-[44px] max-w-[200px] sm:max-w-[220px] transition-colors ${
+              teamId === "all" ? "bg-board-2 border-rule-strong text-ink" : "bg-ice border-ice text-board"
+            }`}
           >
             <option value="all">All teams</option>
             {teams.map((t) => (
@@ -406,7 +393,7 @@ function FilterBar({
           type="button"
           onClick={resetAll}
           disabled={!hasActiveFilter}
-          className="ml-auto px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-[0.14em] min-h-[36px] text-ink-faint hover:text-goal disabled:opacity-30 disabled:hover:text-ink-faint transition-colors"
+          className="ml-auto px-3 text-[14px] font-semibold min-h-[44px] rounded-md text-ice hover:text-ink disabled:text-ink-faint disabled:opacity-60 transition-colors"
         >
           Reset
         </button>
@@ -417,83 +404,41 @@ function FilterBar({
 
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="inline-flex items-center gap-2">
-      <span className="eyebrow text-[10px]">{label}</span>
+    <div className="inline-flex items-center gap-2" role="group" aria-label={label}>
+      <span className="eyebrow w-[4.5rem] sm:w-auto">{label}</span>
       {children}
     </div>
   );
 }
 
-function LeaderTile({
-  label,
-  leader,
-  stat,
-  accent,
-}: {
-  label: string;
-  leader: Skater | null;
-  stat: number;
-  accent: "goal" | "ice" | "ink";
-}) {
-  const statColor = accent === "goal" ? "text-goal" : accent === "ice" ? "text-ice" : "text-ink";
-  const labelColor = accent === "goal" ? "text-goal" : accent === "ice" ? "text-ice" : "text-ink-dim";
-  const ringColor = leader?.team?.color ?? "var(--rule-strong)";
-
+function LeaderTile({ label, leader, stat }: { label: string; leader: Skater | null; stat: number }) {
   return (
-    <div className="scoreboard p-3 sm:p-5 flex flex-col justify-between min-h-[128px] sm:min-h-[168px] relative overflow-hidden">
-      <div className="flex items-start justify-between gap-2">
-        <div className={`eyebrow ${labelColor}`}>{label}</div>
-        {leader && (
-          <span
-            aria-hidden
-            className="hidden sm:flex items-center justify-center h-9 w-9 rounded-full text-[12px] font-display tracking-[0.06em] text-ink shrink-0"
-            style={{ border: `1.5px solid ${ringColor}`, background: `color-mix(in srgb, ${ringColor} 14%, transparent)` }}
-          >
-            {initials(leader.name)}
-          </span>
-        )}
-      </div>
+    <div className="panel p-3 sm:p-5 flex flex-col gap-1.5 min-w-0">
+      <div className="eyebrow">{label}</div>
       {leader ? (
         <>
-          <div className={`digit text-[42px] sm:text-[64px] leading-none mt-1 ${statColor} tnum`}>
-            {stat}
-          </div>
-          <div className="mt-2 min-w-0">
-            <Link
-              href={`/players/${leader.id}`}
-              className="block truncate text-[14px] sm:text-[16px] text-ink hover:text-ice transition-colors font-medium"
-            >
-              {leader.name}
-            </Link>
-            {leader.team && (
-              <div className="mt-1 inline-flex items-center gap-1.5 min-w-0">
-                <span
-                  className="inline-block w-[3px] h-[10px] rounded-[1px] shrink-0"
-                  style={{ backgroundColor: leader.team.color, boxShadow: `0 0 6px ${leader.team.color}55` }}
-                  aria-hidden
-                />
-                <span className="text-[11px] text-ink-dim truncate">{leader.team.name}</span>
-              </div>
-            )}
-          </div>
+          <div className="digit text-[32px] sm:text-[44px] leading-none text-goal">{stat}</div>
+          <Link
+            href={`/players/${leader.id}`}
+            className="mt-1 text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors line-clamp-2 break-words"
+          >
+            {leader.name}
+          </Link>
+          {leader.team && (
+            <div className="flex items-start gap-1.5 min-w-0">
+              <span aria-hidden className="swatch mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: leader.team.color }} />
+              <span className="text-[12px] sm:text-[13px] leading-4 text-ink-faint">{leader.team.name}</span>
+            </div>
+          )}
         </>
       ) : (
         <>
-          <div className={`digit text-[42px] sm:text-[64px] leading-none mt-1 text-ink-faint tnum`}>—</div>
-          <div className="mt-2 text-[11px] text-ink-faint eyebrow normal-case tracking-[0.06em]">No leader yet</div>
+          <div className="digit text-[32px] sm:text-[44px] leading-none text-ink-faint">—</div>
+          <div className="text-[13px] text-ink-faint">No leader yet</div>
         </>
       )}
     </div>
   );
-}
-
-// First initial of the first and last name parts (e.g. "Steve Yzerman" → "SY").
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "";
-  const first = parts[0][0] ?? "";
-  const last = parts.length > 1 ? (parts[parts.length - 1][0] ?? "") : "";
-  return (first + last).toUpperCase();
 }
 
 function SegmentedFilter<T extends string>({
@@ -506,7 +451,7 @@ function SegmentedFilter<T extends string>({
   options: { value: T; label: string }[];
 }) {
   return (
-    <div className="inline-flex border border-rule-strong rounded-[2px] overflow-hidden">
+    <div className="inline-flex border border-rule-strong rounded-md overflow-hidden">
       {options.map((o, i) => {
         const active = o.value === value;
         return (
@@ -514,9 +459,9 @@ function SegmentedFilter<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`px-2.5 py-1.5 text-[11.5px] font-mono uppercase tracking-[0.12em] transition-colors min-h-[36px] ${
-              active ? "bg-board-3 text-ice" : "text-ink-dim hover:text-ink"
-            } ${i > 0 ? "border-l border-rule" : ""}`}
+            className={`px-3 text-[14px] font-semibold transition-colors min-h-[44px] ${
+              active ? "bg-ice text-board" : "text-ink-dim hover:text-ink hover:bg-board-3"
+            } ${i > 0 ? "border-l border-rule-strong" : ""}`}
             aria-pressed={active}
           >
             {o.label}

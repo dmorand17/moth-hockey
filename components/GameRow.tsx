@@ -28,7 +28,7 @@ function Bar({ team }: { team: Team | null }) {
   return (
     <span
       aria-hidden
-      className="w-1 h-4 shrink-0 rounded-[1px]"
+      className="swatch w-1 h-4 shrink-0 rounded-[1px]"
       style={{ background: team?.color ?? "var(--rule-strong)" }}
     />
   );

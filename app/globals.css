@@ -194,18 +194,10 @@ body {
   50% { opacity: 0.45; }
 }
 
-/* Team color swatch */
+/* Team color swatch (bars/dots): a faint outline keeps dark team colors
+   (e.g. black) visible on the board. */
 .swatch {
-  position: relative;
-  display: inline-block;
-}
-.swatch::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22);
 }
 
 /* Generic content prose */

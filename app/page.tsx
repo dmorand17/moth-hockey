@@ -243,7 +243,7 @@ function LeaderTile({
         <div className="text-[16px] font-semibold leading-5 text-ink">{name}</div>
         {team && (
           <div className="mt-1 flex items-center gap-1.5 min-w-0">
-            <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: team.color }} />
+            <span aria-hidden className="swatch h-2 w-2 shrink-0 rounded-full" style={{ background: team.color }} />
             <span className="text-[13px] text-ink-faint truncate">{team.name}</span>
           </div>
         )}

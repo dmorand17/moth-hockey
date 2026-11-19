@@ -30,7 +30,7 @@ export function TeamBadge({
     <>
       <span
         aria-hidden
-        className={`${s.bar} shrink-0 rounded-[1px]`}
+        className={`swatch ${s.bar} shrink-0 rounded-[1px]`}
         style={{ background: color }}
       />
       <span className={`truncate ${s.text} font-medium tracking-tight`}>{name}</span>
@@ -53,7 +53,7 @@ export function TeamBadge({
 export function TeamTag({ name, color, className = "" }: { name: string; color: string; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-[0.04em] text-ink-faint ${className}`} title={name}>
-      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+      <span aria-hidden className="swatch h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
       <span aria-hidden>{teamAbbr(name)}</span>
       <span className="sr-only">{name}</span>
     </span>

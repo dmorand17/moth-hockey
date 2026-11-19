@@ -18,15 +18,12 @@ export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
         return (
           <div
             key={type}
-            className="panel-bare p-3 flex flex-col gap-1.5"
-            style={{
-              borderColor: style.border,
-              boxShadow: headline ? style.glow ?? "none" : "none",
-            }}
+            className="panel-bare p-3 sm:p-4 flex flex-col gap-1.5"
+            style={headline ? { borderColor: style.border } : undefined}
           >
             <div
-              className="font-mono text-[10.5px] tracking-[0.16em] uppercase flex items-center gap-1.5 leading-none"
-              style={{ color: style.fg, fontWeight: headline ? 600 : 500 }}
+              className="text-[12px] font-bold tracking-[0.06em] uppercase flex items-center gap-1.5 leading-4"
+              style={{ color: style.fg }}
             >
               <span aria-hidden>{style.star}</span>
               <span>{label}</span>
@@ -36,7 +33,7 @@ export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
                 <li key={w.id}>
                   <Link
                     href={`/players/${w.id}`}
-                    className="text-[13px] text-ink hover:text-ice transition-colors truncate block"
+                    className="text-[15px] text-ink hover:text-ice transition-colors inline-flex items-center min-h-[32px]"
                   >
                     {w.name}
                   </Link>

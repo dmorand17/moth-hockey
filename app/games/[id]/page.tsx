@@ -351,7 +351,6 @@ export default async function GamePage({
       title="Availability"
       subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
       defaultOpen={false}
-      closedHint
       className="rise delay-1 space-y-4"
     >
       {isScheduled && availability.viewerCanCheckIn && (

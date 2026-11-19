@@ -2,19 +2,31 @@
 
 :root {
   --ink: #f4f6f8;
-  --ink-dim: #b3b9c4;
-  --ink-faint: #6b7280;
+  --ink-dim: #c3c9d4;
+  --ink-faint: #9aa3b2;
 
   --board: #0b0d10;
   --board-2: #13161b;
   --board-3: #1a1e25;
   --rule: #262b34;
   --rule-strong: #3a4150;
+  --board-hover: #20252d;
+  --zebra: #161a20;
 
   --ice: #7ce3f0;
   --goal: #ff3838;
   --goal-glow: #ff5757;
   --neutral: #f4f6f8;
+  --gold: #fbbf24;
+  --win: #34d399;
+  --loss: #f87171;
+  --otl: #fbbf24;
+
+  /* Sticky site header height — sticky table heads and anchors sit below it. */
+  --header-h: 105px;
+}
+@media (min-width: 768px) {
+  :root { --header-h: 81px; }
 }
 
 @theme inline {
@@ -31,6 +43,11 @@
   --color-ice: var(--ice);
   --color-goal: var(--goal);
   --color-goal-glow: var(--goal-glow);
+  --color-board-hover: var(--board-hover);
+  --color-gold: var(--gold);
+  --color-win: var(--win);
+  --color-loss: var(--loss);
+  --color-otl: var(--otl);
   --font-sans: var(--font-atkinson);
   --font-display: var(--font-bebas);
   --font-mono: var(--font-atkinson);
@@ -43,25 +60,15 @@ html {
 body {
   color: var(--ink);
   font-family: var(--font-atkinson), system-ui, sans-serif;
-  background:
-    radial-gradient(1200px 600px at 50% -200px, rgba(124, 227, 240, 0.06), transparent 70%),
-    radial-gradient(900px 500px at 100% 100%, rgba(255, 56, 56, 0.04), transparent 60%),
-    var(--board);
+  font-size: 16px;
+  line-height: 1.5;
+  background: var(--board);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Subtle ice grain overlay */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.025 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  opacity: 0.7;
-  mix-blend-mode: overlay;
-}
+/* Anchored sections land below the sticky header. */
+[id] { scroll-margin-top: calc(var(--header-h) + 12px); }
 
 /* Display lockup */
 .font-display {
@@ -80,58 +87,36 @@ body::before {
   min-width: 44px;
 }
 
-/* Goal line — red under section headers */
-.goal-line {
-  position: relative;
-}
-.goal-line::after {
-  content: "";
-  display: block;
-  height: 2px;
-  margin-top: 0.5rem;
-  background: linear-gradient(
-    90deg,
-    var(--accent, var(--goal)) 0%,
-    var(--accent, var(--goal)) 56px,
-    var(--rule) 56px,
-    var(--rule) 100%
-  );
-}
-
-/* Eyebrow tag — small monospace label */
+/* Eyebrow — short secondary label (section kickers, table/meta labels). */
 .eyebrow {
   font-family: var(--font-atkinson), system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-dim);
 }
 
-/* Rink panel — used on cards/tables */
+/* Card surface — flat, 1px border, 8px radius. */
 .panel {
-  background: linear-gradient(180deg, var(--board-2) 0%, color-mix(in srgb, var(--board-2) 92%, var(--board) 8%) 100%);
+  background: var(--board-2);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 8px;
   position: relative;
 }
 
 .panel-bare {
   background: var(--board-2);
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
-/* Scoreboard digit panel */
+/* Raised score surface (scoreboard header, leader tiles). */
 .scoreboard {
-  background:
-    linear-gradient(180deg, #07090c 0%, #0b0e13 100%);
+  background: var(--board-2);
   border: 1px solid var(--rule-strong);
-  border-radius: 4px;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 1px 0 rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
 }
 
 .digit {
@@ -140,20 +125,22 @@ body::before {
   font-variant-numeric: tabular-nums;
 }
 
-/* Period chip */
+/* Status chip */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.18rem 0.5rem;
-  border-radius: 2px;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
   font-family: var(--font-atkinson), system-ui, sans-serif;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
   background: var(--board-3);
-  border: 1px solid var(--rule);
+  border: 1px solid var(--rule-strong);
   color: var(--ink-dim);
 }
 .chip-live {
@@ -176,6 +163,21 @@ body::before {
   border-color: rgba(251, 191, 36, 0.4);
   background: rgba(251, 191, 36, 0.1);
 }
+.chip-win {
+  color: var(--win);
+  border-color: rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.08);
+}
+.chip-loss {
+  color: var(--loss);
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.08);
+}
+.chip-otl {
+  color: var(--otl);
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.08);
+}
 
 /* Pulsing red live dot */
 .live-dot {
@@ -183,7 +185,6 @@ body::before {
   height: 7px;
   border-radius: 999px;
   background: var(--goal);
-  box-shadow: 0 0 8px var(--goal-glow);
   animation: pulse 1.4s ease-in-out infinite;
 }
 @keyframes pulse {
@@ -206,7 +207,7 @@ body::before {
 }
 
 /* Generic content prose */
-.prose-rink { line-height: 1.65; color: var(--ink-dim); }
+.prose-rink { font-size: 16px; line-height: 1.65; color: var(--ink-dim); max-width: 70ch; }
 .prose-rink p { line-height: 1.65; color: var(--ink-dim); margin: 0 0 1em; }
 .prose-rink p:last-child { margin-bottom: 0; }
 .prose-rink h2,
@@ -217,9 +218,12 @@ body::before {
   letter-spacing: 0.03em;
   margin: 1.4em 0 0.5em;
 }
-.prose-rink h2 { font-size: 20px; }
-.prose-rink h3 { font-size: 17px; }
-.prose-rink h4 { font-size: 15px; }
+.prose-rink h2,
+.prose-rink h3,
+.prose-rink h4 { font-family: var(--font-atkinson), system-ui, sans-serif; font-weight: 700; letter-spacing: 0; }
+.prose-rink h2 { font-size: 20px; line-height: 24px; }
+.prose-rink h3 { font-size: 18px; line-height: 24px; }
+.prose-rink h4 { font-size: 16px; line-height: 24px; }
 .prose-rink ul,
 .prose-rink ol { margin: 0 0 1em; padding-left: 1.4em; }
 .prose-rink ul { list-style: disc; }
@@ -294,7 +298,7 @@ body.chrome-off > main {
 
 /* Page transition */
 @keyframes rise {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .rise { animation: rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
@@ -304,56 +308,65 @@ body.chrome-off > main {
 .delay-4 { animation-delay: 240ms; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise { animation: none; }
-  .live-dot { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-/* Scoreboard table styling */
+/* Data tables — zebra rows, hover, tabular numbers. Add .sticky-head to pin
+   the header under the site header (only when not inside .table-scroll —
+   overflow clips sticky). */
 table.board-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 table.board-table thead th {
   font-family: var(--font-atkinson), system-ui, sans-serif;
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-dim);
-  font-weight: 600;
-  padding: 0.6rem 0.5rem;
-  border-bottom: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--board-2) 70%, var(--board));
+  font-weight: 700;
+  padding: 0.625rem 0.5rem;
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--board-3);
+  white-space: nowrap;
 }
 table.board-table tbody td {
-  padding: 0.55rem 0.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
-  font-size: 13.5px;
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px;
+  line-height: 20px;
 }
 table.board-table tbody tr:last-child td { border-bottom: none; }
-table.board-table tbody tr:hover td {
-  background: color-mix(in srgb, var(--board-3) 55%, transparent);
+table.board-table tbody tr:hover td { background: var(--board-hover); }
+table.board-table.sticky-head thead th {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 2;
 }
-
-/* Stats tables — zebra striping and an identity|stats divider before the
-   first numeric column (4th cell). */
-table.board-table.stats-table tbody tr:nth-child(even) td {
-  background: color-mix(in srgb, var(--board-2) 45%, transparent);
-}
-table.board-table.stats-table tbody tr:hover td {
-  background: color-mix(in srgb, var(--board-3) 60%, transparent);
-}
-table.board-table.stats-table :is(th, td):nth-child(4) {
-  border-left: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
-}
-
-/* Zebra striping for dense tables that don't want the stats-table divider
-   (e.g. standings). */
+table.board-table.stats-table tbody tr:nth-child(even) td,
 table.board-table.striped tbody tr:nth-child(even) td {
-  background: color-mix(in srgb, var(--board-2) 45%, transparent);
+  background: var(--zebra);
 }
+table.board-table.stats-table tbody tr:hover td,
 table.board-table.striped tbody tr:hover td {
-  background: color-mix(in srgb, var(--board-3) 60%, transparent);
+  background: var(--board-hover);
 }
+/* Compact rows for tables whose cells already hold 44px tap targets. */
+table.board-table.dense tbody td {
+  padding-block: 2px;
+}
+/* De-emphasized secondary stat column (PEN / PS / PSG …). */
+table.board-table .col-dim { color: var(--ink-faint); }
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* Visible, on-brand keyboard focus. The browser default ring is a faint 1px
    on the near-black board; this makes focus obvious and matches the palette.
@@ -362,7 +375,6 @@ table.board-table.striped tbody tr:hover td {
 :focus-visible {
   outline: 2px solid var(--ice);
   outline-offset: 2px;
-  border-radius: 2px;
 }
 
 /* Diagonal stripe for inactive/muted UI */

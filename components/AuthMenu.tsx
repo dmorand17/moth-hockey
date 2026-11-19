@@ -38,7 +38,7 @@ export function AuthMenu({ links }: { links: Item[] }) {
     return (
       <Link
         href={l.href}
-        className="shrink-0 px-3 sm:px-4 font-display text-[12px] sm:text-[14px] tracking-[0.14em] uppercase text-ice hover:text-ink transition-colors inline-flex items-center min-h-[44px] whitespace-nowrap"
+        className="shrink-0 px-3 sm:px-4 text-[14px] sm:text-[15px] font-semibold text-ice hover:text-ink hover:bg-board-3 rounded-md transition-colors inline-flex items-center min-h-[44px] whitespace-nowrap"
       >
         {l.label}
       </Link>
@@ -91,7 +91,7 @@ export function AuthMenu({ links }: { links: Item[] }) {
               href={l.href}
               role="menuitem"
               onClick={() => setOpen(false)}
-              className={`block px-4 py-3 font-display text-[13px] tracking-[0.14em] uppercase transition-colors ${
+              className={`block px-4 py-3 text-[15px] font-semibold transition-colors ${
                 isActive(l)
                   ? "text-ink bg-board-3"
                   : "text-ice hover:text-ink hover:bg-board-3"

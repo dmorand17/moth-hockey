@@ -268,7 +268,7 @@ export function StatsExplorer({
 
       {(awardWinners.length > 0 || awardsPending) && (
         <section className={`rise delay-1 ${SPINE_CLS}`} style={spineStyle(GOLD)}>
-          <SectionHeader eyebrow="The Hardware" title="Award Winners" accent="gold" />
+          <SectionHeader eyebrow="The Hardware" title="Award Winners" />
           {awardWinners.length > 0 ? (
             <AwardWinners awards={awardWinners} />
           ) : (
@@ -292,7 +292,7 @@ export function StatsExplorer({
 
       <section className={`rise delay-1 mt-2 ${SPINE_CLS}`} style={spineStyle("var(--ice)")}>
         <div className="flex items-end justify-between gap-3 mb-3 sm:mb-5">
-          <SectionHeader eyebrow="Skaters" title="Skater Stats" accent="ice" />
+          <SectionHeader eyebrow="Skaters" title="Skater Stats" />
           <a
             href="#goalies"
             className="sm:hidden eyebrow shrink-0 inline-flex items-center min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
@@ -311,7 +311,7 @@ export function StatsExplorer({
         className={`rise delay-2 mt-5 sm:mt-10 scroll-mt-28 ${SPINE_CLS}`}
         style={spineStyle("var(--goal)")}
       >
-        <SectionHeader eyebrow="Between The Pipes" title="Goalies" accent="goal" />
+        <SectionHeader eyebrow="Between The Pipes" title="Goalies" />
         <GoalieTable rows={goalies} />
         <Legend>
           W-L-OTL isn&apos;t available for imported seasons. GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.

@@ -137,12 +137,12 @@ export default async function AllTimeStatsPage() {
       </div>
 
       <section className={`rise delay-1 ${SPINE_CLS}`} style={spine("var(--ice)")}>
-        <SectionHeader eyebrow="Skaters" title="Career Skater Stats" accent="ice" />
+        <SectionHeader eyebrow="Skaters" title="Career Skater Stats" />
         <SkaterTable rows={[...skaters.values()]} />
       </section>
 
       <section className={`rise delay-2 ${SPINE_CLS}`} style={spine("var(--goal)")}>
-        <SectionHeader eyebrow="Between The Pipes" title="Career Goalie Stats" accent="goal" />
+        <SectionHeader eyebrow="Between The Pipes" title="Career Goalie Stats" />
         <GoalieTable rows={[...goalies.values()]} />
       </section>
 

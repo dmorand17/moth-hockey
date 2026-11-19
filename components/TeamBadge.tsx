@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { teamAbbr } from "@/lib/format";
 
 type Props = {
   name: string;
@@ -20,9 +21,9 @@ export function TeamBadge({
   size = "md",
 }: Props) {
   const sizes = {
-    sm: { bar: "w-1 h-4", text: "text-[13px]" },
+    sm: { bar: "w-1 h-4", text: "text-[14px]" },
     md: { bar: "w-1 h-5", text: "text-[15px]" },
-    lg: { bar: "w-1.5 h-7", text: "text-[18px] md:text-[20px]" },
+    lg: { bar: "w-1 h-6", text: "text-[18px] md:text-[20px]" },
   };
   const s = sizes[size];
   const inner = (
@@ -30,7 +31,7 @@ export function TeamBadge({
       <span
         aria-hidden
         className={`${s.bar} shrink-0 rounded-[1px]`}
-        style={{ background: color, boxShadow: `0 0 8px ${color}55` }}
+        style={{ background: color }}
       />
       <span className={`truncate ${s.text} font-medium tracking-tight`}>{name}</span>
     </>
@@ -44,5 +45,17 @@ export function TeamBadge({
     <Link href={`/teams/${slug}`} className={`${layout} min-h-11 hover:text-ink transition-colors`}>
       {inner}
     </Link>
+  );
+}
+
+// Compact team marker for dense rows: color dot + abbreviation, with the full
+// name available to screen readers and on hover.
+export function TeamTag({ name, color, className = "" }: { name: string; color: string; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-[0.04em] text-ink-faint ${className}`} title={name}>
+      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+      <span aria-hidden>{teamAbbr(name)}</span>
+      <span className="sr-only">{name}</span>
+    </span>
   );
 }

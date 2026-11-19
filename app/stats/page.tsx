@@ -58,12 +58,12 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
     winners: winnersByType.get(type)!.sort((a, b) => a.name.localeCompare(b.name)),
   }));
 
-  // ---- Historical season: stats are pre-aggregated, no games/events. ----
+  // ---- Past season: pre-aggregated totals (imported, or saved by finalize). ----
   if (!season.is_current) {
     const { data: statRows } = await supabase
       .from("season_player_stats")
       .select(
-        "position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, player:player_id(id, first_name, last_name), team:team_id(id, name, slug, color)",
+        "position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, wins, losses, ot_losses, player:player_id(id, first_name, last_name), team:team_id(id, name, slug, color)",
       )
       .eq("season_id", season.id);
 
@@ -97,9 +97,9 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
           ga: r.goals_against ?? 0,
           ps_faced: r.penalty_shots_faced ?? 0,
           ps_saved: r.penalty_shots_saved ?? 0,
-          w: null,
-          l: null,
-          otl: null,
+          w: r.wins,
+          l: r.losses,
+          otl: r.ot_losses,
         });
       } else {
         skaters.push({

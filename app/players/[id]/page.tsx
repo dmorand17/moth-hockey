@@ -123,7 +123,7 @@ export default async function PlayerPage({
     supabase
       .from("season_player_stats")
       .select(
-        "season_id, position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, team:team_id(name, slug, color)",
+        "season_id, position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, wins, losses, ot_losses, team:team_id(name, slug, color)",
       )
       .eq("player_id", id),
     supabase
@@ -150,18 +150,19 @@ export default async function PlayerPage({
   // Regular-season only — playoff games appear in the game log but don't
   // roll into season totals (mirrors hockey convention and the standings
   // filter in lib/queries.ts).
+  // Only the current season's games: past seasons come from their saved totals.
+  const currentSeason = (seasons ?? []).find((s) => s.is_current);
   const finalAppearances = (appearances ?? []).filter((a) => {
     if (a.game?.status !== "final") return false;
     if (a.game?.kind === "playoff") return false;
     const seasonId = a.game?.season_id;
-    if (!seasonId) return false;
+    if (!seasonId || seasonId !== currentSeason?.id) return false;
     const myTeam = myTeamBySeason.get(seasonId);
     return !!myTeam && myTeam === a.team_id;
   });
   const myCurrentGameIds = new Set(finalAppearances.map((a) => a.game_id));
   const myCurrentTeamByGame = new Map(finalAppearances.map((a) => [a.game_id, a.team_id]));
 
-  const currentSeason = (seasons ?? []).find((s) => s.is_current);
   const currentSeasonStats = {
     gp: 0, goals: 0, assists: 0, penalties: 0, ps_taken: 0, ps_made: 0,
     ga: 0, ps_faced: 0, ps_saved: 0, w: 0, l: 0, otl: 0,
@@ -285,7 +286,9 @@ export default async function PlayerPage({
   );
   const rows: SeasonStatsRow[] = [];
 
-  if (currentSeason && currentSeasonStats.gp > 0) {
+  // A finalized current season already has a saved row below — don't count it twice.
+  const currentSaved = (historyRows ?? []).some((h) => h.season_id === currentSeason?.id);
+  if (currentSeason && currentSeasonStats.gp > 0 && !currentSaved) {
     const r = rosterByseason.get(currentSeason.id);
     rows.push({
       season_id: currentSeason.id,
@@ -331,10 +334,10 @@ export default async function PlayerPage({
       ga: h.goals_against,
       ps_faced: h.penalty_shots_faced,
       ps_saved: h.penalty_shots_saved,
-      w: null,
-      l: null,
-      otl: null,
-      isCurrent: false,
+      w: h.wins,
+      l: h.losses,
+      otl: h.ot_losses,
+      isCurrent: s.is_current,
     });
   }
 

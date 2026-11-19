@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getStandings } from "@/lib/queries";
+import { getSeasonFinalizeInputs, getStandings } from "@/lib/queries";
+import {
+  FINALIZE_AWARDS,
+  computeSeasonTotals,
+  finalizeBlockers,
+  proposeAwards,
+} from "@/lib/season-finalize";
 import { ok, fail, type ActionResult } from "@/lib/action-result";
 import {
   buildGameSlots,
@@ -256,6 +262,12 @@ export async function resetSeason(formData: FormData): Promise<ActionResult> {
     .delete()
     .eq("season_id", id);
   if (skipErr) return fail(skipErr.message);
+
+  const { error: finErr } = await supabase
+    .from("seasons")
+    .update({ finalized_at: null })
+    .eq("id", id);
+  if (finErr) return fail(finErr.message);
 
   revalidatePublicSeasonPaths();
   revalidatePath("/admin/schedule");
@@ -710,4 +722,70 @@ export async function assignTeamCaptain(formData: FormData): Promise<ActionResul
   revalidatePublicSeasonPaths();
   revalidatePath("/admin/players");
   return ok("Captain updated.");
+}
+
+// Finalize a finished season: replace its season_player_stats with totals
+// rolled up from game events, replace its finalize-managed awards (champion is
+// always the winning roster; the rest come from the admin's review form,
+// pre-filled with the stat leaders), and stamp finalized_at. Safe to re-run.
+export async function finalizeSeason(formData: FormData): Promise<ActionResult> {
+  await requireRole(["admin"]);
+
+  const seasonId = String(formData.get("season_id") ?? "").trim();
+  if (!seasonId) return fail("Check all required fields.");
+
+  const { games, roster, appearances, events } = await getSeasonFinalizeInputs(seasonId);
+  const blockers = finalizeBlockers(games);
+  if (blockers.length > 0) return fail(blockers.join(" "));
+
+  const totals = computeSeasonTotals(games, roster, appearances, events);
+  const proposed = proposeAwards(totals, roster, games);
+  const rostered = new Set(roster.map((r) => r.player_id));
+
+  const awardRows: { season_id: string; player_id: string; award_type: string }[] = [];
+  for (const type of FINALIZE_AWARDS) {
+    const picks =
+      type === "champion"
+        ? proposed.champion
+        : formData.getAll(`award_${type}`).map(String).filter((id) => rostered.has(id));
+    for (const player_id of new Set(picks)) {
+      awardRows.push({ season_id: seasonId, player_id, award_type: type });
+    }
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { error: delStatsErr } = await supabase
+    .from("season_player_stats")
+    .delete()
+    .eq("season_id", seasonId);
+  if (delStatsErr) return fail(delStatsErr.message);
+  if (totals.length > 0) {
+    const { error } = await supabase
+      .from("season_player_stats")
+      .insert(totals.map((t) => ({ season_id: seasonId, ...t })));
+    if (error) return fail(error.message);
+  }
+
+  const { error: delAwardsErr } = await supabase
+    .from("player_awards")
+    .delete()
+    .eq("season_id", seasonId)
+    .in("award_type", [...FINALIZE_AWARDS]);
+  if (delAwardsErr) return fail(delAwardsErr.message);
+  if (awardRows.length > 0) {
+    const { error } = await supabase.from("player_awards").insert(awardRows);
+    if (error) return fail(error.message);
+  }
+
+  const { error: seasonErr } = await supabase
+    .from("seasons")
+    .update({ finalized_at: new Date().toISOString() })
+    .eq("id", seasonId);
+  if (seasonErr) return fail(seasonErr.message);
+
+  revalidatePublicSeasonPaths();
+  revalidatePath("/stats/all-time");
+  revalidatePath("/players/[id]", "page");
+  return ok(`Season finalized — ${totals.length} player totals and ${awardRows.length} awards saved.`);
 }

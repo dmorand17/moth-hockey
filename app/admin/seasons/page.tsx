@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
@@ -58,6 +59,7 @@ type SeasonRow = {
   regular_weeks: number | null;
   default_location: string | null;
   is_current: boolean;
+  finalized_at: string | null;
   period_length_minutes: number;
   point_system: string;
   tiebreakers: string[];
@@ -72,7 +74,7 @@ export default async function AdminSeasonsPage() {
   const { data: seasonsRaw } = await supabase
     .from("seasons")
     .select(
-      "id, season_type, year, name, start_date, end_date, regular_weeks, default_location, is_current, period_length_minutes, point_system, tiebreakers",
+      "id, season_type, year, name, start_date, end_date, regular_weeks, default_location, is_current, finalized_at, period_length_minutes, point_system, tiebreakers",
     )
     .order("start_date", { ascending: false });
 
@@ -175,6 +177,11 @@ export default async function AdminSeasonsPage() {
   }
 
   const currentYear = new Date().getFullYear();
+  // Activating another season while the current one has games but isn't
+  // finalized would leave its stats off the public past-season pages.
+  const unfinalizedCurrent = seasons.find(
+    (s) => s.is_current && !s.finalized_at && (gameCounts.get(s.id)?.n ?? 0) > 0,
+  );
 
   return (
     <div className="space-y-8">
@@ -285,6 +292,11 @@ export default async function AdminSeasonsPage() {
                         CURRENT
                       </span>
                     )}
+                    {season.finalized_at && (
+                      <span className="chip chip-final text-[10px] px-1.5 py-0.5 shrink-0">
+                        FINALIZED
+                      </span>
+                    )}
                     <span className="font-mono text-[11px] text-ink-faint shrink-0">
                       {teamCount} teams · {gameTotal} games
                     </span>
@@ -327,8 +339,28 @@ export default async function AdminSeasonsPage() {
                         <p className="text-ink-faint text-[12px] flex-1 min-w-[200px]">
                           Point the public site (standings, schedule, stats) at
                           this season.
+                          {unfinalizedCurrent && (
+                            <span className="block text-goal mt-1">
+                              {unfinalizedCurrent.name} isn&apos;t finalized yet — finalize it
+                              first or its stats won&apos;t show as a past season.
+                            </span>
+                          )}
                         </p>
                       </ActionForm>
+                    )}
+
+                    {/* Finalize — roll up stats + awards once games are played */}
+                    {gameTotal > 0 && (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 panel-bare rounded-lg p-3">
+                        <Link href={`/admin/seasons/${season.id}/finalize`} className={`${primaryBtn} inline-flex items-center`}>
+                          {season.finalized_at ? "RE-FINALIZE" : "FINALIZE"}
+                        </Link>
+                        <p className="text-ink-faint text-[12px] flex-1 min-w-[200px]">
+                          {season.finalized_at
+                            ? `Finalized ${new Date(season.finalized_at).toLocaleDateString()}. Re-run to refresh saved stats and awards.`
+                            : "Season over? Save final stats and assign awards (champion, MVP, and more)."}
+                        </p>
+                      </div>
                     )}
 
                     {/* Dates — collapsed */}

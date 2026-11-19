@@ -1,5 +1,12 @@
 import { createSupabaseServerClient } from "./supabase/server";
 import { buildThreads, pickTeams, type AuthorRow, type BoardSeason, type PostRow, type RosterRow, type Thread } from "./board";
+import {
+  championTeamId,
+  type FinalizeAppearance,
+  type FinalizeEvent,
+  type FinalizeGame,
+  type FinalizeRosterEntry,
+} from "./season-finalize";
 
 export type PointSystem = "2-1-0" | "3-2-1";
 export type TieKey = "wins" | "diff" | "gf" | "ga" | "h2h";
@@ -307,6 +314,77 @@ export async function getHistoricalStandings(seasonId: string): Promise<Historic
     a.name.localeCompare(b.name),
   );
   return result;
+}
+
+// Team that won the season's playoff final, or null if it hasn't been played.
+export async function getChampionTeamId(seasonId: string): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("games")
+    .select("id, kind, status, playoff_round, home_team_id, away_team_id, home_score, away_score, decided_in")
+    .eq("season_id", seasonId)
+    .eq("playoff_round", "final");
+  if (error) throw error;
+  return championTeamId((data ?? []) as FinalizeGame[]);
+}
+
+export type SeasonFinalizeInputs = {
+  games: FinalizeGame[];
+  roster: FinalizeRosterEntry[];
+  appearances: FinalizeAppearance[];
+  events: FinalizeEvent[];
+};
+
+// Everything lib/season-finalize needs for one season. Appearances and events
+// are paged past PostgREST's 1000-row cap.
+export async function getSeasonFinalizeInputs(seasonId: string): Promise<SeasonFinalizeInputs> {
+  const supabase = await createSupabaseServerClient();
+  const [{ data: games, error: gErr }, { data: roster, error: rErr }] = await Promise.all([
+    supabase
+      .from("games")
+      .select("id, kind, status, playoff_round, home_team_id, away_team_id, home_score, away_score, decided_in")
+      .eq("season_id", seasonId),
+    supabase.from("team_players").select("player_id, team_id, position").eq("season_id", seasonId),
+  ]);
+  if (gErr) throw gErr;
+  if (rErr) throw rErr;
+
+  const gameIds = (games ?? []).map((g) => g.id);
+  const PAGE = 1000;
+  const appearances: FinalizeAppearance[] = [];
+  const events: FinalizeEvent[] = [];
+  if (gameIds.length > 0) {
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from("game_appearances")
+        .select("game_id, player_id, team_id")
+        .in("game_id", gameIds)
+        .order("game_id")
+        .order("player_id")
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      appearances.push(...(data ?? []));
+      if (!data || data.length < PAGE) break;
+    }
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from("game_events")
+        .select("game_id, team_id, type, player_id, assist1_player_id, assist2_player_id, penalty_shot_taker_id, penalty_shot_result")
+        .in("game_id", gameIds)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      events.push(...((data ?? []) as FinalizeEvent[]));
+      if (!data || data.length < PAGE) break;
+    }
+  }
+
+  return {
+    games: (games ?? []) as FinalizeGame[],
+    roster: (roster ?? []) as FinalizeRosterEntry[],
+    appearances,
+    events,
+  };
 }
 
 export async function getUpcomingGames(seasonId: string, limit = 3): Promise<ScheduledGame[]> {

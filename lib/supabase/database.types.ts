@@ -624,6 +624,8 @@ export type Database = {
           games_played: number
           goals: number
           goals_against: number | null
+          losses: number | null
+          ot_losses: number | null
           penalties: number
           penalty_shots_faced: number | null
           penalty_shots_made: number
@@ -633,6 +635,7 @@ export type Database = {
           position: Database["public"]["Enums"]["player_position"]
           season_id: string
           team_id: string | null
+          wins: number | null
         }
         ComputedFields: never
         Insert: {
@@ -640,6 +643,8 @@ export type Database = {
           games_played?: number
           goals?: number
           goals_against?: number | null
+          losses?: number | null
+          ot_losses?: number | null
           penalties?: number
           penalty_shots_faced?: number | null
           penalty_shots_made?: number
@@ -649,12 +654,15 @@ export type Database = {
           position?: Database["public"]["Enums"]["player_position"]
           season_id: string
           team_id?: string | null
+          wins?: number | null
         }
         Update: {
           assists?: number
           games_played?: number
           goals?: number
           goals_against?: number | null
+          losses?: number | null
+          ot_losses?: number | null
           penalties?: number
           penalty_shots_faced?: number | null
           penalty_shots_made?: number
@@ -664,6 +672,7 @@ export type Database = {
           position?: Database["public"]["Enums"]["player_position"]
           season_id?: string
           team_id?: string | null
+          wins?: number | null
         }
         Relationships: [
           {
@@ -694,6 +703,7 @@ export type Database = {
           created_at: string
           default_location: string | null
           end_date: string | null
+          finalized_at: string | null
           id: string
           is_current: boolean
           name: string
@@ -710,6 +720,7 @@ export type Database = {
           created_at?: string
           default_location?: string | null
           end_date?: string | null
+          finalized_at?: string | null
           id?: string
           is_current?: boolean
           name: string
@@ -725,6 +736,7 @@ export type Database = {
           created_at?: string
           default_location?: string | null
           end_date?: string | null
+          finalized_at?: string | null
           id?: string
           is_current?: boolean
           name?: string

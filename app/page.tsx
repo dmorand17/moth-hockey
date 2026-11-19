@@ -121,14 +121,14 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
               <tr>
                 <th scope="col" className="text-left w-10 pl-4">#</th>
                 <th scope="col" className="text-left">Team</th>
-                <th scope="col" className="text-right">GP</th>
-                <th scope="col" className="text-right sm:hidden">W-L-OTL</th>
-                <th scope="col" className="text-right hidden sm:table-cell">W</th>
-                <th scope="col" className="text-right hidden sm:table-cell">L</th>
-                <th scope="col" className="text-right hidden sm:table-cell">OTL</th>
-                <th scope="col" className="text-right hidden sm:table-cell">GF</th>
-                <th scope="col" className="text-right hidden sm:table-cell">GA</th>
-                <th scope="col" className="text-right pr-4">PTS</th>
+                <th scope="col" className="text-right sm:w-14">GP</th>
+                <th scope="col" className="text-right sm:w-14 sm:hidden">W-L-OTL</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">W</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">L</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">OTL</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
+                <th scope="col" className="text-right sm:w-14 pr-4">PTS</th>
               </tr>
             </thead>
             <tbody>

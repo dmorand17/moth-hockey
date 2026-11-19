@@ -23,10 +23,12 @@
   --otl: #fbbf24;
 
   /* Sticky site header height — sticky table heads and anchors sit below it. */
-  --header-h: 105px;
+  --header-h: 106px;
 }
 @media (min-width: 768px) {
-  :root { --header-h: 81px; }
+  :root {
+    --header-h: 71px;
+  }
 }
 
 @theme inline {

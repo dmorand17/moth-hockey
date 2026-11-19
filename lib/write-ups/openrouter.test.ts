@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 describe("generateText", () => {
-  test("uses the primary model, with low reasoning for OpenAI models", async () => {
+  test("uses the primary model, with a capped reasoning budget", async () => {
     globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
       const body = JSON.parse(String(init!.body));
       calls.push({ model: body.model, reasoning: body.reasoning });
@@ -39,10 +39,10 @@ describe("generateText", () => {
 
     const r = await generateText("sys", "user");
     expect(r).toMatchObject({ text: "Headline\n\nBody", model: "openai/gpt-6-luna", costUsd: 0.0002, promptTokens: 900, completionTokens: 210 });
-    expect(calls).toEqual([{ model: "openai/gpt-6-luna", reasoning: { effort: "low" } }]);
+    expect(calls).toEqual([{ model: "openai/gpt-6-luna", reasoning: { max_tokens: 250 } }]);
   });
 
-  test("falls back when the primary errors, logging why; every model gets low reasoning", async () => {
+  test("falls back when the primary errors, logging why; every model gets the reasoning cap", async () => {
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
       const body = JSON.parse(String(init!.body));
@@ -57,12 +57,12 @@ describe("generateText", () => {
     expect(r.promptTokens).toBeNull();
     expect(r.completionTokens).toBeNull();
     expect(calls.map((c) => c.model)).toEqual(["openai/gpt-6-luna", "google/gemini-2.5-flash-lite"]);
-    expect(calls[1].reasoning).toEqual({ effort: "low" });
+    expect(calls[1].reasoning).toEqual({ max_tokens: 250 });
     expect(String(warn.mock.calls[0]?.join(" "))).toContain("overloaded");
     warn.mockRestore();
   });
 
-  test("DeepSeek primaries get low reasoning too", async () => {
+  test("DeepSeek primaries get the reasoning cap too", async () => {
     process.env.WRITE_UP_MODEL = "deepseek/deepseek-v4.1-flash-1017";
     globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
       const body = JSON.parse(String(init!.body));
@@ -70,7 +70,7 @@ describe("generateText", () => {
       return respond(200, { choices: [{ message: { content: "ok" } }] });
     }) as unknown as typeof fetch;
     await generateText("s", "u");
-    expect(calls).toEqual([{ model: "deepseek/deepseek-v4.1-flash-1017", reasoning: { effort: "low" } }]);
+    expect(calls).toEqual([{ model: "deepseek/deepseek-v4.1-flash-1017", reasoning: { max_tokens: 250 } }]);
   });
 
   test("throws when both models fail", async () => {
@@ -177,5 +177,23 @@ describe("generateText", () => {
     expect(lines).toContainEqual(expect.objectContaining({ event: "ai.call", role: "fallback", ok: true }));
     info.mockRestore();
     warn.mockRestore();
+  });
+  test("caps reasoning at a quarter of max_tokens and only routes to providers that honour it", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init!.body)));
+      return respond(200, { choices: [{ message: { content: "ok" }, finish_reason: "stop" }] });
+    }) as unknown as typeof fetch;
+    await generateText("s", "u", { maxTokens: 6000 });
+    expect(bodies[0]).toMatchObject({ max_tokens: 6000, reasoning: { max_tokens: 1500 }, provider: { require_parameters: true } });
+  });
+
+  test("logs the reasoning budget", async () => {
+    const info = spyOn(console, "info").mockImplementation(() => {});
+    globalThis.fetch = mock(async () => respond(200, { choices: [{ message: { content: "ok" }, finish_reason: "stop" }] })) as unknown as typeof fetch;
+    await generateText("s", "u", { maxTokens: 6000 });
+    const line = JSON.parse(info.mock.calls.map((c) => String(c[0])).find((c) => c.includes('"ai.call"'))!);
+    expect(line.reasoningBudget).toBe(1500);
+    info.mockRestore();
   });
 });

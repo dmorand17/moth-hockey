@@ -20,15 +20,33 @@ app/                  App Router routes (see Routes below)
   globals.css         Tailwind v4 entrypoint + design tokens
   <route>/page.tsx    a route (Server Component by default)
   <route>/actions.ts  server actions ("use server") for that route's mutations
-  auth/callback/route.ts  magic-link code → session exchange
+  auth/confirm/       magic-link landing page; POSTs to verify the token
+  auth/callback/route.ts  fallback: magic-link code → session exchange
+  api/                route handlers: cron/write-ups (Vercel cron), hooks/new-user (DB webhook)
 components/           shared components (mostly client/presentational)
 lib/
   queries.ts          server-side read helpers (typed Supabase selects)
   auth.ts             session + role gating (getAuthSession / requireRole / …)
   format.ts           pure formatters (clock, period labels)
+  matchup.ts          pure matchup stats (game preview + write-ups)
+  leaders.ts          scoring-leader aggregation
+  box-score.ts        box score stat lines from lineup + events
+  board.ts            message-board helpers
+  awards.ts           award labels, display order, badge styling
+  seasons.ts          season identity/lifecycle (recap target, slugs)
+  season-schedule.ts  round-robin schedule generation
+  season-finalize.ts  season totals, champion, proposed award winners
+  season-recap.ts     season recap computations
+  lineup-availability.ts  writes scorekeeper check-in back to game_availability
+  paginate.ts         page slicing helper
+  *.test.ts           `bun test` specs for the pure modules
+  write-ups/          AI game write-ups: OpenRouter client, prompt, parse, data, generate
   supabase/           Supabase client factories + generated types
 proxy.ts              Next 16 middleware (refreshes the auth cookie per request)
-supabase/             migrations/, seed.sql, config.toml (local stack)
+scripts/              dev-lan.sh, supabase-push.sh, reset-staging.sh, local/ seed helpers
+vercel.json           Vercel cron schedule (daily /api/cron/write-ups)
+supabase/             migrations/, seed.sql, config.toml (local stack), templates/ (auth
+                      emails), reset-staging.sql, seed-spring-2025.sql
 docs/                 this folder
 ```
 
@@ -40,19 +58,20 @@ docs/                 this folder
   [`DATABASE.md`](./DATABASE.md).
 - **Writes:** each route keeps its mutations in a colocated `actions.ts`
   (`"use server"`). Examples: `app/score/[gameId]/actions.ts`,
-  `app/admin/teams/actions.ts`. Actions call `requireRole(...)` first, then write
+  `app/admin/seasons/actions.ts`. Actions call `requireRole(...)` first, then write
   via the server client; RLS is the second line of defense in Postgres.
 - **Interactive UI** is isolated to client components (`"use client"`): e.g.
   `components/LiveScoring.tsx`, `components/RosterCheckIn.tsx`,
-  `components/StatsExplorer.tsx`, `app/admin/teams/color-swatches.tsx`.
+  `components/StatsExplorer.tsx`, `app/admin/seasons/color-swatches.tsx`.
 
 ## Supabase client split
 
-Four entrypoints, each for a different execution context:
+Five entrypoints, each for a different execution context:
 
 | File | Context | Purpose |
 | --- | --- | --- |
 | `lib/supabase/server.ts` | RSC / route handlers / server actions | Server client bound to the request cookie store |
+| `lib/supabase/service.ts` | server jobs with no user session | Service-role client (`SUPABASE_SECRET_KEY`, bypasses RLS); used by `app/api/cron/write-ups/route.ts` and `lib/write-ups/generate.ts` |
 | `lib/supabase/client.ts` | browser (`"use client"`) | Browser client for client components |
 | `lib/supabase/middleware.ts` | `updateAuthSession()` | Refreshes the JWT + rewrites auth cookies on each request |
 | `proxy.ts` (repo root) | Next 16 middleware | Wires `updateAuthSession` for all non-static routes |
@@ -67,10 +86,14 @@ client (`createServerClient<Database>`, etc.).
 ## Auth & roles
 
 - **Passwordless magic link.** `/login` and `/signup` call
-  `supabase.auth.signInWithOtp(...)`; the emailed link hits
-  `app/auth/callback/route.ts`, which runs `exchangeCodeForSession` and sets the
-  session cookie. (The callback rebuilds redirect URLs from the request `host`
-  to avoid Next dev's `127.0.0.1`→`localhost` cookie-stranding.)
+  `supabase.auth.signInWithOtp(...)`; the emailed link goes to
+  `/auth/confirm?token_hash=…`. `app/auth/confirm/page.tsx` renders a button
+  that POSTs to `app/auth/confirm/actions.ts`, which calls `verifyOtp` and sets
+  the session cookie. Verifying only on POST means email link scanners (which
+  GET the link) can't burn the one-time token. `app/auth/callback/route.ts`
+  (`exchangeCodeForSession`) remains as a fallback; it rebuilds redirect URLs
+  from the request `host` to avoid Next dev's `127.0.0.1`→`localhost`
+  cookie-stranding.
 - **Role gating** lives in `lib/auth.ts`:
   - `getAuthSession()` → `{ userId, email, role }` (role from `user_roles`).
   - `requireRole([...])` → hard gate; redirects to `/login` or `/?error=forbidden`.
@@ -86,17 +109,26 @@ client (`createServerClient<Database>`, etc.).
 ## Routes
 
 Public (anonymous read): `/`, `/teams`, `/teams/[slug]`, `/players/[id]`,
-`/schedule`, `/games/[id]`, `/standings`, `/stats`, `/about`, `/about/[section]`.
+`/schedule`, `/games/[id]`, `/standings`, `/stats`, `/stats/all-time`,
+`/recap` (redirects to the latest season recap), `/seasons/[slug]/recap` (plus
+its `opengraph-image` share card), `/about`, `/about/[section]`.
 
-Auth flows: `/login`, `/signup`, `/account`, `/auth/callback`.
+Auth flows: `/login`, `/signup`, `/account`, `/auth/confirm`, `/auth/callback`.
 
 Role-gated (enforced by `requireRole` + RLS):
 
 | Route | Required role |
 | --- | --- |
-| `/admin`, `/admin/*` | `admin` |
+| `/admin`, `/admin/*` (seasons, `seasons/[id]/finalize`, rosters, players, schedule, users, content) | `admin` |
 | `/score`, `/score/[gameId]`, `/score/[gameId]/roster` | `admin` or `scorekeeper` |
 | `/captains/contacts` | `admin` or `team_captain` |
+
+Route handlers (no session; shared-secret auth):
+
+| Route | Auth |
+| --- | --- |
+| `/api/cron/write-ups` | `Authorization: Bearer $CRON_SECRET` (Vercel cron, `vercel.json`) |
+| `/api/hooks/new-user` | `x-webhook-secret: $NEW_USER_WEBHOOK_SECRET` (Supabase DB webhook) |
 
 Contact info on `/players/[id]` is revealed only to `admin` / `team_captain` via
 `getSessionIfRole`.

@@ -36,7 +36,7 @@ git checkout -b feat/my-thing      # or fix/my-bug
 # 3. Work, commit, push
 git add ...
 git commit -m "feat(scope): what and why"
-git-c push -u origin feat/my-thing
+git push -u origin feat/my-thing
 
 # 4. Open a PR targeting staging
 gh pr create --base staging --title "feat(scope): ..." --body "..."
@@ -114,7 +114,7 @@ After merging the `staging → main` PR:
 
    Pass an explicit version to skip the prompt:
    ```bash
-   .claude/skills/staging-to-prod/scripts/create-release.sh v2.1.0
+   .claude/skills/create-release/scripts/create-release.sh v2.1.0
    ```
 
    The script creates an annotated git tag on `main` and a GitHub release with
@@ -123,8 +123,8 @@ After merging the `staging → main` PR:
 
 ## Versioning
 
-Releases use **semver** (`vMAJOR.MINOR.PATCH`). The release script auto-proposes
-the next patch version. Bump `MINOR` for significant new features, `MAJOR` for
+Releases use **semver** (`vMAJOR.MINOR.PATCH`). The release script offers the
+next patch, minor, or major version (or a custom one). Bump `MINOR` for significant new features, `MAJOR` for
 breaking changes.
 
 ```
@@ -137,7 +137,7 @@ v2.0.0  ← major (breaking change / significant rework)
 Pass the version as the first argument to override the suggestion:
 
 ```bash
-.claude/skills/staging-to-prod/scripts/create-release.sh v1.1.0
+.claude/skills/create-release/scripts/create-release.sh v1.1.0
 ```
 
 ## Quick reference

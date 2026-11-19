@@ -20,8 +20,9 @@ import { jumpLinks } from "@/lib/season-recap";
 
 type Params = Promise<{ slug: string }>;
 
-// Generating the AI summary (a server action on this page) can take a while.
-export const maxDuration = 90;
+// Generating the AI summary (a server action on this page) can take two
+// 75s model calls (primary + fallback).
+export const maxDuration = 180;
 
 // One fetch per request for both metadata and the page.
 const load = cache(getSeasonRecap);

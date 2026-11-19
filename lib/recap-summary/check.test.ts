@@ -6,7 +6,7 @@ const words = (n: number) => Array.from({ length: n }, (_, i) => `word${i % 7 ? 
 
 describe("parseRecapSummary", () => {
   test("strips code fences", () => {
-    const r = parseRecapSummary("```markdown\n" + words(300) + "\n```");
+    const r = parseRecapSummary("```markdown\n" + words(800) + "\n```");
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.markdown.startsWith("```")).toBe(false);
   });
@@ -14,6 +14,13 @@ describe("parseRecapSummary", () => {
     const r = parseRecapSummary(words(40));
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toContain("40 words");
+  });
+  test("drops a leading # title", () => {
+    const r = parseRecapSummary("# Spring 2026 Recap\n\n## The season in brief\n\n" + words(800));
+    expect(r.ok && r.markdown.startsWith("## The season in brief")).toBe(true);
+  });
+  test("rejects an overlong report", () => {
+    expect(parseRecapSummary(words(1600)).ok).toBe(false);
   });
   test("rejects empty output", () => {
     expect(parseRecapSummary("  ").ok).toBe(false);

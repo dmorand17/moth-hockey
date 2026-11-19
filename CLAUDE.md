@@ -12,6 +12,10 @@ Project docs live in `docs/` — [`docs/README.md`](docs/README.md) is the index
 - [`docs/LOCAL-TESTING.md`](docs/LOCAL-TESTING.md) — run locally and sign in as the seeded test users (magic link via Mailpit).
 - [`docs/initial-build/`](docs/initial-build/) — build plans: `PLAN.md` (master source of truth), `MULTI-ROLE.md`, `MOBILE-PLAN.md`, `DEPLOY.md`.
 
+### Keep docs current
+
+Every change (feature, fix, migration, script, workflow) ends with a doc review before it's committed or the PR is opened: check `README.md` (features, commands, roadmap, screenshots in `docs/images/`), the `docs/` reference files (ARCHITECTURE, DATABASE, DEVELOPMENT, LOCAL-TESTING, OPERATIONS, RELEASING) and this file, and update whatever the change made stale in the same PR. New migrations always get a row in `docs/DATABASE.md`. If nothing needs updating, say so in the PR description.
+
 ## Critical: Next.js 16 + React 19
 
 This project uses **Next.js 16.2.6** and **React 19.2.4**. Both have breaking changes vs. older versions you may have been trained on. Before writing any Next.js code, consult the local docs in `node_modules/next/dist/docs/` rather than relying on memory — APIs, conventions, and file structure differ. Honor any deprecation notices you encounter there.

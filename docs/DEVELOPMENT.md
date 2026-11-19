@@ -152,7 +152,7 @@ Game previews and recaps are written by a model through OpenRouter.
 - **Run it locally:**
   `curl -H "Authorization: Bearer $CRON_SECRET" http://127.0.0.1:3001/api/cron/write-ups`
 - **Env:** `OPENROUTER_API_KEY`, `SUPABASE_SECRET_KEY` (server-only), `CRON_SECRET`,
-  plus the two model vars. See `.env.local.example`.
+  plus the two model vars. See `.env.example`.
 - **OpenRouter guardrails:** the workspace must allow the OpenAI and Google
   providers. With Zero Data Retention on, at least one ZDR-compliant endpoint per
   model must stay allowed.

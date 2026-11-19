@@ -85,8 +85,8 @@ link took, then runs `db push --remote`, which applies any local migrations not
 yet recorded on that project, in order. Linking on every run means a push can't
 land on whichever project happened to be linked before.
 
-Copy `.env.staging.example` / `.env.production.example` to `.env.staging` /
-`.env.production` and fill in the token and DB password, then:
+Copy `.env.example` to `.env.staging` / `.env.production` and fill in its
+"Scripts" section (`SUPABASE_ENV`, project ref, access token, DB password), then:
 
 ```bash
 ./scripts/supabase-push.sh staging --dry-run   # list pending migrations

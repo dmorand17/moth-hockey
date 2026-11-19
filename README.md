@@ -6,7 +6,7 @@
 while the people who run the league get live scoring and admin tooling behind a login.
 
 It is **mobile-first** by design — most users are on a phone at the rink, on the bench, or between
-shifts — with a dark "scoreboard" look and per-team accent colors. Pages are server-rendered from
+shifts — with a flat dark theme, per-team accent colors, and a bottom tab bar on phones. Pages are server-rendered from
 Supabase, and player/goalie stats are derived at query time from the game event log rather than
 stored as aggregates.
 
@@ -27,19 +27,30 @@ stored as aggregates.
 
 | Feature             | What it does                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------ |
-| **Standings**       | 2-1-0 points (win=2, OT/SO loss=1, regulation loss=0) with full tiebreakers (pts → wins → goal differential → goals for). |
+| **Home**            | Current-season standings, league leaders, recent results, upcoming games, and the Locker Room board. |
+| **Standings**       | Per-season point system (3-2-1 or 2-1-0) with full tiebreakers (pts → wins → goal differential → goals for). |
 | **Teams & rosters** | Per-team roster grouped by forwards / defense / goalies, plus team stats, schedule, and a captain badge. |
-| **Schedule**        | Full season schedule, filterable by team and grouped by month.                                   |
-| **Boxscores**       | Live or final, with a goal and penalty-shot event log, including OT and shootout.                |
+| **Schedule**        | Full season schedule with a shareable team filter (`/schedule?team=<slug>`) and playoff round chips. |
+| **Game pages**      | Box score with goal and penalty-shot log (OT and shootout), a projected line and AI-written preview before the game, and an AI recap after it. |
 | **Player profiles** | Career stats per season plus all-time totals, interactive award badges, and captain history.     |
-| **League leaders**  | Points, goals, assists, penalties, and goalie stats.                                             |
+| **Stats**           | Season leaders (points, goals, assists, penalties, goalies; subs don't count toward leaders) and paginated all-time stats. |
+| **Season recap**    | `/seasons/<slug>/recap` (and `/recap` for the latest): champion, awards, final standings, leaders, notable moments, and a separate playoffs section. Shareable, with a link-preview image. |
+| **Locker Room**     | Season message board on the home page, plus per-game threads.                                    |
 | **Content pages**   | Markdown-powered rules, FAQ, and league info, editable by admins.                                |
+
+### Players (signed in)
+
+| Feature             | What it does                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| **Check-in**        | Mark yourself in or out for the next game from your account or the game page.                    |
+| **Locker Room posts** | Post and reply on the season board and game threads (account must be linked to a player).      |
 
 ### Scorekeeper
 
 | Feature             | What it does                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------ |
 | **Roster check-in** | Pre-game check-in of who's playing, including adding subs.                                        |
+| **Home-screen app** | Installable as a PWA so the scoring view opens full-screen from the phone's home screen.          |
 | **Live scoring**    | Mobile-first scoring UI with a sticky running clock and GOAL / PENALTY-SHOT flows, each with UNDO. |
 | **OT & shootout**   | Sudden-death overtime and shootout sub-flows.                                                    |
 | **Finalize**        | Lock a game once it's complete. Finalized games can no longer be edited by scorekeepers.          |
@@ -49,6 +60,7 @@ stored as aggregates.
 | Feature               | What it does                                                                  |
 | --------------------- | ----------------------------------------------------------------------------- |
 | **Contact directory** | Email and phone for every rostered player, grouped by team.                   |
+| **Availability & subs** | Manage who's in or out for a game and line up subs ahead of time.          |
 
 ### Admin
 
@@ -56,7 +68,9 @@ stored as aggregates.
 | ---------------------- | ----------------------------------------------------------------------------- |
 | **League data CRUD**   | Create and edit teams, players, rosters, and the schedule.                    |
 | **Season management**  | Round-robin generation, season activation, and playoff seeding.               |
+| **Finalize a season**  | Lock in season totals and awards once the playoffs end; the season recap links from here. |
 | **Content & awards**   | Edit the markdown content pages and assign per-season player awards.          |
+| **AI write-ups**       | Edit or hide the AI-written game previews and recaps.                         |
 | **Users & roles**      | Link signups to players and assign roles (scorekeeper, admin, etc.).          |
 | **Edit finalized games** | Correct events on games scorekeepers have already locked.                    |
 
@@ -66,8 +80,8 @@ Auth is passwordless **magic-link** only — players sign in once or twice a sea
 
 | Role           | How it's assigned                       | Can do                                                                          |
 | -------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
-| `player`       | Default for every signup                | Browse public pages; edit own profile.                                          |
-| `team_captain` | Derived from the `team_captains` table  | All player abilities + the contact directory; contact info shown on profiles.   |
+| `player`       | Default for every signup                | Browse public pages; edit own profile; check in for games; post in the Locker Room.                                          |
+| `team_captain` | Derived from the `team_captains` table  | All player abilities + the contact directory and game availability / subs.     |
 | `scorekeeper`  | Assigned by an admin                    | All player abilities + live scoring (`/score`). Cannot edit finalized games.    |
 | `admin`        | First one promoted by hand; rest via UI | Everything — full CRUD, season management, awards, and role assignment.          |
 
@@ -78,7 +92,8 @@ Contact info (email/phone) is never exposed on public pages; RLS limits reads to
 - **Next.js 16.2.6** (App Router) + **React 19.2.4** — server-first React Server Components.
 - **TypeScript** — path alias `@/*` → repo root.
 - **Tailwind v4** — configured in `app/globals.css`, not `tailwind.config.*`.
-- **Supabase** — Postgres + Auth (+ Realtime).
+- **Supabase** — Postgres + Auth.
+- **OpenRouter** — LLM calls for the AI game previews and recaps.
 - **bun** — package manager and runtime.
 - Deployed on **Vercel + Supabase cloud** (free tiers, ~$0/month).
 
@@ -92,10 +107,10 @@ Requires [bun](https://bun.sh) and the [Supabase CLI](https://supabase.com/docs/
 bun install
 bunx supabase start      # local Postgres + Auth + Mailpit
 bunx supabase db reset   # apply migrations + reseed the test users
-bun dev                  # http://localhost:3001
+bun dev                  # http://127.0.0.1:3001
 ```
 
-Sign in with a magic link: open [`/login`](http://localhost:3001/login), enter one of the seeded
+Sign in with a magic link: open [`/login`](http://127.0.0.1:3001/login), enter one of the seeded
 emails below, then open Mailpit at [http://localhost:54324](http://localhost:54324) and click the link.
 `supabase db reset` recreates these accounts every time.
 
@@ -109,12 +124,12 @@ See [`docs/LOCAL-TESTING.md`](docs/LOCAL-TESTING.md) for full local dev and test
 
 ## Commands
 
-- `bun dev` — start the dev server
+- `bun dev` — start the dev server on port 3001
+- `bun run dev:lan` — dev server reachable from a phone on the same Wi-Fi
 - `bun run build` — production build
 - `bun start` — run the production build
 - `bun run lint` — ESLint
-
-No test runner is configured.
+- `bun run test` — unit tests (`bun test` over the pure modules in `lib/`)
 
 ## Git workflow
 
@@ -131,36 +146,41 @@ drift apart.
 
 This keeps `main` and `staging` from diverging — every change lands on `staging`
 before `main`, and `staging` is brought back level right after each promotion.
-
-> Use `git-c` instead of `git` when pushing to the remote.
+See [`docs/RELEASING.md`](docs/RELEASING.md) for tagging releases.
 
 ## Screenshots
 
-|                          Standings                          |                       Teams                       |
-| :---------------------------------------------------------: | :-----------------------------------------------: |
-|        ![Standings table](docs/images/standings.png)        |       ![Teams list](docs/images/teams.png)        |
-|                       **League leaders**                    |               **Boxscore (shootout)**             |
-|            ![League stats](docs/images/stats.png)           |     ![Game boxscore](docs/images/boxscore.png)    |
+|                    Standings                    |                  Teams                  |
+| :---------------------------------------------: | :-------------------------------------: |
+|  ![Standings table](docs/images/standings.png)  |  ![Teams list](docs/images/teams.png)   |
+|                   **Stats**                     |               **Box score**             |
+|     ![League stats](docs/images/stats.png)      | ![Game box score](docs/images/boxscore.png) |
+|                **Season recap**                 |                                         |
+|     ![Season recap](docs/images/recap.png)      |                                         |
 
-**Live scoring (mobile)** — the scorekeeper's one-handed scoring view: running clock, per-team GOAL / PENALTY-SHOT controls, and a tap-to-undo event log.
+**On a phone** — home, season recap, and the scorekeeper's live scoring view (running clock, per-team GOAL / PENALTY controls, and a tap-to-edit event log).
 
 <p align="center">
-  <img src="docs/images/scorekeeper.png" alt="Scorekeeper live scoring UI" width="360" />
+  <img src="docs/images/home-mobile.png" alt="Home page on a phone" width="240" />
+  <img src="docs/images/recap-mobile.png" alt="Season recap on a phone" width="240" />
+  <img src="docs/images/scorekeeper.png" alt="Scorekeeper live scoring on a phone" width="240" />
 </p>
 
 ## Status & roadmap
 
-Phase 1 (the MVP) is essentially complete and live on staging. The full, living checklist is in
-[`docs/initial-build/PLAN.md`](docs/initial-build/PLAN.md) — this is the short version.
+The MVP is live in production. Releases are tagged on GitHub; the original build plan is in
+[`docs/initial-build/PLAN.md`](docs/initial-build/PLAN.md).
 
-**Shipped:** public site, magic-link signup + roles, admin CRUD (teams, players, rosters, schedule, content, seasons, playoffs), full scorekeeper scoring (roster check-in, live goals/penalty shots, OT + shootout, finalize), and derived stats/standings.
+**Shipped:** public site, magic-link signup + roles, admin CRUD, full scorekeeper scoring, derived
+stats/standings, game previews with projected lines, AI game write-ups, availability and subs,
+the Locker Room board, season finalization with all-time stats, the season recap page, and the
+mobile-first layout with a bottom tab bar.
 
-**Remaining (Phase 1):**
+**Next:**
 
-- Realtime boxscore — `/games/[id]` updating within ~1s of scorekeeper input.
-- Production deploy — a clean Supabase + Vercel project (staging is already live).
-
-**Phase 2 (pull in as the league asks):** player/team photos (Cloudflare R2), CSV import for historical seasons, a season archive, an awards browser, sub-stat accounting, multi-role users, and a custom domain.
+- Season recap AI summary — an admin-generated, editable season write-up on the recap page.
+- Season recap media gallery — admin-uploaded photos and video.
+- Realtime box score — `/games/[id]` updating live from scorekeeper input.
 
 ## Documentation
 
@@ -170,5 +190,9 @@ Project docs live in [`docs/`](docs/README.md):
 - [DATABASE.md](docs/DATABASE.md) — schema, enums, RLS, helper functions, and triggers.
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md) — dev workflow, the Supabase migrations loop, and conventions.
 - [LOCAL-TESTING.md](docs/LOCAL-TESTING.md) — run locally, sign in as the seeded test users, and preview the mobile layout.
+- [SUPABASE.md](docs/SUPABASE.md) — Supabase CLI reference: local stack, migrations, pushing to cloud.
+- [RELEASING.md](docs/RELEASING.md) — branch model, migration pushes, and release tagging.
+- [OPERATIONS.md](docs/OPERATIONS.md) — ops runbook: refresh staging seed data, load a season.
+- [EMAIL.md](docs/EMAIL.md) — auth email / custom SMTP setup.
 - [initial-build/PLAN.md](docs/initial-build/PLAN.md) — the master build plan and living source of truth.
 - [adr/](docs/adr/README.md) — Architecture Decision Records.

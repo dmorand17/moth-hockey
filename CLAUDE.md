@@ -26,7 +26,7 @@ Uses **bun** (see `bun.lock`). Use `bun install` / `bun add` rather than npm or 
 - `bun run build` — production build
 - `bun start` — run the production build
 - `bun run lint` — ESLint (flat config in `eslint.config.mjs`, extends `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`)
-- `bun run test` — `bun test` over `lib/` (pure modules: matchup stats, write-up prompts/parsing). UI and DB behavior are verified in the browser against the local stack.
+- `bun run test` — `bun test` over `lib/` (the pure, DB-free modules). UI and DB behavior are verified in the browser against the local stack.
 
 ## Git Workflow
 
@@ -35,7 +35,7 @@ This repo uses a `feature → staging → main` branching model:
 - **All feature branches and bug fixes must be created off `staging`**, not `main`.
 - Feature PRs merge into `staging`.
 - When ready to release, the `/staging-to-prod` skill creates a `staging → main` PR.
-- After that PR merges, run `.claude/skills/staging-to-prod/scripts/create-release.sh` to tag the release and create a GitHub release.
+- After that PR merges, use the `/create-release` skill (`.claude/skills/create-release/scripts/create-release.sh`) to tag the release and create a GitHub release.
 
 ## Architecture
 

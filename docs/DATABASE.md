@@ -1,6 +1,6 @@
 # Database
 
-Schema reference built from `supabase/migrations/0001`–`0006`. The conceptual
+Schema reference built from `supabase/migrations/0001`–`0028`. The conceptual
 model and rationale live in [`initial-build/PLAN.md`](./initial-build/PLAN.md);
 this doc reflects what the migrations actually create.
 
@@ -14,6 +14,26 @@ this doc reflects what the migrations actually create.
 | `0004_auth_roles.sql` | `players.user_id`, `user_profiles`, new role helpers, signup trigger |
 | `0005_team_captains.sql` | `team_captains` + role-sync triggers |
 | `0006_seasons_period_length.sql` | `seasons.period_length_minutes` (default 17) |
+| `0007_games_playoffs.sql` | `playoff_round` enum + `games.playoff_round`; nullable team ids for playoff stubs; one game per round per season |
+| `0008_seasons_end_date_optional.sql` | `seasons.end_date` nullable |
+| `0009_game_availability.sql` | `availability_status` enum + `game_availability` (player in/out per game) |
+| `0010_roster_captain.sql` | `team_players.is_captain`; `reconcile_team_captain()` + captain-sync triggers derive `team_captains` |
+| `0011_team_players_unique_season.sql` | Unique `(player_id, season_id)` on `team_players` (one team per season) |
+| `0012_schedule_skips.sql` | `schedule_skips` (skipped weeks shown on the schedule) |
+| `0013_season_type_summer.sql` | Add `summer` to `season_type` |
+| `0014_season_scoring.sql` | `seasons.point_system` (`2-1-0`/`3-2-1`) + `tiebreakers` |
+| `0015_playoff_quarterfinals.sql` | Add `qf1`–`qf4` to `playoff_round` (top-8 bracket) |
+| `0016_season_regular_weeks.sql` | `seasons.regular_weeks` (backfilled from start/end) |
+| `0017_season_default_location.sql` | `seasons.default_location` |
+| `0018_fix_captain_sync_search_path.sql` | Captain-sync trigger fns become `security definer` with pinned `search_path` (fixes auth-user delete) |
+| `0019_admin_user_last_sign_in.sql` | `admin_user_last_sign_in()` for the admin Users view |
+| `0020_availability_admin_captain_rls.sql` | `game_availability` RLS for admins and team captains |
+| `0021_scorekeeper_start_game.sql` | Scorekeepers may write appearances on scheduled games and flip `scheduled → live` |
+| `0022_game_subs.sql` | `game_subs`, `add_new_game_sub()`; captain availability policy tied to the game's season |
+| `0023_game_write_ups.sql` | `write_up_kind` enum + `game_write_ups` (AI previews/recaps) |
+| `0024_scorekeeper_availability.sql` | Scorekeepers may write `game_availability` on scheduled/live games |
+| `0025_game_appearance_position.sql` | `game_appearances.position` (nullable) |
+| `0026_write_up_input.sql` | `game_write_ups.input` (jsonb sent to the model) |
 | `0027_posts.sql` | Message board: `posts`, `is_linked_player()`, threading, rate-limit and column-immutability triggers (#140) |
 | `0028_season_finalize.sql` | `seasons.finalized_at`; goalie `wins`/`losses`/`ot_losses` on `season_player_stats` |
 
@@ -24,11 +44,14 @@ value be used in the same transaction that adds it.
 
 | Enum | Values |
 | --- | --- |
-| `season_type` | `spring`, `fall`, `winter` |
+| `season_type` | `spring`, `summer`, `fall`, `winter` |
 | `player_position` | `forward`, `defense`, `goalie` |
 | `game_status` | `scheduled`, `live`, `final` |
 | `game_decided_in` | `regulation`, `ot`, `shootout` |
 | `game_kind` | `regular`, `playoff` |
+| `playoff_round` | `qf1`, `qf2`, `qf3`, `qf4`, `sf1`, `sf2`, `final` |
+| `availability_status` | `in`, `out` |
+| `write_up_kind` | `preview`, `recap` |
 | `game_event_type` | `goal`, `penalty` |
 | `penalty_shot_result` | `goal`, `saved` |
 | `content_section` | `rules`, `faq`, `league` |
@@ -40,8 +63,11 @@ value be used in the same transaction that adds it.
 ### Core
 
 - **`seasons`** — `season_type`+`year` unique; `is_current` (partial unique index
-  enforces at most one current); `period_length_minutes` (default 17);
-  `finalized_at` (set by the admin Finalize action, cleared by Reset).
+  enforces at most one current); `end_date` (nullable); `period_length_minutes`
+  (default 17); `point_system` (`'2-1-0'` | `'3-2-1'`, default `3-2-1`);
+  `tiebreakers` (`text[]`, default `{wins,diff,gf}`); `regular_weeks`;
+  `default_location`; `finalized_at` (set by the admin Finalize action, cleared
+  by Reset).
 - **`teams`** — per-season (`season_id`); `slug` + `name` unique within a season;
   `color`, `logo_url`. **League convention:** teams are named by **color**
   (Red, Blue, White, Black) and the same colors recur every season, but each
@@ -52,17 +78,25 @@ value be used in the same transaction that adds it.
 - **`players`** — league-wide identity (`first_name`, `last_name`, `photo_url`);
   `user_id` nullable FK to `auth.users` (admin-set link; unique when present).
 - **`team_players`** — roster membership PK `(team_id, player_id)`;
-  `season_id`, `jersey_number`, `position`.
+  `season_id`, `jersey_number`, `position`, `is_captain` (captain label; no
+  account needed). Unique `(player_id, season_id)` — one team per player per season.
+- **`schedule_skips`** (`0012`) — weeks skipped mid-season: `season_id`,
+  `skip_date`, `reason`; unique `(season_id, skip_date)`. Shown on the schedule.
 
 ### Games & events
 
-- **`games`** — `home_team_id`/`away_team_id` (must differ), `status`, `kind`,
+- **`games`** — `home_team_id`/`away_team_id` (must differ; nullable only for
+  playoff stubs awaiting bracket seeding), `status`, `kind`, `playoff_round`
+  (at most one game per round per season),
   `home_score`/`away_score`, `period`, `clock_seconds` (default 1020 = 17:00),
   `decided_in` (null until final), `shootout_home_goals`/`shootout_away_goals`.
 - **`game_appearances`** — one row per player who played; PK `(game_id, player_id)`;
   `is_sub`; `position` (`player_position`, nullable — added in `0025`; null on pre-`0025`
   rows). Callers resolve final position via `resolvePosition` (appearance → `game_subs`
   → `team_players` → `"forward"`). Games-played is `COUNT(*)` over this.
+- **`game_availability`** (`0009`) — pre-game check-in: `game_id`, `player_id`,
+  `status` (`in`|`out`), `updated_at`. PK `(game_id, player_id)`; no row = no
+  response. `startGame`/`updateRoster` write the scorekeeper's check-in back here.
 - **`game_subs`** (`0022`) — subs lined up *before* a game by a captain or admin:
   `game_id`, `team_id`, `player_id`, `position`, `added_by`. PK `(game_id, player_id)`.
   The scorekeeper's check-in starts with these pre-checked; `startGame` turns them
@@ -101,7 +135,9 @@ value be used in the same transaction that adds it.
 - **`user_profiles`** — private contact info (`email`, `phone`, `full_name`).
   **Never** exposed on public pages (RLS below).
 - **`team_captains`** — PK `(team_id, season_id)`; unique `(user_id, season_id)`.
-  A row *is* the captain role (synced via trigger). Public-readable.
+  A row *is* the captain role (synced via trigger). Since `0010` it is derived
+  from `team_players.is_captain` by `reconcile_team_captain()`: a row exists only
+  when the captain's player has a linked account. Public-readable.
 - **`account_requests`** — **legacy** (pre-open-signup). Kept but unused by the
   current flow.
 
@@ -119,6 +155,11 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 - `current_user_role()` — returns the single role. Legacy from `0001`, still
   present; slated for removal under the multi-role plan.
 - `is_linked_player()` (`0027`) — a `players` row exists with `user_id = auth.uid()`. Gates posting.
+- `reconcile_team_captain(team, season)` (`0010`) — rebuilds that team/season's
+  `team_captains` row from the `is_captain` roster row (only if the player has a
+  linked account).
+- `admin_user_last_sign_in()` (`0019`) — returns `auth.users.last_sign_in_at`
+  per user; raises unless `is_admin()`.
 
 (`is_scorer_or_admin()` from `0001` was dropped in `0004`.)
 
@@ -130,6 +171,10 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 - **`team_captains_sync_assign` / `_unassign`** — inserting a captain row promotes
   a `player`→`team_captain`; removing the user's last row demotes
   `team_captain`→`player`. Never downgrades `admin`/`scorekeeper`.
+- **`team_players_captain_sync`** (`team_players` after insert/update/delete) and
+  **`players_userid_captain_sync`** (`players` after update of `user_id`) — call
+  `reconcile_team_captain()` so captain labels and account links keep
+  `team_captains` in step. Both `security definer` since `0018`.
 - **`*_touch_updated_at`** — keep `updated_at` fresh on `games`, `content_pages`,
   `user_profiles`.
 - **`posts_before_insert`** — takes a per-author `pg_advisory_xact_lock` to
@@ -156,7 +201,8 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | `user_profiles` | self, admin, **team_captain** | self (own), admin |
 | `team_captains` | public | admin |
 | `game_subs` | public | admin; **team_captain** for their own team, that season, while the game is scheduled |
-| `game_availability` (since `0024`) | public | player (own row), captain (own team), admin; **scorekeeper** while the game is scheduled or live — `startGame`/`updateRoster` write the check-in back as in/out |
+| `game_availability` (`0009`; policies `0020`, `0022`, `0024`) | public | player (own row), captain (own team, that season), admin; **scorekeeper** while the game is scheduled or live — `startGame`/`updateRoster` write the check-in back as in/out |
+| `schedule_skips` | public | admin |
 | `game_write_ups` | public when not `hidden`; admins see all | admin (service role writes generated rows) |
 | `account_requests` | admin | anyone may INSERT; admin update |
 | `posts` | public | insert: linked player as self; update (body only, via trigger): author or admin; delete: admin (replies cascade) |

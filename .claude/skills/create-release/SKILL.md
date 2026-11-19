@@ -37,13 +37,11 @@ Pass an explicit version to skip the prompt:
 3. Prompts for release type (patch / minor / major / custom), or uses the
    argument if provided.
 4. Builds release notes from merged PRs on `main` since the previous tag.
-5. Creates an annotated git tag on `origin/main` and pushes it via `git-c`.
+5. Creates an annotated git tag on `origin/main` and pushes it with `git push`.
 6. Creates a GitHub release via `gh release create`.
 
 ## Notes
 
 - The script auto-generates release notes from PR titles. For curated notes
   (major releases, etc.), edit them on GitHub after the release is created.
-- `git-c` is required for pushing tags (Code Defender blocks plain `git push`
-  to external repos).
 - Never run this before the staging→main PR is merged — the guard will catch it.

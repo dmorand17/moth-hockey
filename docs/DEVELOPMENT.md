@@ -9,7 +9,8 @@ for the initial Vercel + Supabase setup, see
 ## Prerequisites
 
 - [bun](https://bun.sh) — package manager + runtime
-- Supabase CLI (`brew install supabase/tap/supabase`)
+- Supabase CLI — commands below use `bunx supabase` (fetches the CLI on demand);
+  `brew install supabase/tap/supabase` also works
 - Docker running (the local Supabase stack runs in containers)
 
 ## App commands
@@ -20,6 +21,8 @@ bun dev          # Next.js dev server → http://127.0.0.1:3001
 bun run build    # production build
 bun start        # serve the production build
 bun run lint     # ESLint (flat config, eslint.config.mjs)
+bun run test     # bun test over lib/ (pure modules)
+bun run dev:lan  # dev server reachable from other devices on your Wi-Fi (scripts/dev-lan.sh)
 ```
 
 `package.json` lists `sharp` and `unrs-resolver` under `trustedDependencies` /
@@ -29,9 +32,9 @@ bun run lint     # ESLint (flat config, eslint.config.mjs)
 ## Local Supabase
 
 ```bash
-supabase start   # boot Postgres/Auth/Studio/Mailpit (first run pulls images)
-supabase status  # print URLs, ports, and keys
-supabase stop    # shut the stack down
+bunx supabase start   # boot Postgres/Auth/Studio/Mailpit (first run pulls images)
+bunx supabase status  # print URLs, ports, and keys
+bunx supabase stop    # shut the stack down
 ```
 
 Studio (DB UI) is at `:54323`, Mailpit (catches outgoing email) at `:54324`.
@@ -45,7 +48,7 @@ Migrations live in `supabase/migrations/` as `NNNN_name.sql`, applied in order.
 
 ```bash
 # either let the CLI scaffold a timestamped file:
-supabase migration new add_something
+bunx supabase migration new add_something
 # or follow the existing 000N_name.sql convention by hand
 ```
 
@@ -53,16 +56,16 @@ supabase migration new add_something
 then `seed.sql`):
 
 ```bash
-supabase db reset
+bunx supabase db reset
 ```
 
 **Capture changes made in Studio** into a migration file:
 
 ```bash
-supabase db diff -f my_change
+bunx supabase db diff -f my_change
 ```
 
-**Push to a linked cloud project:** `supabase db push` (see DEPLOY.md).
+**Push to a linked cloud project:** `bunx supabase db push` (see DEPLOY.md).
 
 > **Enum gotcha:** Postgres rejects using a new enum value in the same
 > transaction that adds it. Put `alter type … add value` in its own migration
@@ -83,7 +86,7 @@ runbook (Supabase projects, Vercel env vars, auth/SMTP, custom domain), see
 
 ## Seed data
 
-`supabase/seed.sql` runs automatically after `supabase db reset`. It seeds a
+`supabase/seed.sql` runs automatically after `bunx supabase db reset`. It seeds a
 season/teams/players/games plus three deterministic dev users
 (`admin@moth.test`, `scorekeeper@moth.test`, `player@moth.test`) — details in
 [`LOCAL-TESTING.md`](./LOCAL-TESTING.md).
@@ -93,7 +96,7 @@ season/teams/players/games plus three deterministic dev users
 `lib/supabase/database.types.ts` is generated. Regenerate after schema changes:
 
 ```bash
-supabase gen types typescript --local > lib/supabase/database.types.ts
+bunx supabase gen types typescript --local > lib/supabase/database.types.ts
 ```
 
 ## Conventions
@@ -134,7 +137,7 @@ is already seeded as admin.)
 - **Starting a game locks in availability:** every rostered player becomes `in` if checked in and `out` if not, overriding earlier self-reports (`lib/lineup-availability.ts`, called from `startGame` and `updateRoster`). Subs get no availability row. Failures are logged as `[lineup-availability]` and never block a start or a lineup edit. Games played before this shipped were not backfilled.
 - **Availability is locked after puck drop:** `setAvailability` (player self-service) and `setPlayerAvailability` (captain) reject changes once the game is no longer `scheduled`. Admins may still correct availability on started or final games via `setPlayerAvailability`.
 - **Per-game positions** (`0025`): `game_appearances.position` stores the position a player actually plays in that game. `startGame` and `updateRoster` write it from the check-in roster; `resolvePosition` (`lib/box-score.ts`) resolves the final display position (appearance → `game_subs` → `team_players` → `"forward"`). Older games (pre-`0025`) have `null` and fall back through the chain.
-- The game page's Box score, Availability and Play-by-play sections collapse (`components/CollapsibleSection.tsx`, native `<details>`).
+- The game page splits Preview/Recap, Box score (with availability once started) and Play-by-play into tabs (`components/GameTabs.tsx`; the active tab lives in the URL hash).
 
 ## AI write-ups (#19)
 

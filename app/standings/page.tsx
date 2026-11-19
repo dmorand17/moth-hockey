@@ -5,6 +5,7 @@ import {
   getSeasons,
   getStandings,
   getHistoricalStandings,
+  getChampionTeamId,
   getSeasonRules,
   type PointSystem,
   type TieKey,
@@ -64,9 +65,12 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
     </div>
   );
 
-  // Past seasons have no game results — show a goal-differential table derived
-  // from aggregated stats instead of a W/L record.
-  if (!season.is_current) {
+  const standings = await getStandings(season.id);
+  const hasResults = standings.some((r) => r.gp > 0);
+
+  // Imported past seasons have no game results — show a goal-differential
+  // table derived from aggregated stats instead of a W/L record.
+  if (!season.is_current && !hasResults) {
     const rows = await getHistoricalStandings(season.id);
 
     if (rows.length === 0) {
@@ -143,7 +147,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
     );
   }
 
-  const standings = await getStandings(season.id);
+  const championId = await getChampionTeamId(season.id);
 
   return (
     <div className="space-y-4 sm:space-y-8">
@@ -172,7 +176,10 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
                   {String(i + 1).padStart(2, "0")}
                 </td>
                 <td>
-                  <TeamBadge name={row.name} slug={row.slug} color={row.color} />
+                  <div className="flex items-center gap-1.5">
+                    <TeamBadge name={row.name} slug={row.slug} color={row.color} />
+                    {row.team_id === championId && <span title="Champion">🏆</span>}
+                  </div>
                 </td>
                 <td className="text-right tnum text-ink-dim">{row.gp}</td>
                 <td className="text-right tnum text-ink">{row.w}</td>
@@ -209,6 +216,11 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
           <li>
             <span className="text-ink">Tiebreakers:</span> {tieChain}
           </li>
+          {championId && (
+            <li>
+              <span className="text-ink">🏆</span> marks the playoff champion.
+            </li>
+          )}
         </ul>
       </div>
     </div>

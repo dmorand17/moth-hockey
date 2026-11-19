@@ -252,8 +252,11 @@ export function StatsExplorer({
               as="h1"
             />
           </div>
-          <div className="mt-1 shrink-0">
+          <div className="mt-1 shrink-0 flex flex-col items-end gap-1">
             <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
+            <Link href="/stats/all-time" className="eyebrow text-ice hover:text-ink transition-colors inline-flex items-center min-h-11">
+              All-time →
+            </Link>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -311,7 +314,7 @@ export function StatsExplorer({
         <SectionHeader eyebrow="Between The Pipes" title="Goalies" accent="goal" />
         <GoalieTable rows={goalies} />
         <Legend>
-          W-L-OTL is tracked for live seasons only. GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
+          W-L-OTL isn&apos;t available for imported seasons. GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
         </Legend>
       </section>
     </>

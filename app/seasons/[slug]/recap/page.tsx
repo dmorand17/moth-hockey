@@ -9,16 +9,17 @@ import { PostThread } from "@/components/PostThread";
 import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
 import { RecapGameRow, RecapLeaders, RecapMoments, RecapNumbers, RecapPath, type Names } from "@/components/recap/parts";
+import { HeroPhoto } from "@/components/recap/HeroPhoto";
 import { JumpBar } from "@/components/recap/JumpBar";
+import { PhotoGallery } from "@/components/recap/PhotoGallery";
 import { MediaAdmin } from "@/components/recap/MediaAdmin";
 import { MediaFiles } from "@/components/recap/MediaFiles";
-import { MediaGrid } from "@/components/recap/MediaGrid";
 import { RecapSummary } from "@/components/recap/RecapSummary";
 import { SummaryAdmin } from "@/components/recap/SummaryAdmin";
 import { ShareButton } from "@/components/recap/ShareButton";
 import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
 import { getRecapSummary, getSeasonMedia, getSeasonRecap } from "@/lib/queries";
-import { mediaKind, mediaPrefix } from "@/lib/media";
+import { mediaKind, mediaPrefix, splitHero } from "@/lib/media";
 import { computeRecap } from "@/lib/recap-summary/facts";
 import { jumpLinks } from "@/lib/season-recap";
 
@@ -101,7 +102,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         <p className="panel-bare px-4 py-5 text-[16px] text-ink-dim">
           Recap available when the season ends. Here&apos;s how the leaders stand so far.
         </p>
-        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
+        <RecapLeaders title="Regular season leaders" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
       </div>
     );
   }
@@ -112,9 +113,12 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
     getRecapSummary(r.season.id),
     getSeasonMedia(r.season.id),
   ]);
-  const visual = media.filter((m) => mediaKind(m.contentType) !== "file");
+  // The first photo leads the page (hero); the gallery holds everything else.
+  const split = splitHero(media.filter((m) => mediaKind(m.contentType) !== "file"));
+  const visual = split.hero ? [split.hero, ...split.rest] : split.rest;
+  const galleryCount = split.rest.length;
   const files = media.filter((m) => mediaKind(m.contentType) === "file");
-  const showMedia = media.length > 0 || !!admin;
+  const showMedia = galleryCount > 0 || files.length > 0 || !!admin;
   const livePublished = summary.published?.published ? summary.published : null;
   const showSummary = !!admin || !!livePublished;
   const hasSeason = !!regNumbers || !!r.standings || !!r.historical || regular.length > 0;
@@ -125,6 +129,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
   return (
     <div className="space-y-8 md:space-y-12">
       {hero}
+      {split.hero && <HeroPhoto items={visual} seasonName={r.season.name} />}
       <JumpBar links={links} />
 
       {showSummary && (
@@ -214,8 +219,8 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
           </section>
         )}
 
-        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
-        <RecapMoments eyebrow="Regular season" moments={regMoments} games={r.games} names={names} />
+        <RecapLeaders title="Regular season leaders" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
+        <RecapMoments title="Regular season highlights" moments={regMoments} games={r.games} names={names} />
       </div>
 
       {path.length > 0 && (
@@ -223,19 +228,19 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
           <SectionHeader eyebrow={poNumbers ? `${poNumbers.games} games · ${poNumbers.goals} goals` : undefined} title="Playoffs" />
           <RecapPath path={path} names={names} />
           <RecapLeaders
-            eyebrow="Playoffs"
+            title="Playoff leaders"
             totals={playoffTotals}
             minGoalieGames={1}
             names={names}
             skaterKeys={["points"]}
           />
-          <RecapMoments eyebrow="Playoffs" moments={poMoments} games={r.games} names={names} />
+          <RecapMoments title="Playoff highlights" moments={poMoments} games={r.games} names={names} />
         </section>
       )}
 
       {showMedia && (
         <section id="media" className={`space-y-3 ${anchor}`}>
-          <SectionHeader eyebrow={`${media.length} ${media.length === 1 ? "item" : "items"}`} title="Photos & video" />
+          <SectionHeader title="Photos & video" />
           {admin ? (
             <MediaAdmin
               slug={slug}
@@ -246,7 +251,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
             />
           ) : (
             <>
-              {visual.length > 0 && <MediaGrid items={visual} seasonName={r.season.name} />}
+              {galleryCount > 0 && <PhotoGallery items={visual} offset={split.hero ? 1 : 0} seasonName={r.season.name} />}
               <MediaFiles items={files} />
             </>
           )}

@@ -2,6 +2,7 @@ import "server-only";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { Json } from "@/lib/supabase/database.types";
 import { loadPreviewSource, loadRecapSource } from "@/lib/write-ups/data";
+import { logEvent } from "@/lib/log";
 import { generateText } from "@/lib/write-ups/openrouter";
 import { parseWriteUp } from "@/lib/write-ups/parse";
 import { buildPreviewInput, buildRecapInput, SYSTEM_PROMPT, userMessage, type WriteUpKind } from "@/lib/write-ups/prompt";
@@ -20,7 +21,7 @@ export type GenerateResult = {
 export async function generateAndStore(kind: WriteUpKind, gameId: string, opts?: { replace?: boolean }): Promise<GenerateResult> {
   const result = (status: GenerateResult["status"], detail?: string): GenerateResult => {
     const r = { gameId, kind, status, detail };
-    (status === "failed" ? console.error : console.info)("[write-ups]", JSON.stringify(r));
+    logEvent("ai.write-up", r, status === "failed" ? "error" : "info");
     return r;
   };
 
@@ -43,7 +44,7 @@ export async function generateAndStore(kind: WriteUpKind, gameId: string, opts?:
         : await loadRecapSource(db, gameId).then((s) => (s ? buildRecapInput(s) : null));
     if (!input) return result("not_ready", "game is not in the right state");
 
-    const out = await generateText(SYSTEM_PROMPT, userMessage(kind, input));
+    const out = await generateText(SYSTEM_PROMPT, userMessage(kind, input), { context: { feature: "write-up", kind, game: gameId } });
     const parsed = parseWriteUp(out.text);
     if (!parsed.ok) return result("failed", `${out.model}: ${parsed.reason}`);
 

@@ -74,7 +74,7 @@ export function buildRecapFacts(r: SeasonRecap, c: RecapComputed): RecapFacts {
   const leader = (t: SeasonTotals, value: number): Leader => ({ player: player(t.player_id), team: team(t.team_id), value });
   const moments = (list: Moment[]) =>
     list.map((m) => {
-      const { label, text } = describeMoment(m, byId.get(m.gameId ?? ""), names);
+      const { label, text } = describeMoment(m, byId.get(m.gameId ?? ""), names, byId);
       return `${label}: ${text}`;
     });
   const lastFinal = r.games.filter((g) => g.status === "final").map((g) => g.scheduled_at).sort().at(-1);

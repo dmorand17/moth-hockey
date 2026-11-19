@@ -90,7 +90,7 @@ export function SummaryAdmin({ slug, published, draft }: { slug: string; publish
           </div>
         </div>
       ) : (
-        <RecapSummary markdown={current.markdown} editedAt={current.edited_at} />
+        <RecapSummary markdown={current.markdown} editedAt={current.edited_at} collapsible={false} />
       )}
 
       {unknown.length > 0 && (

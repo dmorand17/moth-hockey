@@ -20,7 +20,7 @@ export type SeasonNumbers = {
 };
 
 export type Moment = {
-  kind: "margin" | "high-scoring" | "hat-tricks" | "big-night" | "points-game" | "win-streak";
+  kind: "margin" | "high-scoring" | "hat-tricks" | "big-nights" | "points-game" | "win-streak";
   gameId: string | null;
   teamId: string | null;
   playerId: string | null;
@@ -28,6 +28,8 @@ export type Moment = {
   date: string;
   /** `hat-tricks` only: each player with a hat trick and how many, most first. */
   players?: { playerId: string; count: number }[];
+  /** `big-nights` only: each 4+ goal game, most goals first. */
+  nights?: { gameId: string; playerId: string; goals: number }[];
 };
 
 export type Names = {
@@ -131,10 +133,13 @@ export function notableMoments(
     const players = [...per].map(([playerId, count]) => ({ playerId, count })).sort((a, b) => b.count - a.count);
     out.push({ kind: "hat-tricks", gameId: null, teamId: null, playerId: null, value: hatTricks.length, date: byGame.get(split(hatTricks[0][0])[0])!.scheduled_at, players });
   }
-  for (const [k, n] of hatTricks) {
-    if (n < 4) continue;
-    const [gameId, playerId] = split(k);
-    out.push(moment({ kind: "big-night", game: byGame.get(gameId)!, gameId, teamId: null, playerId, value: n }));
+  // Date order from hatTricks breaks goal-count ties (stable sort).
+  const nights = hatTricks
+    .filter(([, n]) => n >= 4)
+    .map(([k, goals]) => ({ gameId: split(k)[0], playerId: split(k)[1], goals }))
+    .sort((a, b) => b.goals - a.goals);
+  if (nights.length > 0) {
+    out.push({ kind: "big-nights", gameId: null, teamId: null, playerId: null, value: nights.length, date: byGame.get(nights[0].gameId)!.scheduled_at, nights });
   }
 
   let topPoints: [string, number] | null = null;
@@ -163,10 +168,16 @@ export function notableMoments(
 }
 
 // One line of copy per moment, shared by the recap page and the AI facts.
-export function describeMoment(m: Moment, game: RecapGame | undefined, names: Names): { label: string; text: string } {
+export function describeMoment(
+  m: Moment,
+  game: RecapGame | undefined,
+  names: Names,
+  games?: Map<string, RecapGame>,
+): { label: string; text: string } {
   const team = (id: string | null | undefined) => (id ? names.teams.get(id)?.name : undefined) ?? "TBD";
   const player = (id: string | null) => (id ? names.players.get(id)?.name : undefined) ?? "A player";
-  const matchup = game ? `${team(game.away_team_id)} ${game.away_score} – ${game.home_score} ${team(game.home_team_id)}` : "";
+  const matchupOf = (g: RecapGame | undefined) => (g ? `${team(g.away_team_id)} ${g.away_score} – ${g.home_score} ${team(g.home_team_id)}` : "");
+  const matchup = matchupOf(game);
   switch (m.kind) {
     case "margin": {
       const loser = game && (m.teamId === game.home_team_id ? game.away_team_id : game.home_team_id);
@@ -179,8 +190,11 @@ export function describeMoment(m: Moment, game: RecapGame | undefined, names: Na
         label: `Hat tricks · ${m.value}`,
         text: (m.players ?? []).map((p) => (p.count > 1 ? `${player(p.playerId)} ×${p.count}` : player(p.playerId))).join(" · "),
       };
-    case "big-night":
-      return { label: "Big night", text: `${player(m.playerId)} scored ${m.value} (${matchup})` };
+    case "big-nights":
+      return {
+        label: `Big nights · ${m.value}`,
+        text: (m.nights ?? []).map((n) => `${player(n.playerId)} ${n.goals} goals (${matchupOf(games?.get(n.gameId))})`).join(" · "),
+      };
     case "points-game":
       return { label: "Best single game", text: `${player(m.playerId)}: ${m.value} points (${matchup})` };
     case "win-streak":
@@ -240,4 +254,10 @@ const JUMP_LINKS = [
 // The recap's jump-link chips, for the sections this season actually has.
 export function jumpLinks(has: Record<(typeof JUMP_LINKS)[number][0], boolean>): { id: string; label: string }[] {
   return JUMP_LINKS.filter(([id]) => has[id]).map(([id, label]) => ({ id, label }));
+}
+
+// A long list's first `limit` rows, plus how many a "Show all" would add.
+export function visibleRows<T>(rows: T[], expanded: boolean, limit = 5): { shown: T[]; hidden: number } {
+  if (expanded || rows.length <= limit) return { shown: rows, hidden: 0 };
+  return { shown: rows.slice(0, limit), hidden: rows.length - limit };
 }

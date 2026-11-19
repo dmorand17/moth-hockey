@@ -42,24 +42,26 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   return (
     <div className="space-y-8 md:space-y-10">
       {/* HERO */}
-      <section className="rise flex flex-col sm:flex-row sm:items-center gap-4 md:gap-8">
+      <section className="rise flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 md:gap-8">
         <Image
-          src="/moth-banner-strip.png"
+          src="/moth-banner-strip.webp"
           alt="M.O.T.H Hockey League — Mostly Over the Hill"
           width={1200}
           height={432}
           priority
-          sizes="(min-width: 768px) 400px, (min-width: 640px) 334px, 100vw"
-          className="w-full h-auto sm:w-auto sm:h-30 md:h-36 self-start rounded-lg border border-rule"
+          sizes="(min-width: 640px) 400px, calc(100vw - 32px)"
+          className="block w-full h-auto rounded-lg border border-rule sm:w-[400px] sm:shrink-0"
         />
-        <div className="min-w-0">
-          <p className="eyebrow">Mostly Over The Hill Hockey League</p>
-          <h1 className="font-display text-[40px] leading-[44px] md:text-[56px] md:leading-[64px] tracking-[0.02em]">
+        {/* Phones: title and games-played share one row to keep the hero short. */}
+        <div className="min-w-0 flex items-baseline justify-between gap-3 sm:block">
+          <p className="eyebrow hidden sm:block">Mostly Over The Hill Hockey League</p>
+          <h1 className="font-display text-[28px] leading-8 sm:text-[40px] sm:leading-[44px] md:text-[56px] md:leading-[64px] tracking-[0.02em]">
             <span className="sr-only">M.O.T.H Hockey — </span>
             {season.name}
           </h1>
-          <p className="text-[14px] leading-5 text-ink-faint">
-            Season in progress · {totalGames} {totalGames === 1 ? "game" : "games"} played
+          <p className="text-[14px] leading-5 text-ink-faint whitespace-nowrap">
+            <span className="hidden sm:inline">Season in progress · </span>
+            {totalGames} {totalGames === 1 ? "game" : "games"} played
           </p>
         </div>
       </section>

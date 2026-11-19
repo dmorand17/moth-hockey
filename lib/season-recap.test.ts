@@ -86,18 +86,34 @@ describe("notableMoments", () => {
     expect(m.some((x) => (x.kind as string) === "hat-trick")).toBe(false);
   });
 
-  test("a 4+ goal game is a big night and still counts as a hat trick", () => {
-    const games = [g("b", "A", "B", 4, 0)];
-    const ev = [1, 2, 3, 4].map(() => goal("b", "A", "p1"));
+  test("4+ goal games collapse into one big-nights card, most goals first", () => {
+    const games = [g("b1", "A", "B", 4, 0), g("b2", "A", "B", 5, 1)];
+    const ev = [...[1, 2, 3, 4].map(() => goal("b1", "A", "p1")), ...[1, 2, 3, 4, 5].map(() => goal("b2", "A", "p2"))];
     const m = notableMoments(games, ev, "regular");
-    expect(m).toContainEqual(expect.objectContaining({ kind: "big-night", gameId: "b", playerId: "p1", value: 4 }));
-    expect(m.find((x) => x.kind === "hat-tricks")?.value).toBe(1);
+    expect(m.filter((x) => (x.kind as string) === "big-night")).toEqual([]);
+    expect(m.filter((x) => x.kind === "big-nights")).toEqual([
+      expect.objectContaining({ gameId: null, value: 2, nights: [{ gameId: "b2", playerId: "p2", goals: 5 }, { gameId: "b1", playerId: "p1", goals: 4 }] }),
+    ]);
+    expect(m.find((x) => x.kind === "hat-tricks")?.value).toBe(2);
   });
 
   test("describeMoment formats the hat-trick card", () => {
     const names = { teams: new Map(), players: new Map([["p1", { id: "p1", name: "Lane Kane" }], ["p2", { id: "p2", name: "Kai Hale" }]]) };
     const m = { kind: "hat-tricks" as const, gameId: null, teamId: null, playerId: null, value: 3, date: "", players: [{ playerId: "p1", count: 2 }, { playerId: "p2", count: 1 }] };
     expect(describeMoment(m, undefined, names)).toEqual({ label: "Hat tricks · 3", text: "Lane Kane ×2 · Kai Hale" });
+  });
+
+  test("describeMoment formats the big-nights card for the AI facts", () => {
+    const games = [g("n1", "A", "B", 5, 1)];
+    const names = {
+      teams: new Map([["A", { id: "A", name: "Ember Wolves", slug: "a", color: "" }], ["B", { id: "B", name: "Iron Ravens", slug: "b", color: "" }]]),
+      players: new Map([["p1", { id: "p1", name: "Lane Kane" }]]),
+    };
+    const m = { kind: "big-nights" as const, gameId: null, teamId: null, playerId: null, value: 1, date: "", nights: [{ gameId: "n1", playerId: "p1", goals: 5 }] };
+    expect(describeMoment(m, undefined, names, new Map(games.map((x) => [x.id, x])))).toEqual({
+      label: "Big nights · 1",
+      text: "Lane Kane 5 goals (Iron Ravens 1 – 5 Ember Wolves)",
+    });
   });
 
   test("finds win streaks of 3+", () => {

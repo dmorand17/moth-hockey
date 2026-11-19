@@ -141,11 +141,18 @@ is already seeded as admin.)
 
 ## AI write-ups (#19)
 
-Game previews and recaps are written by a model through OpenRouter.
+Game previews and recaps, and the season recap report, are written by a model through OpenRouter.
 
 - **Model:** `WRITE_UP_MODEL` (default `openai/gpt-6-luna`), falling back to
   `WRITE_UP_FALLBACK_MODEL` (default `google/gemini-2.5-flash-lite`). Change either in
   Vercel's env settings; no deploy needed.
+- **Reasoning:** every call sends OpenRouter's `reasoning: { effort: "low" }`, which
+  caps reasoning at ~20% of `max_tokens`. Reasoning tokens count against
+  `max_tokens` and the timeout, so a model reasoning at its default can come back
+  truncated or empty and trigger the fallback.
+- **Logs:** each model call writes one `[ai]` line to the Vercel runtime logs
+  (model, duration, tokens, cost, or the error), plus a `[ai] primary … failed,
+  using fallback` warning when the fallback runs. Filter the Vercel logs on `[ai]`.
 - **When:** a Vercel Cron job (`vercel.json`, daily 18:00 UTC) calls
   `/api/cron/write-ups` for previews of games in the next 36h and recaps missing
   from the last 7 days. Finalizing a game also writes its recap in the background.

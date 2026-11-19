@@ -42,7 +42,8 @@ describe("generateText", () => {
     expect(calls).toEqual([{ model: "openai/gpt-6-luna", reasoning: { effort: "low" } }]);
   });
 
-  test("falls back when the primary errors, without reasoning for non-OpenAI models", async () => {
+  test("falls back when the primary errors, logging why; every model gets low reasoning", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
     globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
       const body = JSON.parse(String(init!.body));
       calls.push({ model: body.model, reasoning: body.reasoning });
@@ -56,7 +57,20 @@ describe("generateText", () => {
     expect(r.promptTokens).toBeNull();
     expect(r.completionTokens).toBeNull();
     expect(calls.map((c) => c.model)).toEqual(["openai/gpt-6-luna", "google/gemini-2.5-flash-lite"]);
-    expect(calls[1].reasoning).toBeUndefined();
+    expect(calls[1].reasoning).toEqual({ effort: "low" });
+    expect(String(warn.mock.calls[0]?.join(" "))).toContain("overloaded");
+    warn.mockRestore();
+  });
+
+  test("DeepSeek primaries get low reasoning too", async () => {
+    process.env.WRITE_UP_MODEL = "deepseek/deepseek-v4.1-flash-1017";
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init!.body));
+      calls.push({ model: body.model, reasoning: body.reasoning });
+      return respond(200, { choices: [{ message: { content: "ok" } }] });
+    }) as unknown as typeof fetch;
+    await generateText("s", "u");
+    expect(calls).toEqual([{ model: "deepseek/deepseek-v4.1-flash-1017", reasoning: { effort: "low" } }]);
   });
 
   test("throws when both models fail", async () => {

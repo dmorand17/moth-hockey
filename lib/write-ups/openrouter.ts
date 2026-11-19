@@ -24,9 +24,11 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
     max_tokens: maxTokens,
     usage: { include: true },
   };
-  // OpenAI's reasoning models default to medium effort; a 150-word write-up
-  // from precomputed stats doesn't need it, and reasoning tokens bill as output.
-  if (model.startsWith("openai/")) body.reasoning = { effort: "low" };
+  // Reasoning models (OpenAI, DeepSeek, Gemini…) default to medium effort.
+  // Writing from precomputed stats doesn't need it, and reasoning tokens count
+  // against max_tokens and the timeout. OpenRouter's unified param: "low" caps
+  // reasoning at ~20% of max_tokens; non-reasoning models ignore it.
+  body.reasoning = { effort: "low" };
 
   const res = await fetch(ENDPOINT, {
     method: "POST",
@@ -46,9 +48,10 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
   };
   if (!res.ok || json.error) throw new Error(`${model}: ${json.error?.message ?? `HTTP ${res.status}`}`);
   const choice = json.choices?.[0];
-  if (choice?.finish_reason === "length") throw new Error(`${model}: truncated (finish_reason=length)`);
+  const usage = `${json.usage?.prompt_tokens ?? "?"} in / ${json.usage?.completion_tokens ?? "?"} out`;
+  if (choice?.finish_reason === "length") throw new Error(`${model}: truncated (finish_reason=length, ${usage})`);
   const text = choice?.message?.content?.trim();
-  if (!text) throw new Error(`${model}: empty response`);
+  if (!text) throw new Error(`${model}: empty response (finish_reason=${choice?.finish_reason ?? "none"}, ${usage})`);
   return {
     text,
     model: json.model ?? model,
@@ -56,6 +59,22 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
     promptTokens: json.usage?.prompt_tokens ?? null,
     completionTokens: json.usage?.completion_tokens ?? null,
   };
+}
+
+// One line per model call in the Vercel runtime logs: which model, how long,
+// tokens and cost on success; the error (truncated, empty, timeout, HTTP) on failure.
+async function logged(model: string, role: "primary" | "fallback", call: () => Promise<ModelResult>): Promise<ModelResult> {
+  const start = Date.now();
+  try {
+    const r = await call();
+    console.info(
+      `[ai] ${role} ${r.model} ok in ${Date.now() - start}ms (${r.promptTokens ?? "?"} in / ${r.completionTokens ?? "?"} out, $${r.costUsd ?? "?"})`,
+    );
+    return r;
+  } catch (e) {
+    console.info(`[ai] ${role} ${model} failed after ${Date.now() - start}ms: ${String(e)}`);
+    throw e;
+  }
 }
 
 // `maxTokens` caps output (reasoning tokens count too); game write-ups use the
@@ -69,10 +88,11 @@ export async function generateText(system: string, user: string, opts: { maxToke
   const fallback = process.env.WRITE_UP_FALLBACK_MODEL || DEFAULT_FALLBACK;
 
   try {
-    return await callOnce(apiKey, primary, system, user, maxTokens, timeoutMs);
+    return await logged(primary, "primary", () => callOnce(apiKey, primary, system, user, maxTokens, timeoutMs));
   } catch (first) {
+    console.warn(`[ai] primary ${primary} failed, using fallback ${fallback}: ${String(first)}`);
     try {
-      return await callOnce(apiKey, fallback, system, user, maxTokens, timeoutMs);
+      return await logged(fallback, "fallback", () => callOnce(apiKey, fallback, system, user, maxTokens, timeoutMs));
     } catch (second) {
       throw new Error(`both models failed — ${String(first)}; ${String(second)}`);
     }

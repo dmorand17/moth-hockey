@@ -75,9 +75,6 @@ export function GameRow({
   };
   const awayName = away_team?.name ?? "TBD";
   const homeName = home_team?.name ?? "TBD";
-  const label = showScore
-    ? `${awayName} ${away_score ?? 0}, ${homeName} ${home_score ?? 0}`
-    : `${awayName} at ${homeName}`;
 
   const status_ = (
     <StatusChip status={status} decidedIn={decided_in} scheduledAt={scheduled_at} />
@@ -88,7 +85,6 @@ export function GameRow({
     <li>
       <Link
         href={`/games/${id}`}
-        aria-label={`${label} — ${formatDate(scheduled_at)}`}
         className="block px-3 sm:px-4 py-2 hover:bg-board-hover transition-colors"
       >
         {/* Mobile: two stacked team lines + status column */}

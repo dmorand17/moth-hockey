@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { TeamBadge } from "@/components/TeamBadge";
+import { TeamBadge, TeamTag } from "@/components/TeamBadge";
+import { ResultChip } from "@/components/Chips";
+import { PlayoffChip } from "@/components/PlayoffChip";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDate } from "@/lib/format";
 
 const PAGE_SIZE = 10;
@@ -31,40 +34,6 @@ export type GameLogRow = {
   playoff_round?: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
 };
 
-function ResultChip({ result }: { result: "W" | "L" | "OTL" }) {
-  if (result === "W") return <span className="chip chip-final">W</span>;
-  if (result === "L") return <span className="chip chip-live">L</span>;
-  return (
-    <span
-      className="chip"
-      style={{
-        color: "#f59e0b",
-        borderColor: "rgba(245,158,11,0.4)",
-        background: "rgba(245,158,11,0.08)",
-      }}
-    >
-      OTL
-    </span>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  accent = "text-ink-dim",
-}: {
-  label: string;
-  value: number;
-  accent?: string;
-}) {
-  return (
-    <div>
-      <div className="eyebrow text-[9px]">{label}</div>
-      <div className={`digit text-[15px] tnum mt-0.5 ${accent}`}>{value}</div>
-    </div>
-  );
-}
-
 export function GameLogSection({
   rows,
   isGoalie,
@@ -78,112 +47,45 @@ export function GameLogSection({
 
   if (rows.length === 0) {
     return (
-      <div className="panel-bare p-6 stripes">
-        <div className="eyebrow mb-2 text-goal">No games yet</div>
-        <p className="text-ink-dim text-[14px]">
-          Game-by-game log will appear once this player has played a finalized
-          game.
-        </p>
-      </div>
+      <EmptyState title="No games yet">
+        The game-by-game log appears once this player has played a finalized game.
+      </EmptyState>
     );
   }
 
+  const statCols: { label: string; title: string; get: (r: GameLogRow) => number; key?: boolean; dim?: boolean }[] = isGoalie
+    ? [
+        { label: "GA", title: "Goals against", get: (r) => r.ga },
+        { label: "PSV", title: "Penalty shots saved", get: (r) => r.ps_saved, key: true },
+        { label: "PSF", title: "Penalty shots faced", get: (r) => r.ps_faced, dim: true },
+      ]
+    : [
+        { label: "G", title: "Goals", get: (r) => r.goals },
+        { label: "A", title: "Assists", get: (r) => r.assists },
+        { label: "PTS", title: "Points", get: (r) => r.points, key: true },
+        { label: "PEN", title: "Penalties committed", get: (r) => r.penalties, dim: true },
+      ];
+
   return (
     <div>
-      {/* Mobile: card list */}
-      <div className="space-y-2 sm:hidden">
-        {visible.map((row) => {
-          const myScore = row.is_home ? row.home_score : row.away_score;
-          const oppScore = row.is_home ? row.away_score : row.home_score;
-          return (
-            <Link
-              key={row.game_id}
-              href={`/games/${row.game_id}`}
-              className="panel block p-3 hover:border-rule-strong transition-colors"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-ink-faint text-[12px]">
-                      {formatDate(row.scheduled_at)}
-                    </span>
-                    {row.is_sub && (
-                      <span className="eyebrow text-[9px] text-ink-faint">
-                        SUB
-                      </span>
-                    )}
-                    {row.kind === "playoff" && (
-                      <span className="chip chip-playoff text-[9px] px-1 py-0">
-                        {row.playoff_round === "final"
-                          ? "F"
-                          : row.playoff_round?.toUpperCase() ?? "PYO"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-ink-dim text-[12px]">vs</span>
-                    <TeamBadge {...row.opponent} size="sm" />
-                  </div>
-                </div>
-                <div className="shrink-0 flex items-center gap-2">
-                  <span className="font-mono text-[13px] text-ink-dim">
-                    {myScore}–{oppScore}
-                  </span>
-                  <ResultChip result={row.result} />
-                </div>
-              </div>
-              <div className="mt-2 pt-2 border-t border-rule grid grid-cols-4 gap-2">
-                {isGoalie ? (
-                  <>
-                    <MiniStat label="GA" value={row.ga} />
-                    <MiniStat label="PSF" value={row.ps_faced} />
-                    <MiniStat label="PSV" value={row.ps_saved} accent="text-ink" />
-                  </>
-                ) : (
-                  <>
-                    <MiniStat
-                      label="G"
-                      value={row.goals}
-                      accent={row.goals > 0 ? "text-ink" : "text-ink-dim"}
-                    />
-                    <MiniStat label="A" value={row.assists} />
-                    <MiniStat
-                      label="PTS"
-                      value={row.points}
-                      accent={row.points > 0 ? "text-ink" : "text-ink-dim"}
-                    />
-                    <MiniStat label="PEN" value={row.penalties} />
-                  </>
-                )}
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Desktop: table */}
-      <div className="panel hidden sm:block overflow-x-auto">
-        <table className="board-table">
+      <div className="panel overflow-clip">
+        <table className="board-table striped dense sticky-head">
+          <caption className="sr-only">Game log, most recent first</caption>
           <thead>
             <tr>
-              <th className="text-left pl-5">Date</th>
-              <th className="text-left">Opponent</th>
-              <th className="text-center">Result</th>
-              <th className="text-right">Score</th>
-              {isGoalie ? (
-                <>
-                  <th className="text-right">GA</th>
-                  <th className="text-right">PSF</th>
-                  <th className="text-right pr-5">PSV</th>
-                </>
-              ) : (
-                <>
-                  <th className="text-right">G</th>
-                  <th className="text-right">A</th>
-                  <th className="text-right">PEN</th>
-                  <th className="text-right pr-5">PTS</th>
-                </>
-              )}
+              <th scope="col" className="text-left pl-3 sm:pl-4">Date</th>
+              <th scope="col" className="text-left">Opp</th>
+              <th scope="col" className="text-left">Result</th>
+              {statCols.map((c) => (
+                <th
+                  key={c.label}
+                  scope="col"
+                  title={c.title}
+                  className={`text-right w-10 sm:w-14 ${c.dim ? "col-dim hidden sm:table-cell" : ""} last:pr-3 sm:last:pr-4`}
+                >
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -192,54 +94,59 @@ export function GameLogSection({
               const oppScore = row.is_home ? row.away_score : row.home_score;
               return (
                 <tr key={row.game_id}>
-                  <td className="pl-5">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/games/${row.game_id}`}
-                        className="text-ink-dim hover:text-ink transition-colors text-[13px]"
-                      >
-                        {formatDate(row.scheduled_at)}
-                      </Link>
-                      {row.is_sub && (
-                        <span className="eyebrow text-[9px] text-ink-faint">
-                          SUB
+                  <td className="pl-3 sm:pl-4">
+                    <Link
+                      href={`/games/${row.game_id}`}
+                      className="flex flex-col justify-center min-h-[44px] text-ink hover:text-ice transition-colors"
+                    >
+                      <span className="whitespace-nowrap text-[14px]">{formatDate(row.scheduled_at)}</span>
+                      {(row.is_sub || row.kind === "playoff") && (
+                        <span className="flex gap-1 mt-0.5">
+                          {row.is_sub && (
+                            <span className="chip" title="Played as a substitute">
+                              Sub
+                            </span>
+                          )}
+                          {row.kind === "playoff" && <PlayoffChip round={row.playoff_round} />}
                         </span>
                       )}
-                    </div>
+                    </Link>
                   </td>
                   <td>
-                    <TeamBadge {...row.opponent} size="sm" />
+                    <span className="sm:hidden">
+                      <TeamTag name={row.opponent.name} color={row.opponent.color} />
+                    </span>
+                    <span className="hidden sm:inline">
+                      <TeamBadge {...row.opponent} size="sm" asChild />
+                    </span>
                   </td>
-                  <td className="text-center">
-                    <ResultChip result={row.result} />
+                  <td>
+                    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                      <ResultChip result={row.result} />
+                      <span className="tnum text-[14px] text-ink-dim">
+                        {myScore}–{oppScore}
+                      </span>
+                    </span>
                   </td>
-                  <td className="text-right tnum text-ink-dim text-[13px]">
-                    {myScore}–{oppScore}
-                  </td>
-                  {isGoalie ? (
-                    <>
-                      <td className="text-right tnum text-ink-dim">{row.ga}</td>
-                      <td className="text-right tnum text-ink-dim">
-                        {row.ps_faced}
+                  {statCols.map((c) => {
+                    const v = c.get(row);
+                    return (
+                      <td
+                        key={c.label}
+                        className={`text-right last:pr-3 sm:last:pr-4 ${
+                          c.dim
+                            ? "col-dim hidden sm:table-cell"
+                            : c.key
+                              ? "font-bold text-ink"
+                              : v > 0
+                                ? "text-ink"
+                                : "text-ink-faint"
+                        }`}
+                      >
+                        {v}
                       </td>
-                      <td className="text-right pr-5 tnum text-ink">
-                        {row.ps_saved}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="text-right tnum text-ink">{row.goals}</td>
-                      <td className="text-right tnum text-ink-dim">
-                        {row.assists}
-                      </td>
-                      <td className="text-right tnum text-ink-dim">
-                        {row.penalties}
-                      </td>
-                      <td className="text-right pr-5 tnum text-ink">
-                        {row.points}
-                      </td>
-                    </>
-                  )}
+                    );
+                  })}
                 </tr>
               );
             })}
@@ -249,12 +156,11 @@ export function GameLogSection({
 
       {hasMore && (
         <button
+          type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-3 eyebrow hover:text-ink transition-colors min-h-11 px-2 -mx-2"
+          className="mt-2 inline-flex items-center min-h-11 text-[14px] font-semibold text-ice hover:text-ink transition-colors"
         >
-          {expanded
-            ? "Show fewer"
-            : `Show all ${rows.length} games`}
+          {expanded ? "Show fewer" : `Show all ${rows.length} games`}
         </button>
       )}
     </div>

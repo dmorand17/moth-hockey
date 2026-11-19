@@ -1,9 +1,13 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { BadgeShelf } from "@/components/BadgeShelf";
 import { GameLogSection, type GameLogRow } from "@/components/GameLogSection";
+import { TeamTag } from "@/components/TeamBadge";
+import { EmptyState } from "@/components/EmptyState";
+import { Disclosure } from "@/components/Disclosure";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { initials } from "@/lib/format";
 import { getSessionIfRole } from "@/lib/auth";
@@ -33,6 +37,15 @@ type SeasonStatsRow = {
   isCurrent: boolean;
 };
 
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createSupabaseServerClient();
+  const { data: player } = await supabase.from("players").select("first_name, last_name").eq("id", id).maybeSingle();
+  if (!player) return { title: "Player" };
+  const name = `${player.first_name} ${player.last_name}`;
+  return { title: name, description: `${name}: career stats and game log in the M.O.T.H hockey league.` };
+}
 
 export default async function PlayerPage({
   params,
@@ -380,7 +393,7 @@ export default async function PlayerPage({
     (a, b) => (AWARD_ORDER.indexOf(a[0]) - AWARD_ORDER.indexOf(b[0])),
   );
 
-  const teamColor = currentRoster?.team?.color ?? "#6b7280";
+  const teamColor = currentRoster?.team?.color ?? "var(--rule-strong)";
 
   const awardList = orderedAwards.map(([type, seasonsList]) => ({
     type,
@@ -388,315 +401,213 @@ export default async function PlayerPage({
     seasons: seasonsList,
   }));
 
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      <Link href="/teams" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
-        ← Teams
-      </Link>
+  // Career columns: key stats first, secondary (dimmed) after.
+  const statCols: { label: string; title: string; get: (r: StatLine) => number | string | null; key?: boolean; dim?: boolean }[] = isGoalie
+    ? [
+        { label: "GP", title: "Games played", get: (r) => r.gp },
+        { label: "W", title: "Wins", get: (r) => r.w },
+        { label: "L", title: "Losses", get: (r) => r.l },
+        { label: "OTL", title: "Overtime/shootout losses", get: (r) => r.otl },
+        { label: "GA", title: "Goals against", get: (r) => r.ga },
+        { label: "PSV", title: "Penalty shots saved", get: (r) => r.ps_saved, key: true },
+        { label: "PSF", title: "Penalty shots faced", get: (r) => r.ps_faced, dim: true },
+      ]
+    : [
+        { label: "GP", title: "Games played", get: (r) => r.gp },
+        { label: "G", title: "Goals", get: (r) => r.goals },
+        { label: "A", title: "Assists", get: (r) => r.assists },
+        { label: "PTS", title: "Points", get: (r) => r.points, key: true },
+        { label: "PEN", title: "Penalties committed", get: (r) => r.penalties, dim: true },
+        { label: "PS", title: "Penalty shots taken", get: (r) => r.ps_taken, dim: true },
+        { label: "PSG", title: "Penalty-shot goals", get: (r) => r.ps_made, dim: true },
+      ];
 
+  return (
+    <div className="space-y-8 md:space-y-12">
       {/* Hero */}
-      <section
-        className="rise panel p-3 sm:p-4 md:p-5 relative"
-        style={{
-          background: `linear-gradient(135deg, ${teamColor}1f 0%, transparent 60%), var(--board-2)`,
-        }}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-y-0 left-0 w-1"
-          style={{ background: teamColor, boxShadow: `0 0 24px ${teamColor}99` }}
-        />
-        <div className="flex items-start gap-3 sm:gap-4 md:gap-6">
-          <div className="relative h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0 scoreboard flex flex-col items-center justify-center">
-            {currentRoster?.jersey_number ? (
-              <>
-                <div className="eyebrow text-[9px]">No.</div>
-                <div className="digit text-[26px] sm:text-[36px] md:text-[44px] leading-none mt-0.5" style={{ color: teamColor, textShadow: `0 0 16px ${teamColor}99` }}>
-                  {currentRoster.jersey_number}
+      <section className="rise">
+        <Link
+          href="/teams"
+          className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11"
+        >
+          <span aria-hidden className="mr-1">←</span> Teams
+        </Link>
+        <div className="mt-2 panel overflow-clip flex">
+          <span aria-hidden className="swatch w-1 shrink-0" style={{ background: teamColor }} />
+          <div className="flex-1 min-w-0 p-4 md:p-6">
+            <div className="flex items-center gap-4">
+              <div
+                className="h-14 w-14 md:h-20 md:w-20 shrink-0 rounded-md border border-rule-strong bg-board-3 flex flex-col items-center justify-center"
+                aria-hidden={!currentRoster?.jersey_number}
+              >
+                {currentRoster?.jersey_number ? (
+                  <>
+                    <span className="text-[12px] font-semibold text-ink-faint leading-none">No.</span>
+                    <span className="digit text-[26px] md:text-[36px] leading-none mt-0.5 text-ink">
+                      {currentRoster.jersey_number}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-display text-[24px] md:text-[32px] text-ink-dim">
+                    {initials(player.first_name, player.last_name)}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="eyebrow">{isGoalie ? "Goalie" : "Skater"}</p>
+                <h1 className="font-display text-[40px] leading-[44px] md:text-[56px] md:leading-[64px] tracking-[0.02em] break-words">
+                  {player.first_name} {player.last_name}
+                </h1>
+                {currentRoster?.team && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <TeamBadge {...currentRoster.team} size="sm" />
+                    <span className="text-[14px] text-ink-faint capitalize">{currentRoster.position}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {contact && (contact.email || contact.phone) && (
+              <div className="mt-4 pt-3 border-t border-rule">
+                <p className="eyebrow">
+                  Contact <span className="normal-case tracking-normal font-normal text-ink-faint">· captain/admin only</span>
+                </p>
+                <div className="flex flex-wrap items-center gap-x-4">
+                  {contact.email && (
+                    <a href={`mailto:${contact.email}`} className="text-[14px] text-ice hover:underline min-h-11 inline-flex items-center">
+                      {contact.email}
+                    </a>
+                  )}
+                  {contact.phone && (
+                    <a href={`tel:${contact.phone}`} className="text-[14px] text-ice hover:underline min-h-11 inline-flex items-center">
+                      {contact.phone}
+                    </a>
+                  )}
                 </div>
-              </>
-            ) : (
-              <div className="font-display text-[22px] sm:text-[32px] md:text-[40px]" style={{ color: teamColor }}>
-                {initials(player.first_name, player.last_name)}
               </div>
             )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="eyebrow text-goal text-[10px]">{isGoalie ? "Goalie" : "Skater"}</div>
-            <h1 className="font-display text-[22px] sm:text-[32px] md:text-[48px] leading-[0.95] tracking-[0.04em] mt-0.5">
-              <span className="text-ink-dim">{player.first_name.toUpperCase()}</span>{" "}
-              {player.last_name.toUpperCase()}
-            </h1>
-            {currentRoster?.team && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <TeamBadge {...currentRoster.team} size="sm" />
-                <span className="eyebrow text-[10px]">{currentRoster.position}</span>
+
+            {awardList.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-rule">
+                <BadgeShelf awards={awardList} />
+              </div>
+            )}
+
+            {captainHistory.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-rule">
+                <p className="eyebrow mb-1">Captained</p>
+                <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[14px]">
+                  {captainHistory.map((row) => (
+                    <li key={row.season_id} className="flex items-center gap-2">
+                      <span aria-hidden className="swatch h-2 w-2 rounded-full shrink-0" style={{ background: row.team_color }} />
+                      <Link href={`/teams/${row.team_slug}`} className="text-ink hover:text-ice transition-colors min-h-11 inline-flex items-center">
+                        {row.team_name}
+                      </Link>
+                      <span className="text-ink-faint">{row.season_name}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
         </div>
-
-        {contact && (contact.email || contact.phone) && (
-          <div className="mt-3 pt-3 border-t border-rule">
-            <div className="eyebrow mb-1.5">Contact <span className="text-ink-faint normal-case tracking-normal">· captain/admin only</span></div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              {contact.email && (
-                <a href={`mailto:${contact.email}`} className="font-mono text-xs text-ice hover:underline min-h-11 inline-flex items-center">
-                  {contact.email}
-                </a>
-              )}
-              {contact.phone && (
-                <a href={`tel:${contact.phone}`} className="font-mono text-xs text-ice hover:underline min-h-11 inline-flex items-center">
-                  {contact.phone}
-                </a>
-              )}
-            </div>
-          </div>
-        )}
-
-        {awardList.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-rule">
-            <BadgeShelf awards={awardList} />
-          </div>
-        )}
-
-        {captainHistory.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-rule">
-            <div className="eyebrow mb-1.5">Captained</div>
-            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {captainHistory.map((row) => (
-                <li key={row.season_id} className="flex items-center gap-2">
-                  <span
-                    className="h-2 w-2 rounded-sm shrink-0"
-                    style={{ background: row.team_color }}
-                  />
-                  <Link
-                    href={`/teams/${row.team_slug}`}
-                    className="text-ink hover:text-ice transition-colors"
-                  >
-                    {row.team_name}
-                  </Link>
-                  <span className="text-ink-faint">{row.season_name}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </section>
 
       {/* Career table */}
       <section className="rise delay-1">
-        <SectionHeader eyebrow="Career" title={isGoalie ? "Goaltending Record" : "Skater Stats"} />
+        <SectionHeader eyebrow="Career" title={isGoalie ? "Goaltending record" : "Skater stats"} />
         {rows.length === 0 ? (
-          <div className="panel-bare p-6 stripes">
-            <div className="eyebrow mb-2 text-goal">No games yet</div>
-            <p className="text-ink-dim text-[14px]">
-              This player hasn&apos;t logged any games. Stats will appear here as they take the ice.
-            </p>
-          </div>
+          <EmptyState title="No games yet">
+            This player hasn&apos;t logged any games. Stats will appear here as they take the ice.
+          </EmptyState>
         ) : (
           <>
-            {/* Mobile: stacked cards, one per season + an all-time card */}
-            <div className="space-y-3 sm:hidden">
-              {rows.map((r) => (
-                <div key={r.season_id} className="panel p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-ink font-medium">{r.season_name}</span>
-                        {r.isCurrent && (
-                          <span className="chip chip-final text-[9px] px-1.5 py-0.5">CURRENT</span>
-                        )}
-                      </div>
-                      <div className="mt-1.5">
-                        {r.team ? <TeamBadge {...r.team} size="sm" /> : <span className="text-ink-faint text-[13px]">—</span>}
-                      </div>
-                    </div>
-                    {!isGoalie && (
-                      <div className="text-right shrink-0">
-                        <div className="digit text-2xl text-ink">{r.points}</div>
-                        <div className="eyebrow">PTS</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-rule grid grid-cols-3 gap-3 text-[13px]">
-                    <CardStat label="GP" value={r.gp} />
-                    {isGoalie ? (
-                      <>
-                        <CardStat label="W-L-OTL" value={r.w === null ? "—" : `${r.w}-${r.l}-${r.otl}`} />
-                        <CardStat label="GA" value={r.ga ?? "—"} />
-                        <CardStat label="PSV" value={r.ps_saved ?? "—"} accent="text-ink" />
-                        <CardStat label="PSF" value={r.ps_faced ?? "—"} />
-                      </>
-                    ) : (
-                      <>
-                        <CardStat label="G" value={r.goals} accent="text-ink" />
-                        <CardStat label="A" value={r.assists} />
-                        <CardStat label="PEN" value={r.penalties} />
-                        <CardStat label="PS" value={r.ps_taken} />
-                        <CardStat label="PSG" value={r.ps_made} />
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {/* All-time card */}
-              <div className="panel p-4 border-t-2 border-rule-strong bg-board-3/30">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="font-display tracking-[0.14em] text-goal">ALL-TIME</span>
-                  {!isGoalie && (
-                    <div className="text-right shrink-0">
-                      <div className="digit text-2xl text-goal">{totals.points}</div>
-                      <div className="eyebrow">PTS</div>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-3 pt-3 border-t border-rule grid grid-cols-3 gap-3 text-[13px]">
-                  <CardStat label="GP" value={totals.gp} accent="text-ink" />
-                  {isGoalie ? (
-                    <>
-                      <CardStat label="W-L-OTL" value={`${totals.w}-${totals.l}-${totals.otl}`} accent="text-ink" />
-                      <CardStat label="GA" value={totals.ga} accent="text-ink" />
-                      <CardStat label="PSV" value={totals.ps_saved} accent="text-ink" />
-                      <CardStat label="PSF" value={totals.ps_faced} accent="text-ink" />
-                    </>
-                  ) : (
-                    <>
-                      <CardStat label="G" value={totals.goals} accent="text-ink" />
-                      <CardStat label="A" value={totals.assists} accent="text-ink" />
-                      <CardStat label="PEN" value={totals.penalties} accent="text-ink" />
-                      <CardStat label="PS" value={totals.ps_taken} accent="text-ink" />
-                      <CardStat label="PSG" value={totals.ps_made} accent="text-ink" />
-                    </>
-                  )}
-                </div>
+            <div className="panel overflow-clip">
+              <div className="table-scroll">
+                <table className="board-table striped">
+                  <caption className="sr-only">Career stats by season</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="text-left pl-4">Season</th>
+                      <th scope="col" className="text-left hidden sm:table-cell">Team</th>
+                      {statCols.map((c) => (
+                        <th key={c.label} scope="col" title={c.title} className={`text-right w-12 sm:w-14 ${c.dim ? "col-dim" : ""}`}>
+                          {c.label}
+                        </th>
+                      ))}
+                      <th aria-hidden className="w-2 sm:w-3 p-0!" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.season_id}>
+                        <th scope="row" className="text-left pl-4 py-2 font-normal">
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span className="text-ink whitespace-nowrap">{r.season_name}</span>
+                            {r.isCurrent && <span className="chip text-ice!">Current</span>}
+                          </span>
+                          {r.team && (
+                            <span className="sm:hidden mt-0.5 flex">
+                              <TeamTag name={r.team.name} color={r.team.color} />
+                            </span>
+                          )}
+                        </th>
+                        <td className="hidden sm:table-cell">
+                          {r.team ? <TeamBadge {...r.team} size="sm" /> : <span className="text-ink-faint">—</span>}
+                        </td>
+                        {statCols.map((c) => (
+                          <td
+                            key={c.label}
+                            className={`text-right ${c.dim ? "col-dim" : c.key ? "font-bold text-ink" : "text-ink-dim"}`}
+                          >
+                            {c.get(r) ?? "—"}
+                          </td>
+                        ))}
+                        <td aria-hidden className="p-0!" />
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-rule-strong">
+                      <th scope="row" className="text-left pl-4 py-2.5 border-t border-rule-strong bg-board-3">
+                        <span className="text-[14px] font-bold text-ink">All-time</span>
+                      </th>
+                      <td className="hidden sm:table-cell border-t border-rule-strong bg-board-3" />
+                      {statCols.map((c) => (
+                        <td
+                          key={c.label}
+                          className={`text-right px-2 py-2.5 tnum border-t border-rule-strong bg-board-3 ${
+                            c.dim ? "text-ink-faint" : c.key ? "font-bold text-goal" : "text-ink font-semibold"
+                          }`}
+                        >
+                          {c.get(totals) ?? "—"}
+                        </td>
+                      ))}
+                      <td aria-hidden className="p-0! border-t border-rule-strong bg-board-3" />
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
-
-            <div className="panel hidden sm:block overflow-x-auto">
-              <table className="board-table">
-                <thead>
-                  <tr>
-                    <th className="text-left pl-5">Season</th>
-                    <th className="text-left">Team</th>
-                    <th className="text-right">GP</th>
-                    {isGoalie ? (
-                      <>
-                        <th className="text-right">W</th>
-                        <th className="text-right">L</th>
-                        <th className="text-right">OTL</th>
-                        <th className="text-right">GA</th>
-                        <th className="text-right">PSF</th>
-                        <th className="text-right pr-5">PSV</th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="text-right">G</th>
-                        <th className="text-right">A</th>
-                        <th className="text-right">PEN</th>
-                        <th className="text-right">PS</th>
-                        <th className="text-right">PSG</th>
-                        <th className="text-right pr-5">PTS</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.season_id}>
-                      <td className="pl-5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-ink">{r.season_name}</span>
-                          {r.isCurrent && (
-                            <span className="chip chip-final text-[9px] px-1.5 py-0.5">CURRENT</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>{r.team ? <TeamBadge {...r.team} size="sm" /> : <span className="text-ink-faint">—</span>}</td>
-                      <td className="text-right tnum text-ink-dim">{r.gp}</td>
-                      {isGoalie ? (
-                        <>
-                          <td className="text-right tnum text-ink">{r.w ?? "—"}</td>
-                          <td className="text-right tnum text-ink-dim">{r.l ?? "—"}</td>
-                          <td className="text-right tnum text-ink-dim">{r.otl ?? "—"}</td>
-                          <td className="text-right tnum text-ink-dim">{r.ga ?? "—"}</td>
-                          <td className="text-right tnum text-ink-dim">{r.ps_faced ?? "—"}</td>
-                          <td className="text-right pr-5 tnum text-ink">{r.ps_saved ?? "—"}</td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="text-right tnum text-ink">{r.goals}</td>
-                          <td className="text-right tnum text-ink-dim">{r.assists}</td>
-                          <td className="text-right tnum text-ink-dim">{r.penalties}</td>
-                          <td className="text-right tnum text-ink-dim">{r.ps_taken}</td>
-                          <td className="text-right tnum text-ink-dim">{r.ps_made}</td>
-                          <td className="text-right pr-5 digit text-lg text-ink">{r.points}</td>
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                  {/* All-time totals */}
-                  <tr className="border-t-2 border-rule-strong bg-board-3/30">
-                    <td className="pl-5">
-                      <span className="font-display tracking-[0.14em] text-goal">ALL-TIME</span>
-                    </td>
-                    <td><span className="text-ink-faint">—</span></td>
-                    <td className="text-right tnum text-ink">{totals.gp}</td>
-                    {isGoalie ? (
-                      <>
-                        <td className="text-right tnum text-ink">{totals.w}</td>
-                        <td className="text-right tnum text-ink">{totals.l}</td>
-                        <td className="text-right tnum text-ink">{totals.otl}</td>
-                        <td className="text-right tnum text-ink">{totals.ga}</td>
-                        <td className="text-right tnum text-ink">{totals.ps_faced}</td>
-                        <td className="text-right pr-5 digit text-lg text-ink">{totals.ps_saved}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="text-right tnum text-ink">{totals.goals}</td>
-                        <td className="text-right tnum text-ink">{totals.assists}</td>
-                        <td className="text-right tnum text-ink">{totals.penalties}</td>
-                        <td className="text-right tnum text-ink">{totals.ps_taken}</td>
-                        <td className="text-right tnum text-ink">{totals.ps_made}</td>
-                        <td className="text-right pr-5 digit text-xl text-goal">{totals.points}</td>
-                      </>
-                    )}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p className="eyebrow mt-3 normal-case tracking-[0.06em]">
+            <Disclosure label="Legend" className="mt-2">
               {isGoalie
                 ? "W-L-OTL is tracked for live seasons only (— for imported seasons). GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved."
                 : "PEN = penalties committed. PS = penalty shots taken; PSG = penalty shots scored."}
-            </p>
+            </Disclosure>
           </>
         )}
       </section>
 
       {/* Game log */}
       <section className="rise delay-2">
-        <SectionHeader eyebrow="Game Log" title="Recent Games" />
+        <SectionHeader eyebrow="Game log" title="Recent games" />
         <GameLogSection rows={gameLog} isGoalie={isGoalie} />
       </section>
     </div>
   );
 }
 
-function CardStat({
-  label,
-  value,
-  accent = "text-ink-dim",
-}: {
-  label: string;
-  value: number | string;
-  accent?: string;
-}) {
-  return (
-    <div>
-      <div className="eyebrow text-[10px]">{label}</div>
-      <div className={`digit text-[18px] tnum mt-0.5 ${accent}`}>{value}</div>
-    </div>
-  );
-}
-
+type StatLine = Pick<
+  SeasonStatsRow,
+  "gp" | "goals" | "assists" | "points" | "penalties" | "ps_taken" | "ps_made" | "ga" | "ps_faced" | "ps_saved" | "w" | "l" | "otl"
+>;

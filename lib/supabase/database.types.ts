@@ -698,6 +698,90 @@ export type Database = {
           },
         ]
       }
+      season_recap_drafts: {
+        Row: {
+          draft_markdown: string
+          edited_at: string | null
+          edited_by: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          season_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          draft_markdown: string
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          season_id: string
+        }
+        Update: {
+          draft_markdown?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at?: string
+          input?: NonNullable<Json>
+          model?: string
+          season_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_recap_drafts_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: true
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      season_recaps: {
+        Row: {
+          edited_at: string | null
+          edited_by: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          published: boolean
+          published_at: string | null
+          season_id: string
+          summary_markdown: string
+        }
+        ComputedFields: never
+        Insert: {
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          published?: boolean
+          published_at?: string | null
+          season_id: string
+          summary_markdown: string
+        }
+        Update: {
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at?: string
+          input?: NonNullable<Json>
+          model?: string
+          published?: boolean
+          published_at?: string | null
+          season_id?: string
+          summary_markdown?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_recaps_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: true
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasons: {
         Row: {
           created_at: string

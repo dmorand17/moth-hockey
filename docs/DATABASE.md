@@ -16,6 +16,7 @@ this doc reflects what the migrations actually create.
 | `0006_seasons_period_length.sql` | `seasons.period_length_minutes` (default 17) |
 | `0027_posts.sql` | Message board: `posts`, `is_linked_player()`, threading, rate-limit and column-immutability triggers (#140) |
 | `0028_season_finalize.sql` | `seasons.finalized_at`; goalie `wins`/`losses`/`ot_losses` on `season_player_stats` |
+| `0029_season_recaps.sql` | `season_recaps` (published AI season summary) and admin-only `season_recap_drafts` |
 
 Enum changes are isolated in `0003` on purpose: Postgres won't let a new enum
 value be used in the same transaction that adds it.
@@ -93,6 +94,14 @@ value be used in the same transaction that adds it.
   game's discussion; `parent_id` null = top-level, otherwise a reply (one level
   only). `body` 1–2000 chars after trim; `edited_at` set on body change. Only
   `body` is updatable (enforced by `posts_before_update`).
+- **`season_recaps`** — the published AI season summary on `/seasons/[slug]/recap`,
+  one per season (PK `season_id`). `summary_markdown`, `input` (the exact facts
+  JSON sent to the model), `model`, `generated_at`, `edited_by`/`edited_at`,
+  `published` (Unpublish sets false) and `published_at`.
+- **`season_recap_drafts`** — the admin working copy (same shape, `draft_markdown`).
+  Generate / Regenerate / Edit write here; Publish copies the draft into
+  `season_recaps` and deletes it. A separate table because RLS can't hide one
+  column of a public row.
 
 ### Auth
 
@@ -159,6 +168,8 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | `game_availability` (since `0024`) | public | player (own row), captain (own team), admin; **scorekeeper** while the game is scheduled or live — `startGame`/`updateRoster` write the check-in back as in/out |
 | `game_write_ups` | public when not `hidden`; admins see all | admin (service role writes generated rows) |
 | `account_requests` | admin | anyone may INSERT; admin update |
+| `season_recaps` | public when `published`; admins see all | admin |
+| `season_recap_drafts` | admin only | admin |
 | `posts` | public | insert: linked player as self; update (body only, via trigger): author or admin; delete: admin (replies cascade) |
 
 Anonymous queries never return `user_profiles` rows — no public select policy

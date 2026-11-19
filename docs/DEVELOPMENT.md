@@ -146,16 +146,23 @@ Game previews and recaps, and the season recap report, are written by a model th
 - **Model:** `WRITE_UP_MODEL` (default `deepseek/deepseek-v4.1-flash-1017`), falling back to
   `WRITE_UP_FALLBACK_MODEL` (default `openai/gpt-6-luna`). Change either in
   Vercel's env settings; no deploy needed.
-- **Reasoning:** every call sends OpenRouter's `reasoning: { effort: "low" }`, which
-  caps reasoning at ~20% of `max_tokens`. Reasoning tokens count against
-  `max_tokens` and the timeout, so a model reasoning at its default can come back
-  truncated or empty and trigger the fallback.
+- **Season report model:** `RECAP_SUMMARY_MODEL` / `RECAP_SUMMARY_FALLBACK_MODEL`
+  override the models for the season recap report only (it's generated once a
+  season, so a stronger model such as `anthropic/claude-sonnet-5.5` costs cents).
+  Unset or empty falls back to the `WRITE_UP_*` models. The `ai.call` log's
+  `feature: "season-summary"` lines show which model answered.
+- **Reasoning:** every call sends `reasoning: { max_tokens: max_tokens / 4 }` and
+  `provider: { require_parameters: true }`. Reasoning tokens count against `max_tokens`
+  and the timeout; a provider that ignored the cap once spent the whole 6,000-token
+  budget reasoning (`finish_reason=length`, no text) and forced the fallback.
+  `require_parameters` keeps OpenRouter on providers that honour the cap; if none do,
+  the call fails fast and the fallback runs.
 - **Logs (Vercel → Logs; search an event name or any value):** one JSON line per event.
   - `ai.call` — every OpenRouter call: `feature` (`write-up` with `kind`/`game`, or
     `season-summary` with `season`), `role` (primary/fallback), `requested` vs. the
     `model` that answered, `provider`, OpenRouter generation `id` (look it up in the
     OpenRouter activity page), `ms`, `finish` reason, `promptTokens`/`completionTokens`/
-    `reasoningTokens`, `costUsd`, `promptChars`/`outputChars`, `maxTokens`/`timeoutMs`;
+    `reasoningTokens`, `costUsd`, `promptChars`/`outputChars`, `maxTokens`/`reasoningBudget`/`timeoutMs`;
     on failure `ok:false` with the `error` and HTTP `status` (warning level).
   - `ai.fallback` — the primary failed and the fallback is being tried (`from`, `to`, `reason`).
   - `ai.write-up` — a write-up's outcome: `gameId`, `kind`, `status`

@@ -44,6 +44,8 @@ export async function generateRecapSummary({ slug }: { slug: string }): Promise<
       maxTokens: 6000,
       timeoutMs: 75_000,
       context: { feature: "season-summary", season: slug },
+      // The report can use its own (usually stronger) models; unset = the write-up models.
+      models: { primary: process.env.RECAP_SUMMARY_MODEL, fallback: process.env.RECAP_SUMMARY_FALLBACK_MODEL },
     });
   } catch (e) {
     outcome({ outcome: "error", error: String(e) }, "error");

@@ -177,6 +177,8 @@ Copy `.env.example` to `.env.local` and fill from `supabase status`:
 | `OPENROUTER_API_KEY`                 | Your OpenRouter key (AI write-ups and season reports) |
 | `WRITE_UP_MODEL`                     | Optional; primary write-up model                    |
 | `WRITE_UP_FALLBACK_MODEL`            | Optional; fallback write-up model                   |
+| `RECAP_SUMMARY_MODEL`                | Optional; season report model (default: write-up model) |
+| `RECAP_SUMMARY_FALLBACK_MODEL`       | Optional; season report fallback (default: write-up fallback) |
 | `CRON_SECRET`                        | Any string; `Authorization: Bearer` for the cron    |
 | `BLOB_READ_WRITE_TOKEN`              | Optional; recap photo uploads (from Vercel or `vercel env pull`) |
 

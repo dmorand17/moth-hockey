@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { FinalizeEvent, SeasonTotals } from "@/lib/season-finalize";
 import {
+  describeMoment,
   goalieMinGames,
   notableMoments,
   playoffPath,
@@ -70,12 +71,32 @@ describe("notableMoments", () => {
     expect(notableMoments(games, [], "regular").find((x) => x.kind === "margin")?.gameId).toBe("early");
   });
 
-  test("finds hat tricks", () => {
-    const games = [g("g1", "A", "B", 3, 0)];
-    const events = [goal("g1", "A", "p1"), goal("g1", "A", "p1"), goal("g1", "A", "p1")];
-    expect(notableMoments(games, events, "regular")).toContainEqual(
-      expect.objectContaining({ kind: "hat-trick", playerId: "p1", gameId: "g1", value: 3 }),
-    );
+  test("hat tricks collapse into one card, most first", () => {
+    const games = [g("h1", "A", "B", 3, 0), g("h2", "A", "B", 3, 0), g("h3", "B", "A", 3, 0)];
+    const ev = [
+      ...[1, 2, 3].map(() => goal("h1", "A", "p1")),
+      ...[1, 2, 3].map(() => goal("h2", "A", "p1")),
+      ...[1, 2, 3].map(() => goal("h3", "B", "p2")),
+    ];
+    const m = notableMoments(games, ev, "regular");
+    expect(m.filter((x) => x.kind === "hat-tricks")).toEqual([
+      expect.objectContaining({ gameId: null, value: 3, players: [{ playerId: "p1", count: 2 }, { playerId: "p2", count: 1 }] }),
+    ]);
+    expect(m.some((x) => (x.kind as string) === "hat-trick")).toBe(false);
+  });
+
+  test("a 4+ goal game is a big night and still counts as a hat trick", () => {
+    const games = [g("b", "A", "B", 4, 0)];
+    const ev = [1, 2, 3, 4].map(() => goal("b", "A", "p1"));
+    const m = notableMoments(games, ev, "regular");
+    expect(m).toContainEqual(expect.objectContaining({ kind: "big-night", gameId: "b", playerId: "p1", value: 4 }));
+    expect(m.find((x) => x.kind === "hat-tricks")?.value).toBe(1);
+  });
+
+  test("describeMoment formats the hat-trick card", () => {
+    const names = { teams: new Map(), players: new Map([["p1", { id: "p1", name: "Lane Kane" }], ["p2", { id: "p2", name: "Kai Hale" }]]) };
+    const m = { kind: "hat-tricks" as const, gameId: null, teamId: null, playerId: null, value: 3, date: "", players: [{ playerId: "p1", count: 2 }, { playerId: "p2", count: 1 }] };
+    expect(describeMoment(m, undefined, names)).toEqual({ label: "Hat tricks · 3", text: "Lane Kane ×2 · Kai Hale" });
   });
 
   test("finds win streaks of 3+", () => {
@@ -136,16 +157,16 @@ describe("player moments follow the roster-team rule", () => {
     const events = [goal("x", "A", "sub"), goal("x", "A", "sub"), goal("x", "A", "sub")];
     const rosterTeam = new Map([["sub", "C"]]);
     const m = notableMoments(games, events, "regular", rosterTeam);
-    expect(m.filter((x) => x.kind === "hat-trick" || x.kind === "points-game")).toEqual([]);
+    expect(m.filter((x) => x.kind === "hat-tricks" || x.kind === "points-game")).toEqual([]);
     const unrostered = notableMoments(games, events, "regular", new Map());
-    expect(unrostered.filter((x) => x.kind === "hat-trick" || x.kind === "points-game")).toEqual([]);
+    expect(unrostered.filter((x) => x.kind === "hat-tricks" || x.kind === "points-game")).toEqual([]);
   });
 
   test("a rostered player's hat trick for their own team still counts", () => {
     const games = [g("y", "A", "B", 3, 0)];
     const events = [goal("y", "A", "p"), goal("y", "A", "p"), goal("y", "A", "p")];
     expect(notableMoments(games, events, "regular", new Map([["p", "A"]]))).toContainEqual(
-      expect.objectContaining({ kind: "hat-trick", playerId: "p" }),
+      expect.objectContaining({ kind: "hat-tricks", players: [{ playerId: "p", count: 1 }] }),
     );
   });
 });

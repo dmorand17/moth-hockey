@@ -10,6 +10,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
 import { RecapGameRow, RecapLeaders, RecapMoments, RecapNumbers, RecapPath, type Names } from "@/components/recap/parts";
 import { JumpBar } from "@/components/recap/JumpBar";
+import { MediaAdmin } from "@/components/recap/MediaAdmin";
 import { MediaFiles } from "@/components/recap/MediaFiles";
 import { MediaGrid } from "@/components/recap/MediaGrid";
 import { RecapSummary } from "@/components/recap/RecapSummary";
@@ -17,7 +18,7 @@ import { SummaryAdmin } from "@/components/recap/SummaryAdmin";
 import { ShareButton } from "@/components/recap/ShareButton";
 import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
 import { getRecapSummary, getSeasonMedia, getSeasonRecap } from "@/lib/queries";
-import { mediaKind } from "@/lib/media";
+import { mediaKind, mediaPrefix } from "@/lib/media";
 import { computeRecap } from "@/lib/recap-summary/facts";
 import { jumpLinks } from "@/lib/season-recap";
 
@@ -235,8 +236,20 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
       {showMedia && (
         <section id="media" className={`space-y-3 ${anchor}`}>
           <SectionHeader eyebrow={`${media.length} ${media.length === 1 ? "item" : "items"}`} title="Photos & video" />
-          {visual.length > 0 && <MediaGrid items={visual} seasonName={r.season.name} />}
-          <MediaFiles items={files} />
+          {admin ? (
+            <MediaAdmin
+              slug={slug}
+              prefix={mediaPrefix(slug, process.env.VERCEL_ENV)}
+              seasonName={r.season.name}
+              items={media}
+              uploadsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
+            />
+          ) : (
+            <>
+              {visual.length > 0 && <MediaGrid items={visual} seasonName={r.season.name} />}
+              <MediaFiles items={files} />
+            </>
+          )}
         </section>
       )}
 

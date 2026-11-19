@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SectionHeader } from "@/components/SectionHeader";
 import { PlayoffChip } from "@/components/PlayoffChip";
-import { TeamBadge, TeamTag } from "@/components/TeamBadge";
+import { TeamBadge } from "@/components/TeamBadge";
 import { StatusChip } from "@/components/Chips";
 import { CheckInToggle } from "@/components/CheckInToggle";
 import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
@@ -590,10 +590,7 @@ export default async function GamePage({
                             </p>
                           )}
                         </div>
-                        <span className="sm:hidden">
-                          <TeamTag name={team.name} color={team.color} />
-                        </span>
-                        <span className="hidden sm:inline-flex items-center gap-1.5 text-[13px] text-ink-faint">
+                        <span className="inline-flex items-center gap-1.5 text-[13px] leading-4 text-ink-faint text-right max-w-[6.5rem] sm:max-w-none">
                           <span aria-hidden className="swatch h-2 w-2 rounded-full" style={{ background: team.color }} />
                           {team.name}
                         </span>

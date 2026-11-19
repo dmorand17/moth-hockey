@@ -7,9 +7,9 @@ import { createPost } from "@/app/post-actions";
 import { BODY_MAX } from "@/lib/board";
 
 const pill =
-  "min-h-8 px-3.5 rounded-full text-[13px] font-semibold border border-rule-strong text-ink-dim hover:text-ink hover:bg-board-3 transition-colors disabled:opacity-50";
+  "min-h-11 px-4 rounded-full text-[14px] font-semibold border border-rule-strong text-ink-dim hover:text-ink hover:bg-board-3 transition-colors disabled:opacity-50";
 const postPill =
-  "min-h-9 px-5 rounded-full text-[14px] font-bold bg-ice text-board hover:brightness-110 transition disabled:opacity-40 disabled:hover:brightness-100";
+  "min-h-11 px-5 rounded-full text-[14px] font-bold bg-ice text-board hover:brightness-110 transition disabled:opacity-40 disabled:hover:brightness-100";
 
 // Show the remaining-characters count only once it matters (X-style).
 const COUNT_FROM = BODY_MAX - 200;

@@ -94,7 +94,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         </section>
       )}
 
-      <div className="grid gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+      <div className="grid gap-8 lg:gap-10 min-[900px]:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_320px] items-start">
         {/* MAIN COLUMN */}
         <div className="space-y-8 md:space-y-10 min-w-0">
           <section className="rise delay-1">
@@ -191,7 +191,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         </div>
 
         {/* SIDEBAR */}
-        <aside className="space-y-8 md:space-y-10 min-w-0" aria-label="League leaders">
+        <aside className="space-y-8 md:space-y-10 min-w-0 min-[900px]:sticky min-[900px]:top-[calc(var(--header-h)+24px)]" aria-label="League leaders">
           <section className="rise delay-2">
             <SectionHeader eyebrow={season.name} title="League leaders" linkHref="/stats" linkLabel="All stats" />
             {/* One 3-up row: a player who leads several categories reads once per tile, compactly. */}

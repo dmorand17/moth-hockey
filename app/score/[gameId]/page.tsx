@@ -297,7 +297,7 @@ async function FinalStub({ game }: { game: GameRow }) {
         <div className="grid grid-cols-3 items-center gap-3">
           <div className="flex flex-col items-start min-w-0">
             <span
-              className="font-display text-[13px] tracking-[0.1em] uppercase truncate"
+              className="font-semibold text-[13px] tracking-[0.1em] uppercase truncate"
               style={{ color: game.away_team.color }}
             >
               {game.away_team.name}
@@ -314,7 +314,7 @@ async function FinalStub({ game }: { game: GameRow }) {
           </div>
           <div className="flex flex-col items-end min-w-0">
             <span
-              className="font-display text-[13px] tracking-[0.1em] uppercase truncate"
+              className="font-semibold text-[13px] tracking-[0.1em] uppercase truncate"
               style={{ color: game.home_team.color }}
             >
               {game.home_team.name}

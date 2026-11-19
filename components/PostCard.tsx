@@ -89,7 +89,7 @@ export function Avatar({ name, team, size }: { name: string | null; team: PostTe
     <span
       aria-hidden
       style={style}
-      className={`shrink-0 grid place-items-center rounded-full font-display tracking-[0.06em] text-ink select-none ${
+      className={`shrink-0 grid place-items-center rounded-full font-semibold tracking-[0.06em] text-ink select-none ${
         team ? "" : "bg-board-3 ring-1 ring-rule-strong text-ink-faint"
       } ${size === "md" ? "h-10 w-10 text-[17px]" : "h-8 w-8 text-[14px]"}`}
     >

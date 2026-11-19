@@ -210,7 +210,7 @@ export default async function AdminSchedulePage() {
           </div>
 
           <SubmitButton
-            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+            className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors"
           >
             CREATE
           </SubmitButton>
@@ -246,7 +246,7 @@ export default async function AdminSchedulePage() {
               />
             </label>
             <SubmitButton
-              className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0"
+              className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors shrink-0"
             >
               SKIP
             </SubmitButton>
@@ -267,7 +267,7 @@ export default async function AdminSchedulePage() {
                 <ActionForm action={removeScheduleSkip}>
                   <input type="hidden" name="id" value={s.id} />
                   <SubmitButton
-                    className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors"
+                    className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-semibold tracking-[0.1em] text-[11px] rounded transition-colors"
                   >
                     REMOVE
                   </SubmitButton>
@@ -509,7 +509,7 @@ export default async function AdminSchedulePage() {
 
                     <div className="pb-0.5">
                       <SubmitButton
-                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors"
+                        className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors"
                       >
                         SAVE
                       </SubmitButton>
@@ -520,7 +520,7 @@ export default async function AdminSchedulePage() {
                 <ActionForm action={deleteGame}>
                   <input type="hidden" name="id" value={game.id} />
                   <SubmitButton
-                    className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors"
+                    className="text-goal/60 hover:text-goal font-semibold tracking-[0.1em] text-[12px] transition-colors"
                   >
                     DELETE GAME
                   </SubmitButton>

@@ -123,7 +123,7 @@ export function StandingsRulesEditor({
         )}
       </div>
 
-      <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
+      <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors">
         SAVE RULES
       </SubmitButton>
     </ActionForm>

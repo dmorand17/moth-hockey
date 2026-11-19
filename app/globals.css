@@ -50,9 +50,15 @@
   --color-win: var(--win);
   --color-loss: var(--loss);
   --color-otl: var(--otl);
-  --font-sans: var(--font-atkinson);
-  --font-display: var(--font-bebas);
-  --font-mono: var(--font-atkinson);
+}
+
+/* Font tokens (emitted as CSS variables). Components use font-sans /
+   font-display / font-num, never a family name. */
+@theme {
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-bebas), Impact, "Helvetica Neue", sans-serif;
+  --font-num: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-num);
 }
 
 html {
@@ -61,7 +67,7 @@ html {
 
 body {
   color: var(--ink);
-  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
   background: var(--board);
@@ -74,11 +80,14 @@ body {
 
 /* Display lockup */
 .font-display {
-  font-family: var(--font-bebas), "Impact", "Helvetica Neue", sans-serif;
+  font-family: var(--font-display);
   letter-spacing: 0.02em;
 }
+/* Numbers: tabular figures in the number font. `.font-mono` is kept as an
+   alias for older markup (no system monospace anywhere). */
+.num,
 .font-mono {
-  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
 }
 .tnum { font-variant-numeric: tabular-nums; }
@@ -91,7 +100,7 @@ body {
 
 /* Eyebrow — short secondary label (section kickers, table/meta labels). */
 .eyebrow {
-  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 16px;
   font-weight: 600;
@@ -122,7 +131,7 @@ body {
 }
 
 .digit {
-  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-family: var(--font-num);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -134,7 +143,7 @@ body {
   gap: 0.4rem;
   padding: 0.125rem 0.5rem;
   border-radius: 6px;
-  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 16px;
   font-weight: 700;
@@ -208,13 +217,13 @@ body {
 .prose-rink h3,
 .prose-rink h4 {
   color: var(--ink);
-  font-family: var(--font-display, inherit);
+  font-family: var(--font-display);
   letter-spacing: 0.03em;
   margin: 1.4em 0 0.5em;
 }
 .prose-rink h2,
 .prose-rink h3,
-.prose-rink h4 { font-family: var(--font-atkinson), system-ui, sans-serif; font-weight: 700; letter-spacing: 0; }
+.prose-rink h4 { font-family: var(--font-sans); font-weight: 700; letter-spacing: 0; }
 .prose-rink h2 { font-size: 20px; line-height: 24px; }
 .prose-rink h3 { font-size: 18px; line-height: 24px; }
 .prose-rink h4 { font-size: 16px; line-height: 24px; }
@@ -226,7 +235,7 @@ body {
 .prose-rink a { color: var(--ice); text-decoration: underline; text-underline-offset: 2px; }
 .prose-rink a:hover { color: var(--ink); }
 .prose-rink code {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-num);
   font-size: 0.9em;
   background: var(--board-3);
   border: 1px solid var(--rule);
@@ -320,7 +329,7 @@ table.board-table {
   font-variant-numeric: tabular-nums;
 }
 table.board-table thead th {
-  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.06em;

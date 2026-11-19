@@ -190,7 +190,7 @@ export default async function AccountPage() {
               <div className="flex items-center gap-3 min-w-0">
                 <span
                   aria-hidden
-                  className="inline-flex items-center justify-center h-11 w-11 rounded-md font-display text-[17px] tracking-tight text-board shrink-0"
+                  className="inline-flex items-center justify-center h-11 w-11 rounded-md font-semibold text-[17px] tracking-tight text-board shrink-0"
                   style={{ background: roster.team.color }}
                 >
                   {teamInitials(roster.team.name)}
@@ -213,7 +213,7 @@ export default async function AccountPage() {
           className="group border-t border-rule pt-4"
         >
           <summary className="flex items-center justify-between gap-3 cursor-pointer list-none select-none">
-            <span className="font-display text-[15px] tracking-[0.12em] text-ice">
+            <span className="font-semibold text-[15px] tracking-[0.06em] text-ice">
               EDIT PROFILE
             </span>
             <span
@@ -242,7 +242,7 @@ export default async function AccountPage() {
                 className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
               />
             </label>
-            <SubmitButton className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-display tracking-[0.14em] text-[15px] rounded transition-colors">
+            <SubmitButton className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-semibold tracking-[0.06em] text-[15px] rounded transition-colors">
               SAVE
             </SubmitButton>
           </ActionForm>
@@ -321,7 +321,7 @@ export default async function AccountPage() {
       <form action={signOut} className="mt-5">
         <button
           type="submit"
-          className="w-full min-h-11 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-display tracking-[0.14em] text-[15px] rounded transition-colors"
+          className="w-full min-h-11 bg-board-3 hover:bg-rule border border-rule text-ink-dim hover:text-ink font-semibold tracking-[0.06em] text-[15px] rounded transition-colors"
         >
           SIGN OUT
         </button>

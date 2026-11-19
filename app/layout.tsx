@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next, Bebas_Neue } from "next/font/google";
+import { Bebas_Neue, Inter } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { Toaster } from "sonner";
@@ -15,13 +15,12 @@ const bebas = Bebas_Neue({
   subsets: ["latin"],
 });
 
-const atkinson = Atkinson_Hyperlegible_Next({
-  variable: "--font-atkinson",
+// Variable font (400–700). next/font generates a size-adjusted fallback, so
+// the swap doesn't shift layout.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  // Next has no built-in metrics for this family, so it can't synthesize a
-  // size-adjusted fallback. Naming one keeps pre-swap text from reflowing.
-  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
-  adjustFontFallback: false,
+  display: "swap",
 });
 
 // Absolute base for OpenGraph/Twitter image URLs. Uses the prod domain on
@@ -106,7 +105,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bebas.variable} ${atkinson.variable} antialiased`}
+      className={`${bebas.variable} ${inter.variable} antialiased`}
     >
       {/* suppressHydrationWarning: browser extensions (e.g. ColorZilla's
           cz-shortcut-listen) inject attributes on <body> before hydration,

@@ -174,10 +174,15 @@ Copy `.env.example` to `.env.local` and fill from `supabase status`:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `Publishable` key                                 |
 | `NEXT_PUBLIC_SITE_URL`               | Optional; base URL for OpenGraph links              |
 | `SUPABASE_SECRET_KEY`                | `Secret` key (server-only; write-ups cron/finalize) |
-| `OPENROUTER_API_KEY`                 | Your OpenRouter key (AI write-ups only)             |
+| `OPENROUTER_API_KEY`                 | Your OpenRouter key (AI write-ups and season reports) |
 | `WRITE_UP_MODEL`                     | Optional; primary write-up model                    |
 | `WRITE_UP_FALLBACK_MODEL`            | Optional; fallback write-up model                   |
 | `CRON_SECRET`                        | Any string; `Authorization: Bearer` for the cron    |
+| `BLOB_READ_WRITE_TOKEN`              | Optional; recap photo uploads (from Vercel or `vercel env pull`) |
+
+`BLOB_READ_WRITE_TOKEN` points at the shared Blob store, so local and preview
+uploads are kept under `dev/seasons/…` and never mix with production media.
+Without it the recap uploader is disabled; the gallery still renders rows that exist.
 
 The signup-email (`NEW_USER_WEBHOOK_SECRET`, `ADMIN_NOTIFY_EMAIL`, `SMTP_*`) and
 "Scripts" variables in `.env.example` aren't needed for local development.

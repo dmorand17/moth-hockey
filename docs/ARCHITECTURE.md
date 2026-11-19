@@ -22,8 +22,11 @@ app/                  App Router routes (see Routes below)
   <route>/actions.ts  server actions ("use server") for that route's mutations
   auth/confirm/       magic-link landing page; POSTs to verify the token
   auth/callback/route.ts  fallback: magic-link code → session exchange
-  api/                route handlers: cron/write-ups (Vercel cron), hooks/new-user (DB webhook)
+  api/                route handlers: cron/write-ups (Vercel cron), hooks/new-user (DB webhook),
+                      media/upload (admin-only Blob upload tokens)
+  seasons/[slug]/recap/  recap page + summary-actions.ts (AI report) + media-actions.ts (gallery)
 components/           shared components (mostly client/presentational)
+  recap/              season recap sections: summary admin, jump bar, gallery + lightbox, uploader
 lib/
   queries.ts          server-side read helpers (typed Supabase selects)
   auth.ts             session + role gating (getAuthSession / requireRole / …)
@@ -36,7 +39,10 @@ lib/
   seasons.ts          season identity/lifecycle (recap target, slugs)
   season-schedule.ts  round-robin schedule generation
   season-finalize.ts  season totals, champion, proposed award winners
-  season-recap.ts     season recap computations
+  season-recap.ts     season recap computations (moments, leaders, jump links)
+  recap-summary/      AI season report: facts, prompt, output checks, admin controls
+  media.ts            recap media rules: paths, types/limits, URL checks, reorder, lightbox nav
+  storage.ts          the only server touchpoint with Vercel Blob (head, delete, upload tokens)
   lineup-availability.ts  writes scorekeeper check-in back to game_availability
   paginate.ts         page slicing helper
   *.test.ts           `bun test` specs for the pure modules
@@ -60,6 +66,15 @@ docs/                 this folder
   (`"use server"`). Examples: `app/score/[gameId]/actions.ts`,
   `app/admin/seasons/actions.ts`. Actions call `requireRole(...)` first, then write
   via the server client; RLS is the second line of defense in Postgres.
+- **Season recap AI report:** an admin server action builds a facts JSON from the
+  page's own data (`lib/recap-summary/facts.ts`), calls OpenRouter, and writes a
+  draft to `season_recap_drafts`. Publishing copies it to `season_recaps`, the only
+  table the public can read. The page itself is computed live on every request.
+- **Recap media:** the browser uploads straight to Vercel Blob (`upload()` from
+  `@vercel/blob/client`), using a token from `/api/media/upload` that is issued only
+  to admins and only for `seasons/{slug}/` (`dev/seasons/{slug}/` outside
+  production). The browser then calls `recordSeasonMedia`, which checks the URL and
+  the blob's real type/size before inserting the `season_media` row.
 - **Interactive UI** is isolated to client components (`"use client"`): e.g.
   `components/LiveScoring.tsx`, `components/RosterCheckIn.tsx`,
   `components/StatsExplorer.tsx`, `app/admin/seasons/color-swatches.tsx`.
@@ -123,10 +138,11 @@ Role-gated (enforced by `requireRole` + RLS):
 | `/score`, `/score/[gameId]`, `/score/[gameId]/roster` | `admin` or `scorekeeper` |
 | `/captains/contacts` | `admin` or `team_captain` |
 
-Route handlers (no session; shared-secret auth):
+Route handlers:
 
 | Route | Auth |
 | --- | --- |
+| `/api/media/upload` | admin session (issues Vercel Blob client-upload tokens) |
 | `/api/cron/write-ups` | `Authorization: Bearer $CRON_SECRET` (Vercel cron, `vercel.json`) |
 | `/api/hooks/new-user` | `x-webhook-secret: $NEW_USER_WEBHOOK_SECRET` (Supabase DB webhook) |
 

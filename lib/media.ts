@@ -101,3 +101,37 @@ export function lightboxGesture(e: { kind: "swipe"; pointerType: string; onVideo
   if (e.onVideo) return false;
   return e.kind === "key" || e.pointerType === "touch";
 }
+
+// The recap hero is the first renderable image in the admin's order (videos
+// and HEIC never are); `rest` keeps the remaining items in order.
+export function splitHero<T extends { contentType: string }>(items: T[]): { hero: T | null; rest: T[] } {
+  const i = items.findIndex((m) => mediaKind(m.contentType) === "image");
+  if (i < 0) return { hero: null, rest: items };
+  return { hero: items[i], rest: [...items.slice(0, i), ...items.slice(i + 1)] };
+}
+
+// CSS aspect-ratio from the stored size; unknown sizes get a 4:3 frame.
+export function mediaAspect(width: number | null, height: number | null): { ratio: string; known: boolean } {
+  return width && height ? { ratio: `${width} / ${height}`, known: true } : { ratio: "4 / 3", known: false };
+}
+
+export const ZOOM_MIN = 1;
+export const ZOOM_MAX = 4;
+
+export function clampZoom(scale: number): number {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, scale));
+}
+
+export function doubleTapZoom(scale: number): number {
+  return scale > 1 ? 1 : 2.5;
+}
+
+export function pinchZoom(startScale: number, startDist: number, dist: number): number {
+  return clampZoom(startScale * (dist / startDist));
+}
+
+// Indexes to preload around the open item (previous, next), wrapping.
+export function neighbors(i: number, length: number): number[] {
+  if (length < 2) return [];
+  return [...new Set([stepIndex(i, -1, length), stepIndex(i, 1, length)])].filter((n) => n !== i);
+}

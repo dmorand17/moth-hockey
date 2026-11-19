@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   checkUploadRequest,
+  clampZoom,
+  doubleTapZoom,
+  mediaAspect,
+  neighbors,
+  pinchZoom,
+  splitHero,
   lightboxGesture,
   maxBytesForPath,
   formatBytes,
@@ -113,4 +119,45 @@ test("size cap comes from the file extension, not the claimed type", () => {
   expect(maxBytesForPath("dev/seasons/s/clip-abc.MOV")).toBe(200 * MB);
   expect(maxBytesForPath("dev/seasons/s/photo-abc.jpg")).toBe(20 * MB);
   expect(maxBytesForPath("dev/seasons/s/noext")).toBe(20 * MB);
+});
+
+describe("hero photo", () => {
+  const m = (contentType: string, id: string) => ({ id, contentType });
+  test("the first image is the hero; the rest keep their order", () => {
+    const r = splitHero([m("video/mp4", "v"), m("image/jpeg", "a"), m("image/png", "b")]);
+    expect(r.hero?.id).toBe("a");
+    expect(r.rest.map((x) => x.id)).toEqual(["v", "b"]);
+  });
+  test("no images, no hero", () => {
+    const r = splitHero([m("video/mp4", "v"), m("application/pdf", "p")]);
+    expect(r.hero).toBeNull();
+    expect(r.rest.map((x) => x.id)).toEqual(["v", "p"]);
+  });
+  test("HEIC is never the hero", () => {
+    expect(splitHero([m("image/heic", "h")]).hero).toBeNull();
+  });
+  test("mediaAspect uses stored size, else 4:3", () => {
+    expect(mediaAspect(1200, 900)).toEqual({ ratio: "1200 / 900", known: true });
+    expect(mediaAspect(null, 900)).toEqual({ ratio: "4 / 3", known: false });
+  });
+});
+
+describe("lightbox zoom and preload", () => {
+  test("clampZoom keeps 1–4", () => {
+    expect(clampZoom(0.5)).toBe(1);
+    expect(clampZoom(9)).toBe(4);
+  });
+  test("double tap toggles 2.5× and back", () => {
+    expect(doubleTapZoom(1)).toBe(2.5);
+    expect(doubleTapZoom(2)).toBe(1);
+  });
+  test("pinch scales by finger distance, clamped", () => {
+    expect(pinchZoom(1, 100, 250)).toBe(2.5);
+    expect(pinchZoom(2, 100, 10)).toBe(1);
+  });
+  test("neighbors wrap and skip self", () => {
+    expect(neighbors(0, 4)).toEqual([3, 1]);
+    expect(neighbors(0, 1)).toEqual([]);
+    expect(neighbors(0, 2)).toEqual([1]);
+  });
 });

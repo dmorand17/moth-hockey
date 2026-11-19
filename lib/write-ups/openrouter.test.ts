@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { generateText } from "@/lib/write-ups/openrouter";
 
 const realFetch = globalThis.fetch;
@@ -106,5 +106,23 @@ describe("generateText", () => {
     expect(r.model).toBe("google/gemini-2.5-flash-lite");
     expect(r.text).toBe("fallback ok");
     expect(calls.map((c) => c.model)).toEqual(["openai/gpt-6-luna", "google/gemini-2.5-flash-lite"]);
+  });
+  test("passes maxTokens through, defaulting to 1000", async () => {
+    const sent: number[] = [];
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      sent.push(JSON.parse(String(init!.body)).max_tokens);
+      return respond(200, { choices: [{ message: { content: "ok" } }] });
+    }) as unknown as typeof fetch;
+    await generateText("s", "u", { maxTokens: 4000 });
+    await generateText("s", "u");
+    expect(sent).toEqual([4000, 1000]);
+  });
+  test("passes timeoutMs through, defaulting to 30s", async () => {
+    const spy = spyOn(AbortSignal, "timeout");
+    globalThis.fetch = mock(async () => respond(200, { choices: [{ message: { content: "ok" } }] })) as unknown as typeof fetch;
+    await generateText("s", "u", { timeoutMs: 75_000 });
+    await generateText("s", "u");
+    expect(spy.mock.calls.map((c) => c[0])).toEqual([75_000, 30_000]);
+    spy.mockRestore();
   });
 });

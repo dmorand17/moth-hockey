@@ -618,6 +618,60 @@ export type Database = {
           },
         ]
       }
+      season_media: {
+        Row: {
+          blob_url: string
+          caption: string
+          content_type: string
+          created_at: string
+          height: number | null
+          id: string
+          pathname: string
+          season_id: string
+          size_bytes: number
+          sort_order: number
+          uploaded_by: string | null
+          width: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          blob_url: string
+          caption?: string
+          content_type: string
+          created_at?: string
+          height?: number | null
+          id?: string
+          pathname: string
+          season_id: string
+          size_bytes: number
+          sort_order?: number
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Update: {
+          blob_url?: string
+          caption?: string
+          content_type?: string
+          created_at?: string
+          height?: number | null
+          id?: string
+          pathname?: string
+          season_id?: string
+          size_bytes?: number
+          sort_order?: number
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_media_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       season_player_stats: {
         Row: {
           assists: number
@@ -694,6 +748,90 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      season_recap_drafts: {
+        Row: {
+          draft_markdown: string
+          edited_at: string | null
+          edited_by: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          season_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          draft_markdown: string
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          season_id: string
+        }
+        Update: {
+          draft_markdown?: string
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at?: string
+          input?: NonNullable<Json>
+          model?: string
+          season_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_recap_drafts_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: true
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      season_recaps: {
+        Row: {
+          edited_at: string | null
+          edited_by: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          published: boolean
+          published_at: string | null
+          season_id: string
+          summary_markdown: string
+        }
+        ComputedFields: never
+        Insert: {
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at: string
+          input: NonNullable<Json>
+          model: string
+          published?: boolean
+          published_at?: string | null
+          season_id: string
+          summary_markdown: string
+        }
+        Update: {
+          edited_at?: string | null
+          edited_by?: string | null
+          generated_at?: string
+          input?: NonNullable<Json>
+          model?: string
+          published?: boolean
+          published_at?: string | null
+          season_id?: string
+          summary_markdown?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_recaps_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: true
+            referencedRelation: "seasons"
             referencedColumns: ["id"]
           },
         ]

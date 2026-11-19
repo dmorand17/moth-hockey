@@ -41,11 +41,11 @@ export default async function TeamsPage() {
         />
       </div>
 
-      <ul className="rise delay-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        {list.map((t, i) => {
+      <ul className="rise delay-1 grid gap-3">
+        {list.map((t) => {
           const rec = recordByTeamId.get(t.id);
           return (
-            <li key={t.id} className={spanClass(i, list.length)}>
+            <li key={t.id}>
               <Link
                 href={`/teams/${t.slug}`}
                 className="panel h-full p-4 md:p-5 flex items-center gap-4 hover:bg-board-hover hover:border-rule-strong transition-colors group"
@@ -85,14 +85,4 @@ export default async function TeamsPage() {
       </ul>
     </div>
   );
-}
-
-// 6-column grid on lg: 3 per row, with a short last row stretched so there's
-// no empty hole (5 teams → 3 + 2). On sm (2 columns) an odd last card spans both.
-function spanClass(i: number, n: number): string {
-  const lastRow = n % 3;
-  const inLastRow = lastRow !== 0 && i >= n - lastRow;
-  const lg = inLastRow ? (lastRow === 2 ? "lg:col-span-3" : "lg:col-span-6") : "lg:col-span-2";
-  const sm = n % 2 === 1 && i === n - 1 ? "sm:col-span-2" : "";
-  return `${lg} ${sm}`;
 }

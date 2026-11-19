@@ -4,6 +4,7 @@ import { boardSeasonWindow, buildThreads, pickTeams, type AuthorRow, type BoardS
 import { groupAwards, type AwardWinnerGroup } from "./awards";
 import { recapState, seasonSlug, type RecapSeason } from "./seasons";
 import type { RecapGame } from "./season-recap";
+import type { RecapFacts } from "./recap-summary/facts";
 import {
   championTeamId,
   type FinalizeAppearance,
@@ -649,4 +650,84 @@ export async function getSeasonRecap(slug: string, today = new Date().toISOStrin
     storedTotals,
     board: { threads: board.threads, from: window?.from ?? null, to: window?.to ?? null },
   };
+}
+
+export type RecapSummaryRow = {
+  markdown: string;
+  input: RecapFacts;
+  model: string;
+  generated_at: string;
+  edited_at: string | null;
+  published?: boolean;
+};
+
+// The season's AI summary. RLS decides what comes back: everyone gets a
+// published summary; only admins get an unpublished one and the draft.
+export async function getRecapSummary(seasonId: string): Promise<{ published: RecapSummaryRow | null; draft: RecapSummaryRow | null }> {
+  const supabase = await createSupabaseServerClient();
+  const [pub, draft] = await Promise.all([
+    supabase
+      .from("season_recaps")
+      .select("summary_markdown, input, model, generated_at, edited_at, published")
+      .eq("season_id", seasonId)
+      .maybeSingle(),
+    supabase
+      .from("season_recap_drafts")
+      .select("draft_markdown, input, model, generated_at, edited_at")
+      .eq("season_id", seasonId)
+      .maybeSingle(),
+  ]);
+  // The summary is one optional section: if it can't load (e.g. the code
+  // shipped before migration 0029), log and render the recap without it.
+  if (pub.error || draft.error) {
+    console.error("recap summary query failed", pub.error ?? draft.error);
+    return { published: null, draft: null };
+  }
+  return {
+    published: pub.data
+      ? { markdown: pub.data.summary_markdown, input: pub.data.input as RecapFacts, model: pub.data.model, generated_at: pub.data.generated_at, edited_at: pub.data.edited_at, published: pub.data.published }
+      : null,
+    draft: draft.data
+      ? { markdown: draft.data.draft_markdown, input: draft.data.input as RecapFacts, model: draft.data.model, generated_at: draft.data.generated_at, edited_at: draft.data.edited_at }
+      : null,
+  };
+}
+
+export type SeasonMedia = {
+  id: string;
+  url: string;
+  pathname: string;
+  contentType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  caption: string;
+  sortOrder: number;
+};
+
+// The season's recap gallery in display order. Like the summary, it's an
+// optional section: on a query error, log and show the recap without it.
+export async function getSeasonMedia(seasonId: string): Promise<SeasonMedia[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("season_media")
+    .select("id, blob_url, pathname, content_type, size_bytes, width, height, caption, sort_order")
+    .eq("season_id", seasonId)
+    .order("sort_order")
+    .order("created_at");
+  if (error) {
+    console.error("season media query failed", error);
+    return [];
+  }
+  return data.map((m) => ({
+    id: m.id,
+    url: m.blob_url,
+    pathname: m.pathname,
+    contentType: m.content_type,
+    sizeBytes: m.size_bytes,
+    width: m.width,
+    height: m.height,
+    caption: m.caption,
+    sortOrder: m.sort_order,
+  }));
 }

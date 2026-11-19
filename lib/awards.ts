@@ -83,3 +83,26 @@ export function groupAwards(rows: AwardRow[]): AwardWinnerGroup[] {
     winners: byType.get(type)!.sort((a, b) => a.name.localeCompare(b.name)),
   }));
 }
+
+// Awards with a stat behind them, for the "N tied with V unit" line.
+const TIE_STATS: Record<string, { key: "goals" | "assists" | "penalties"; one: string; many: string }> = {
+  goon: { key: "penalties", one: "penalty", many: "penalties" },
+  sniper: { key: "goals", one: "goal", many: "goals" },
+  playmaker: { key: "assists", one: "assist", many: "assists" },
+};
+
+// "5 tied with 4 penalties" when every winner shares the award's stat value,
+// otherwise "5 tied".
+export function tieSummary(
+  type: string,
+  winnerIds: string[],
+  totals: { player_id: string; goals: number; assists: number; penalties: number }[],
+): string {
+  const base = `${winnerIds.length} tied`;
+  const stat = TIE_STATS[type];
+  if (!stat) return base;
+  const values = winnerIds.map((id) => totals.find((t) => t.player_id === id)?.[stat.key]);
+  const v = values[0];
+  if (!v || values.some((x) => x !== v)) return base;
+  return `${base} with ${v} ${v === 1 ? stat.one : stat.many}`;
+}

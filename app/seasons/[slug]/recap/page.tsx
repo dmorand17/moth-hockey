@@ -9,13 +9,24 @@ import { PostThread } from "@/components/PostThread";
 import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
 import { RecapGameRow, RecapLeaders, RecapMoments, RecapNumbers, RecapPath, type Names } from "@/components/recap/parts";
+import { JumpBar } from "@/components/recap/JumpBar";
+import { MediaAdmin } from "@/components/recap/MediaAdmin";
+import { MediaFiles } from "@/components/recap/MediaFiles";
+import { MediaGrid } from "@/components/recap/MediaGrid";
+import { RecapSummary } from "@/components/recap/RecapSummary";
+import { SummaryAdmin } from "@/components/recap/SummaryAdmin";
 import { ShareButton } from "@/components/recap/ShareButton";
-import { getBoardViewer } from "@/lib/auth";
-import { getSeasonRecap } from "@/lib/queries";
-import { computeSeasonTotals } from "@/lib/season-finalize";
-import { goalieMinGames, notableMoments, playoffPath, seasonNumbers } from "@/lib/season-recap";
+import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
+import { getRecapSummary, getSeasonMedia, getSeasonRecap } from "@/lib/queries";
+import { mediaKind, mediaPrefix } from "@/lib/media";
+import { computeRecap } from "@/lib/recap-summary/facts";
+import { jumpLinks } from "@/lib/season-recap";
 
 type Params = Promise<{ slug: string }>;
+
+// Generating the AI summary (a server action on this page) can take two
+// 75s model calls (primary + fallback).
+export const maxDuration = 180;
 
 // One fetch per request for both metadata and the page.
 const load = cache(getSeasonRecap);
@@ -39,11 +50,10 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
   if (!r) notFound();
 
   const names: Names = { teams: r.teams, players: r.players };
-  const { games: fGames, roster, appearances, events } = r.inputs;
-  const regular = r.hasGames ? computeSeasonTotals(fGames, roster, appearances, events) : (r.storedTotals ?? []);
+  const c = computeRecap(r);
+  const { regular, playoffTotals, regNumbers, poNumbers, regMoments, poMoments, path } = c;
   const champion = r.championTeamId ? r.teams.get(r.championTeamId) : undefined;
   const championRow = r.standings?.find((s) => s.team_id === r.championTeamId);
-  const path = playoffPath(r.games);
   const final = path.find((g) => g.playoff_round === "final");
   const title = `${r.season.name} Season Recap`;
 
@@ -91,105 +101,125 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         <p className="panel-bare px-4 py-5 text-[16px] text-ink-dim">
           Recap available when the season ends. Here&apos;s how the leaders stand so far.
         </p>
-        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={goalieMinGames(r.games, "regular")} names={names} />
+        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
       </div>
     );
   }
 
-  const regNumbers = seasonNumbers(r.games, events, "regular");
-  const rosterTeam = new Map(roster.map((x) => [x.player_id, x.team_id]));
-  const regMoments = notableMoments(r.games, events, "regular", rosterTeam);
-  const playoffTotals = r.hasGames ? computeSeasonTotals(fGames, roster, appearances, events, { kind: "playoff" }) : [];
-  const poNumbers = seasonNumbers(r.games, events, "playoff");
-  const poMoments = notableMoments(r.games, events, "playoff", rosterTeam);
-  const viewer = await getBoardViewer();
+  const [viewer, admin, summary, media] = await Promise.all([
+    getBoardViewer(),
+    getSessionIfRole(["admin"]),
+    getRecapSummary(r.season.id),
+    getSeasonMedia(r.season.id),
+  ]);
+  const visual = media.filter((m) => mediaKind(m.contentType) !== "file");
+  const files = media.filter((m) => mediaKind(m.contentType) === "file");
+  const showMedia = media.length > 0 || !!admin;
+  const livePublished = summary.published?.published ? summary.published : null;
+  const showSummary = !!admin || !!livePublished;
+  const hasSeason = !!regNumbers || !!r.standings || !!r.historical || regular.length > 0;
+  const links = jumpLinks({ summary: showSummary, awards: r.awards.length > 0, season: hasSeason, playoffs: path.length > 0, media: showMedia, board: true });
+  // Headings clear the sticky header plus the jump bar.
+  const anchor = "scroll-mt-[calc(var(--header-h)+64px)]!";
 
   return (
     <div className="space-y-8 md:space-y-12">
       {hero}
+      <JumpBar links={links} />
 
-      {/* AI summary (PR 2) goes here */}
-
-      {r.awards.length > 0 && (
-        <section>
-          <SectionHeader eyebrow="The hardware" title="Award winners" />
-          <div className="lg:hidden">
-            <AwardWinners awards={r.awards} layout="row" />
-          </div>
-          <div className="hidden lg:block">
-            <AwardWinners awards={r.awards} layout="grid" />
-          </div>
-        </section>
-      )}
-
-      {regNumbers && <RecapNumbers eyebrow="Regular season" numbers={regNumbers} />}
-
-      {(r.standings || r.historical) && (
-        <section>
-          <SectionHeader eyebrow="Regular season" title="Final standings" linkHref={`/standings?season=${r.season.id}`} linkLabel="Standings" />
-          {r.standings ? (
-            <DataTable caption={`${r.season.name} final standings`}>
-              <thead>
-                <tr>
-                  <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
-                  <th scope="col" className="text-left">Team</th>
-                  <th scope="col" className="text-right sm:w-14">GP</th>
-                  <th scope="col" className="text-right sm:w-14">W-L-OTL</th>
-                  <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
-                  <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
-                  <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">PTS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.standings.map((row, i) => (
-                  <tr key={row.team_id}>
-                    <td className={`pl-3 sm:pl-4 ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>{i + 1}</td>
-                    <td className="max-w-0 w-full">
-                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
-                    </td>
-                    <td className="text-right text-ink-dim">{row.gp}</td>
-                    <td className="text-right text-ink-dim whitespace-nowrap">{row.w}-{row.l}-{row.otl}</td>
-                    <td className="text-right text-ink-dim hidden sm:table-cell">{row.gf}</td>
-                    <td className="text-right text-ink-dim hidden sm:table-cell">{row.ga}</td>
-                    <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.pts}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </DataTable>
+      {showSummary && (
+        <section id="summary" className={anchor}>
+          <SectionHeader eyebrow="Season summary" title="The story of the season" />
+          {admin ? (
+            <SummaryAdmin slug={slug} published={summary.published} draft={summary.draft} />
           ) : (
-            <DataTable caption={`${r.season.name} final standings by goal differential`}>
-              <thead>
-                <tr>
-                  <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
-                  <th scope="col" className="text-left">Team</th>
-                  <th scope="col" className="text-right sm:w-14">GF</th>
-                  <th scope="col" className="text-right sm:w-14">GA</th>
-                  <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">DIFF</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.historical!.map((row, i) => (
-                  <tr key={row.team_id}>
-                    <td className="pl-3 sm:pl-4 text-ink-faint">{i + 1}</td>
-                    <td className="max-w-0 w-full">
-                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
-                    </td>
-                    <td className="text-right text-ink-dim">{row.gf}</td>
-                    <td className="text-right text-ink-dim">{row.ga}</td>
-                    <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </DataTable>
+            livePublished && <RecapSummary markdown={livePublished.markdown} editedAt={livePublished.edited_at} />
           )}
         </section>
       )}
 
-      <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={goalieMinGames(r.games, "regular")} names={names} />
-      <RecapMoments eyebrow="Regular season" moments={regMoments} games={r.games} names={names} />
+      {r.awards.length > 0 && (
+        <section id="awards" className={anchor}>
+          <SectionHeader eyebrow="The hardware" title="Award winners" />
+          <div className="lg:hidden">
+            <AwardWinners awards={r.awards} layout="row" totals={regular} />
+          </div>
+          <div className="hidden lg:block">
+            <AwardWinners awards={r.awards} layout="grid" totals={regular} />
+          </div>
+        </section>
+      )}
+
+      <div id="season" className={`space-y-8 md:space-y-12 ${anchor}`}>
+        {regNumbers && <RecapNumbers eyebrow="Regular season" numbers={regNumbers} />}
+
+        {(r.standings || r.historical) && (
+          <section>
+            <SectionHeader eyebrow="Regular season" title="Final standings" linkHref={`/standings?season=${r.season.id}`} linkLabel="Standings" />
+            {r.standings ? (
+              <DataTable caption={`${r.season.name} final standings`}>
+                <thead>
+                  <tr>
+                    <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
+                    <th scope="col" className="text-left">Team</th>
+                    <th scope="col" className="text-right sm:w-14">GP</th>
+                    <th scope="col" className="text-right sm:w-14">W-L-OTL</th>
+                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
+                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
+                    <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">PTS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.standings.map((row, i) => (
+                    <tr key={row.team_id}>
+                      <td className={`pl-3 sm:pl-4 ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>{i + 1}</td>
+                      <td className="max-w-0 w-full">
+                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
+                      </td>
+                      <td className="text-right text-ink-dim">{row.gp}</td>
+                      <td className="text-right text-ink-dim whitespace-nowrap">{row.w}-{row.l}-{row.otl}</td>
+                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.gf}</td>
+                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.ga}</td>
+                      <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.pts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            ) : (
+              <DataTable caption={`${r.season.name} final standings by goal differential`}>
+                <thead>
+                  <tr>
+                    <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
+                    <th scope="col" className="text-left">Team</th>
+                    <th scope="col" className="text-right sm:w-14">GF</th>
+                    <th scope="col" className="text-right sm:w-14">GA</th>
+                    <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">DIFF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.historical!.map((row, i) => (
+                    <tr key={row.team_id}>
+                      <td className="pl-3 sm:pl-4 text-ink-faint">{i + 1}</td>
+                      <td className="max-w-0 w-full">
+                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
+                      </td>
+                      <td className="text-right text-ink-dim">{row.gf}</td>
+                      <td className="text-right text-ink-dim">{row.ga}</td>
+                      <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            )}
+          </section>
+        )}
+
+        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
+        <RecapMoments eyebrow="Regular season" moments={regMoments} games={r.games} names={names} />
+      </div>
 
       {path.length > 0 && (
-        <section className="space-y-6">
+        <section id="playoffs" className={`space-y-6 ${anchor}`}>
           <SectionHeader eyebrow={poNumbers ? `${poNumbers.games} games · ${poNumbers.goals} goals` : undefined} title="Playoffs" />
           <RecapPath path={path} names={names} />
           <RecapLeaders
@@ -203,9 +233,27 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         </section>
       )}
 
-      {/* Media gallery (PR 3) goes here */}
+      {showMedia && (
+        <section id="media" className={`space-y-3 ${anchor}`}>
+          <SectionHeader eyebrow={`${media.length} ${media.length === 1 ? "item" : "items"}`} title="Photos & video" />
+          {admin ? (
+            <MediaAdmin
+              slug={slug}
+              prefix={mediaPrefix(slug, process.env.VERCEL_ENV)}
+              seasonName={r.season.name}
+              items={media}
+              uploadsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
+            />
+          ) : (
+            <>
+              {visual.length > 0 && <MediaGrid items={visual} seasonName={r.season.name} />}
+              <MediaFiles items={files} />
+            </>
+          )}
+        </section>
+      )}
 
-      <section>
+      <section id="board" className={anchor}>
         <SectionHeader
           eyebrow={`${r.season.name} message board`}
           title="Locker Room"

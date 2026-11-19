@@ -39,7 +39,7 @@ export function CheckInToggle({
           onClick={() => set("in")}
           disabled={pending}
           aria-pressed={status === "in"}
-          className={`min-h-11 font-display tracking-[0.14em] text-[14px] rounded border transition-colors disabled:opacity-50 ${
+          className={`min-h-11 font-semibold tracking-[0.06em] text-[14px] rounded border transition-colors disabled:opacity-50 ${
             status === "in"
               ? "bg-goal text-board border-goal"
               : "bg-board-3 text-ink-dim border-rule hover:border-goal hover:text-ink"
@@ -52,7 +52,7 @@ export function CheckInToggle({
           onClick={() => set("out")}
           disabled={pending}
           aria-pressed={status === "out"}
-          className={`min-h-11 font-display tracking-[0.14em] text-[14px] rounded border transition-colors disabled:opacity-50 ${
+          className={`min-h-11 font-semibold tracking-[0.06em] text-[14px] rounded border transition-colors disabled:opacity-50 ${
             status === "out"
               ? "bg-ice text-board border-ice"
               : "bg-board-3 text-ink-dim border-rule hover:border-ice hover:text-ink"

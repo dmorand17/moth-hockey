@@ -281,7 +281,7 @@ export function PlayerFilters({
                         className={`mt-1 w-full ${rowInputCls}`}
                       />
                     </label>
-                    <SubmitButton className="px-2.5 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0">
+                    <SubmitButton className="px-2.5 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.1em] text-[11px] rounded transition-colors shrink-0">
                       SAVE
                     </SubmitButton>
                   </ActionForm>
@@ -304,7 +304,7 @@ export function PlayerFilters({
                               value={player.account.user_id}
                             />
                             <input type="hidden" name="player_id" value="" />
-                            <SubmitButton className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors">
+                            <SubmitButton className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-semibold tracking-[0.1em] text-[11px] rounded transition-colors">
                               UNLINK
                             </SubmitButton>
                           </ActionForm>
@@ -384,7 +384,7 @@ export function PlayerFilters({
                         type="button"
                         onClick={() => handleDelete(player)}
                         disabled={actionPending}
-                        className="block px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
+                        className="block px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-semibold tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
                       >
                         DELETE PLAYER
                       </button>
@@ -414,7 +414,7 @@ export function PlayerFilters({
                           type="button"
                           onClick={() => handleMerge(player)}
                           disabled={actionPending || !mergeTargets.get(player.id)}
-                          className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-display tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
+                          className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-semibold tracking-[0.1em] text-[11px] rounded transition-colors disabled:opacity-50"
                         >
                           MERGE
                         </button>

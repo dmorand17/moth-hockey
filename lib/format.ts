@@ -46,3 +46,11 @@ export function formatPhone(input: string): string {
   if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
   return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
+
+// Short team label for dense tables: initials for multi-word names
+// ("Frost Giants" → "FG"), first three letters otherwise ("Yellow" → "YEL").
+export function teamAbbr(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length > 1) return words.slice(0, 3).map((w) => w[0]).join("").toUpperCase();
+  return words[0].slice(0, 3).toUpperCase();
+}

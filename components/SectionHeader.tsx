@@ -1,81 +1,59 @@
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
-
-type Accent = "goal" | "ice" | "gold";
+import type { ReactNode } from "react";
 
 type Props = {
+  /** Short secondary label above the title. */
   eyebrow?: string;
   title: string;
   subtitle?: ReactNode;
   linkHref?: string;
   linkLabel?: string;
+  /** Right-aligned slot (e.g. a season selector or a collapse toggle). */
+  action?: ReactNode;
   size?: "md" | "lg";
-  accent?: Accent;
   /** Heading level for the title. Use "h1" for the page's primary heading. */
   as?: "h1" | "h2";
+  id?: string;
 };
 
-const ACCENT: Record<Accent, string> = {
-  goal: "var(--goal)",
-  ice: "var(--ice)",
-  gold: "#fbbf24",
-};
-
+// The one section-header pattern: 12px label above a Bebas title, optional
+// subtitle, optional right-aligned action.
 export function SectionHeader({
   eyebrow,
   title,
   subtitle,
   linkHref,
   linkLabel,
+  action,
   size = "md",
-  accent = "goal",
   as: Heading = "h2",
+  id,
 }: Props) {
   const titleSize =
     size === "lg"
-      ? "text-[30px] sm:text-[40px] md:text-[56px]"
-      : "text-[22px] sm:text-[28px] md:text-[36px]";
-  const accentColor = ACCENT[accent];
+      ? "text-[40px] leading-[44px] md:text-[56px] md:leading-[64px]"
+      : "text-[26px] leading-[30px] md:text-[32px] md:leading-[36px]";
   return (
-    <div
-      className="goal-line mb-3 sm:mb-5 flex items-end justify-between gap-3 flex-wrap"
-      style={{ "--accent": accentColor } as CSSProperties}
-    >
+    <div className="mb-4 flex items-end justify-between gap-x-4 gap-y-2 flex-wrap">
       <div className="min-w-0">
-        {/* Big page titles (lg) stack the eyebrow above; compact section
-            headers (md) keep it inline (e.g. "01 UPCOMING"). */}
-        {size === "lg" ? (
-          <>
-            {eyebrow && (
-              <div className="eyebrow mb-1.5" style={{ color: accentColor }}>
-                {eyebrow}
-              </div>
-            )}
-            <Heading className={`font-display ${titleSize} leading-none tracking-[0.04em]`}>
-              {title.toUpperCase()}
-            </Heading>
-          </>
-        ) : (
-          <div className="flex items-baseline gap-2.5 sm:gap-3">
-            {eyebrow && (
-              <span className="eyebrow shrink-0" style={{ color: accentColor }}>
-                {eyebrow}
-              </span>
-            )}
-            <Heading className={`font-display ${titleSize} leading-none tracking-[0.04em]`}>
-              {title.toUpperCase()}
-            </Heading>
-          </div>
-        )}
-        {subtitle && <p className="eyebrow mt-2 normal-case tracking-[0.06em]">{subtitle}</p>}
+        {eyebrow && <div className="eyebrow mb-1">{eyebrow}</div>}
+        <Heading id={id} className={`font-display ${titleSize} tracking-[0.02em] text-ink`}>
+          {title}
+        </Heading>
+        {subtitle && <p className="mt-1 text-[14px] leading-5 text-ink-faint">{subtitle}</p>}
       </div>
-      {linkHref && linkLabel && (
-        <Link
-          href={linkHref}
-          className="eyebrow hover:text-ink transition-colors whitespace-nowrap inline-flex items-center min-h-[44px]"
-        >
-          {linkLabel} →
-        </Link>
+      {(action || (linkHref && linkLabel)) && (
+        <div className="shrink-0 flex items-center gap-3">
+          {action}
+          {linkHref && linkLabel && (
+            <Link
+              href={linkHref}
+              className="text-[14px] font-semibold text-ice hover:text-ink transition-colors whitespace-nowrap inline-flex items-center min-h-[44px]"
+            >
+              {linkLabel} <span aria-hidden className="ml-1">→</span>
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );

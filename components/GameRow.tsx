@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { TeamBadge } from "./TeamBadge";
 import { PlayoffChip } from "./PlayoffChip";
-import { formatDate, formatTime } from "@/lib/format";
+import { StatusChip } from "./Chips";
+import { formatDate } from "@/lib/format";
 
 type Team = { name: string; slug: string; color: string };
 
@@ -16,22 +16,37 @@ type Props = {
   decided_in?: "regulation" | "ot" | "shootout" | null;
   kind?: "regular" | "playoff";
   playoff_round?: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
+  /** Show the date (for lists that aren't already grouped by date). */
+  showDate?: boolean;
+  /** Keep the two-line layout at every width (for narrow columns). */
+  stacked?: boolean;
 };
 
-function TbdBadge() {
+type Side = { team: Team | null; score: number | null | undefined; won: boolean };
+
+function Bar({ team }: { team: Team | null }) {
   return (
-    <span className="inline-flex items-center gap-2.5">
-      <span
-        aria-hidden
-        className="w-1 h-5 shrink-0 rounded-[1px] bg-rule-strong"
-      />
-      <span className="text-[15px] font-medium tracking-tight text-ink-faint">
-        TBD
-      </span>
-    </span>
+    <span
+      aria-hidden
+      className="swatch w-1 h-4 shrink-0 rounded-[1px]"
+      style={{ background: team?.color ?? "var(--rule-strong)" }}
+    />
   );
 }
 
+function teamTone(side: Side, isFinal: boolean) {
+  if (!side.team) return "text-ink-faint";
+  if (!isFinal) return "text-ink";
+  return side.won ? "text-ink font-semibold" : "text-ink-dim";
+}
+
+function scoreTone(side: Side) {
+  return side.won ? "text-ink" : "text-ink-faint";
+}
+
+// One game in a list: a dense two-line row on mobile, a single line
+// (Away score – score Home) from `sm` up unless `stacked`. The whole row links to the game.
+// Place inside a <ul className="divide-y ..."> list container.
 export function GameRow({
   id,
   scheduled_at,
@@ -43,66 +58,98 @@ export function GameRow({
   decided_in,
   kind,
   playoff_round,
+  showDate = false,
+  stacked = false,
 }: Props) {
   const isFinal = status === "final";
-  const isLive = status === "live";
-  const homeWon = isFinal && (home_score ?? 0) > (away_score ?? 0);
-  const awayWon = isFinal && (away_score ?? 0) > (home_score ?? 0);
+  const showScore = isFinal || status === "live";
+  const away: Side = {
+    team: away_team,
+    score: away_score,
+    won: isFinal && (away_score ?? 0) > (home_score ?? 0),
+  };
+  const home: Side = {
+    team: home_team,
+    score: home_score,
+    won: isFinal && (home_score ?? 0) > (away_score ?? 0),
+  };
+  const awayName = away_team?.name ?? "TBD";
+  const homeName = home_team?.name ?? "TBD";
+
+  const status_ = (
+    <StatusChip status={status} decidedIn={decided_in} scheduledAt={scheduled_at} />
+  );
+  const playoff = kind === "playoff" && <PlayoffChip round={playoff_round} size="sm" />;
 
   return (
-    <Link
-      href={`/games/${id}`}
-      className="block panel hover:border-rule-strong transition-colors p-3 sm:p-4 group"
-    >
-      <div className="flex items-center justify-between gap-3 mb-2 sm:mb-3">
-        <div className="eyebrow flex items-center gap-2 truncate">
-          <span>{formatDate(scheduled_at)}</span>
-          {!isFinal && !isLive && (
-            <>
-              <span className="text-rule-strong">·</span>
-              <span className="text-ink-dim">{formatTime(scheduled_at)}</span>
-            </>
-          )}
-          {kind === "playoff" && <PlayoffChip round={playoff_round} size="sm" />}
+    <li>
+      <Link
+        href={`/games/${id}`}
+        className="block px-3 sm:px-4 py-2 hover:bg-board-hover transition-colors"
+      >
+        {/* Mobile: two stacked team lines + status column */}
+        <div className={`${stacked ? "" : "sm:hidden "}flex items-center gap-3`}>
+          <div className="flex-1 min-w-0 space-y-1">
+            {[away, home].map((side, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Bar team={side.team} />
+                <span className={`flex-1 min-w-0 truncate text-[15px] ${teamTone(side, isFinal)}`}>
+                  {side.team?.name ?? "TBD"}
+                </span>
+                {showScore && (
+                  <span className={`digit text-[17px] w-6 text-right ${scoreTone(side)}`}>
+                    {side.score ?? 0}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="shrink-0 w-[5.5rem] flex flex-col items-end gap-1 text-right">
+            {status_}
+            {showDate && <span className="text-[12px] text-ink-faint">{formatDate(scheduled_at)}</span>}
+            {playoff}
+          </div>
         </div>
-        {isLive ? (
-          <span className="chip chip-live">
-            <span className="live-dot" /> LIVE
-          </span>
-        ) : isFinal ? (
-          <span className="chip chip-final">
-            FINAL{decided_in && decided_in !== "regulation" ? `/${decided_in.toUpperCase()}` : ""}
-          </span>
-        ) : (
-          <span className="chip">UPCOMING</span>
+
+        {/* sm+: single line */}
+        {!stacked && (
+          <div
+            className={`hidden sm:grid items-center gap-3 ${
+              showDate ? "grid-cols-[6.5rem_1fr_4.5rem_1fr_6.5rem]" : "grid-cols-[1fr_4.5rem_1fr_6.5rem]"
+            }`}
+          >
+            {showDate && <span className="text-[14px] text-ink-faint">{formatDate(scheduled_at)}</span>}
+            <span className="flex items-center justify-end gap-2 min-w-0">
+              <span className={`truncate text-[15px] ${teamTone(away, isFinal)}`}>{awayName}</span>
+              <Bar team={away_team} />
+            </span>
+            <span className="digit text-[17px] text-center whitespace-nowrap">
+              {showScore ? (
+                <>
+                  <span className={scoreTone(away)}>{away_score ?? 0}</span>
+                  <span className="text-ink-faint mx-1.5" aria-hidden>–</span>
+                  <span className={scoreTone(home)}>{home_score ?? 0}</span>
+                </>
+              ) : (
+                <span className="text-[13px] font-semibold text-ink-faint">at</span>
+              )}
+            </span>
+            <span className="flex items-center gap-2 min-w-0">
+              <Bar team={home_team} />
+              <span className={`truncate text-[15px] ${teamTone(home, isFinal)}`}>{homeName}</span>
+            </span>
+            <span className="flex items-center justify-end gap-1.5">
+              {playoff}
+              {status_}
+            </span>
+          </div>
         )}
-      </div>
-      <div className="space-y-1.5 sm:space-y-2.5">
-        <div className="flex items-center justify-between gap-3">
-          {away_team ? (
-            <TeamBadge {...away_team} asChild size="md" className={awayWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
-          ) : (
-            <TbdBadge />
-          )}
-          {isFinal && (
-            <span className={`digit text-xl sm:text-2xl ${awayWon ? "text-ink" : "text-ink-faint"}`}>
-              {away_score}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          {home_team ? (
-            <TeamBadge {...home_team} asChild size="md" className={homeWon ? "text-ink" : isFinal ? "text-ink-dim" : ""} />
-          ) : (
-            <TbdBadge />
-          )}
-          {isFinal && (
-            <span className={`digit text-xl sm:text-2xl ${homeWon ? "text-ink" : "text-ink-faint"}`}>
-              {home_score}
-            </span>
-          )}
-        </div>
-      </div>
-    </Link>
+      </Link>
+    </li>
   );
+}
+
+// List container for GameRows.
+export function GameList({ children }: { children: React.ReactNode }) {
+  return <ul className="panel overflow-clip divide-y divide-rule">{children}</ul>;
 }

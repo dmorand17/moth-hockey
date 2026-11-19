@@ -131,7 +131,7 @@ export default async function AdminUsersPage() {
                             </option>
                           ))}
                         </select>
-                        <SubmitButton className="px-2 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors">
+                        <SubmitButton className="px-2 py-1 min-h-8 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.1em] text-[11px] rounded transition-colors">
                           SAVE
                         </SubmitButton>
                       </ActionForm>

@@ -1,10 +1,29 @@
 import Link from "next/link";
+import { DataTable } from "@/components/DataTable";
 import { notFound } from "next/navigation";
-import { GameRow } from "@/components/GameRow";
+import type { Metadata } from "next";
+import { GameList, GameRow } from "@/components/GameRow";
 import { SectionHeader } from "@/components/SectionHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentSeason } from "@/lib/queries";
+import { getCurrentSeason, getStandings } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
+import { teamAbbr } from "@/lib/format";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const season = await getCurrentSeason();
+  if (!season) return { title: "Team" };
+  const supabase = await createSupabaseServerClient();
+  const { data: team } = await supabase
+    .from("teams")
+    .select("name")
+    .eq("season_id", season.id)
+    .eq("slug", slug)
+    .maybeSingle();
+  const name = team?.name ?? "Team";
+  return { title: name, description: `${name} roster, record and schedule for ${season.name}.` };
+}
 
 type TeamRef = { name: string; slug: string; color: string };
 type TeamGame = {
@@ -39,7 +58,7 @@ export default async function TeamPage({
 
   if (!team) notFound();
 
-  const [{ data: roster }, { data: gamesRaw }, { data: captainRow }] = await Promise.all([
+  const [{ data: roster }, { data: gamesRaw }, { data: captainRow }, standings] = await Promise.all([
     supabase
       .from("team_players")
       .select("jersey_number, position, player:player_id(id, first_name, last_name)")
@@ -58,7 +77,10 @@ export default async function TeamPage({
       .eq("team_id", team.id)
       .eq("season_id", season.id)
       .maybeSingle(),
+    getStandings(season.id),
   ]);
+  const rankIdx = standings.findIndex((r) => r.team_id === team.id);
+  const record = rankIdx >= 0 ? standings[rankIdx] : null;
   const games = (gamesRaw ?? []) as unknown as TeamGame[];
 
   // Captain shown by name only — anon RLS blocks user_profiles, so we resolve
@@ -76,61 +98,84 @@ export default async function TeamPage({
   const forwards = (roster ?? []).filter((r) => r.position === "forward");
   const defense = (roster ?? []).filter((r) => r.position === "defense");
   const goalies = (roster ?? []).filter((r) => r.position === "goalie");
+  // Hide the jersey column entirely when no numbers are on file.
+  const showJersey = (roster ?? []).some((r) => r.jersey_number != null);
 
   return (
-    <div className="space-y-5 sm:space-y-8">
-      {/* Hero */}
-      <section
-        className="rise panel p-4 sm:p-6 md:p-8 relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${team.color}18 0%, transparent 60%), var(--board-2)`,
-        }}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-y-0 left-0 w-1.5"
-          style={{ background: team.color, boxShadow: `0 0 30px ${team.color}99` }}
-        />
-        <Link href="/teams" className="eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
-          ← All teams
+    <div className="space-y-8 md:space-y-12">
+      {/* Header */}
+      <section className="rise">
+        <Link
+          href="/teams"
+          className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11"
+        >
+          <span aria-hidden className="mr-1">←</span> All teams
         </Link>
-        <div className="mt-3 sm:mt-4 flex items-center gap-3 sm:gap-5">
-          <div className="relative h-14 w-14 sm:h-20 sm:w-20 shrink-0">
-            <div
-              className="absolute inset-0 rounded-sm"
+        <div className="mt-2 panel overflow-clip flex">
+          <span aria-hidden className="swatch w-1 shrink-0" style={{ background: team.color }} />
+          <div className="flex-1 p-4 md:p-6 flex flex-wrap items-center gap-4">
+            <span
+              aria-hidden
+              className="swatch h-14 w-14 md:h-16 md:w-16 shrink-0 rounded-md flex items-center justify-center font-display text-[26px] md:text-[30px] text-board"
               style={{ background: team.color }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center font-display text-board text-[24px] sm:text-[34px] tracking-tight">
-              {team.name
-                .split(" ")
-                .map((w) => w[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
+            >
+              {teamAbbr(team.name).slice(0, 2)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="eyebrow">{season.name}</p>
+              <h1 className="font-display text-[40px] leading-[44px] md:text-[56px] md:leading-[64px] tracking-[0.02em]">
+                {team.name}
+              </h1>
+              {captain && (
+                <p className="text-[14px] text-ink-faint">
+                  Captain{" "}
+                  <Link href={`/players/${captain.id}`} className="text-ink-dim hover:text-ice transition-colors">
+                    {captain.first_name} {captain.last_name}
+                  </Link>
+                </p>
+              )}
             </div>
-          </div>
-          <div>
-            <div className="eyebrow">{season.name}</div>
-            <h1 className="font-display text-[32px] sm:text-[44px] md:text-[68px] leading-[0.92] tracking-[0.04em] mt-1">
-              {team.name.toUpperCase()}
-            </h1>
+            {record && (
+              <dl className="basis-full sm:basis-auto flex gap-6 sm:text-right border-t border-rule pt-3 sm:border-0 sm:pt-0">
+                <div>
+                  <dt className="eyebrow">Record</dt>
+                  <dd className="digit text-[22px] text-ink">
+                    {record.w}-{record.l}-{record.otl}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="eyebrow">PTS</dt>
+                  <dd className="digit text-[22px] text-ink">{record.pts}</dd>
+                </div>
+                <div>
+                  <dt className="eyebrow">Rank</dt>
+                  <dd className={`digit text-[22px] ${rankIdx === 0 ? "text-gold" : "text-ink"}`}>#{rankIdx + 1}</dd>
+                </div>
+              </dl>
+            )}
           </div>
         </div>
       </section>
 
       {/* Roster */}
       <section className="rise delay-1">
-        <SectionHeader eyebrow="Roster" title="The Lineup" />
-        <div className="panel overflow-hidden">
-          <table className="board-table">
-            <thead>
-              <tr>
-                <th className="text-left pl-5 w-14">#</th>
-                <th className="text-left">Player</th>
-                <th className="text-right pr-5">Pos</th>
-              </tr>
-            </thead>
-            <tbody>
+        <SectionHeader eyebrow="Roster" title="The lineup" />
+        {(roster ?? []).length === 0 ? (
+          <EmptyState title="No roster set for this season yet." />
+        ) : (
+          <DataTable caption={`${team.name} roster`}>
+              <thead>
+                <tr>
+                  {showJersey && (
+                    <th scope="col" className="text-left pl-4 w-14">
+                      #
+                    </th>
+                  )}
+                  <th scope="col" className={`text-left ${showJersey ? "" : "pl-4"}`}>
+                    Player
+                  </th>
+                </tr>
+              </thead>
               {[
                 { label: "Forwards", rows: forwards },
                 { label: "Defense", rows: defense },
@@ -142,34 +187,41 @@ export default async function TeamPage({
                     label={group.label}
                     rows={group.rows}
                     captainPlayerId={captain?.id ?? null}
+                    showJersey={showJersey}
                   />
                 ),
               )}
-            </tbody>
-          </table>
-        </div>
+          </DataTable>
+        )}
+        {/* TODO(data): per-player GP/G/A/PTS on the roster needs a season stats
+            query for this team (stats are derived from game events today). */}
       </section>
 
       {/* Schedule */}
       <section className="rise delay-2">
-        <SectionHeader eyebrow="On The Ice" title="Schedule & Results" />
-        <div className="grid gap-3 sm:grid-cols-2">
-          {games.map((g) => (
-            <GameRow
-              key={g.id}
-              id={g.id}
-              scheduled_at={g.scheduled_at}
-              status={g.status}
-              home_team={g.home_team}
-              away_team={g.away_team}
-              home_score={g.home_score}
-              away_score={g.away_score}
-              decided_in={g.decided_in}
-              kind={g.kind}
-              playoff_round={g.playoff_round}
-            />
-          ))}
-        </div>
+        <SectionHeader eyebrow="On the ice" title="Schedule & results" linkHref="/schedule" linkLabel="Full schedule" />
+        {games.length === 0 ? (
+          <EmptyState compact title="No games scheduled yet." />
+        ) : (
+          <GameList>
+            {games.map((g) => (
+              <GameRow
+                key={g.id}
+                id={g.id}
+                scheduled_at={g.scheduled_at}
+                status={g.status}
+                home_team={g.home_team}
+                away_team={g.away_team}
+                home_score={g.home_score}
+                away_score={g.away_score}
+                decided_in={g.decided_in}
+                kind={g.kind}
+                playoff_round={g.playoff_round}
+                showDate
+              />
+            ))}
+          </GameList>
+        )}
       </section>
     </div>
   );
@@ -185,49 +237,45 @@ function RosterGroup({
   label,
   rows,
   captainPlayerId,
+  showJersey,
 }: {
   label: string;
   rows: RosterRow[];
   captainPlayerId: string | null;
+  showJersey: boolean;
 }) {
   return (
-    <>
+    <tbody>
       <tr>
-        <td colSpan={3} className="pl-5 pt-5 pb-2">
-          <div className="eyebrow text-goal">{label}</div>
-        </td>
+        <th scope="rowgroup" colSpan={showJersey ? 2 : 1} className="text-left pl-4 pt-4 pb-1 eyebrow bg-board-2">
+          {label} <span className="text-ink-faint font-normal">· {rows.length}</span>
+        </th>
       </tr>
       {rows.map((r) => {
         const p = r.player!;
         const isCaptain = captainPlayerId === p.id;
         return (
           <tr key={p.id}>
-            <td className="pl-5 digit text-ink-faint text-[15px]">
-              {r.jersey_number ?? "—"}
-            </td>
-            <td className="!p-0">
+            {showJersey && <td className="pl-4 tnum text-ink-faint">{r.jersey_number ?? "—"}</td>}
+            <td className={showJersey ? "" : "pl-4"}>
               <Link
                 href={`/players/${p.id}`}
-                className="flex items-center gap-2 min-h-[44px] px-2 -mx-2 hover:text-ink transition-colors"
+                className="flex items-center gap-2 min-h-[44px] text-ink hover:text-ice transition-colors"
               >
                 <span>
-                  {p.first_name} <span className="font-medium">{p.last_name}</span>
+                  {p.first_name} {p.last_name}
                 </span>
                 {isCaptain && (
-                  <span
-                    title="Captain"
-                    aria-label="Captain"
-                    className="font-display text-[10px] tracking-[0.06em] leading-none border border-goal text-goal rounded-sm px-1 py-0.5"
-                  >
-                    C
+                  <span title="Captain" className="chip text-ink!">
+                    <span aria-hidden>C</span>
+                    <span className="sr-only">Captain</span>
                   </span>
                 )}
               </Link>
             </td>
-            <td className="text-right pr-5 eyebrow">{r.position}</td>
           </tr>
         );
       })}
-    </>
+    </tbody>
   );
 }

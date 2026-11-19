@@ -6,7 +6,7 @@ function TeamColumn({ team }: { team: PreviewTeam }) {
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-display text-[18px] tracking-[0.04em] text-ink truncate">{team.name}</span>
+        <span className="font-semibold text-[18px] tracking-[0.04em] text-ink truncate">{team.name}</span>
         <span className="digit text-[15px] text-ink tnum">{team.form.record}</span>
       </div>
       <div className="text-[13px] text-ink-dim tnum">

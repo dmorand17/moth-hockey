@@ -20,7 +20,7 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { finalizeSeason } from "../../actions";
 
 const primaryBtn =
-  "min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+  "min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 const selectCls =
   "bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice w-full sm:w-auto sm:min-w-[260px]";
 

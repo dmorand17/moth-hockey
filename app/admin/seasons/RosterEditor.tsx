@@ -140,7 +140,7 @@ export function RosterEditor({
       <div className="flex items-center justify-between min-h-[24px]">
         <h4 className="eyebrow text-[11px]">
           ROSTER · {rows.length} players
-          {dirty && <span className="text-amber-400 ml-1">· {changeCount} pending</span>}
+          {dirty && <span className="text-ice ml-1">· {changeCount} pending</span>}
         </h4>
         {dirty && (
           <div className="flex items-center gap-2">
@@ -156,7 +156,7 @@ export function RosterEditor({
               type="button"
               onClick={handleSave}
               disabled={pending}
-              className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-50"
+              className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-50"
             >
               {pending ? "SAVING…" : `SAVE ${changeCount}`}
             </button>
@@ -250,7 +250,7 @@ export function RosterEditor({
             type="button"
             onClick={addRow}
             disabled={!addPlayerId}
-            className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-50"
+            className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-50"
           >
             ADD
           </button>

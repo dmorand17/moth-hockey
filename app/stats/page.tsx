@@ -10,6 +10,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSeasons } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { AWARD_LABELS, AWARD_ORDER } from "@/lib/awards";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Stats",
+  description: "League leaders, skater and goalie stats, and award winners.",
+};
 
 type SearchParams = Promise<{ season?: string }>;
 
@@ -121,7 +127,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
     }
 
     return (
-      <div className="space-y-5 sm:space-y-8">
+      <div className="space-y-8 md:space-y-12">
         <StatsExplorer
           seasonName={season.name}
           seasons={seasons}
@@ -216,7 +222,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
     }));
 
   return (
-    <div className="space-y-5 sm:space-y-8">
+    <div className="space-y-8 md:space-y-12">
       <StatsExplorer
         seasonName={season.name}
         seasons={seasons}

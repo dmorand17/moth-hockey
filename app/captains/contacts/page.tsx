@@ -107,7 +107,7 @@ export default async function CaptainContactsPage() {
                 <ul className="divide-y divide-rule">
                   {linked.map((p) => (
                     <li key={p.player_id} className="py-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                      <div className="font-display text-[16px] tracking-[0.03em] text-ink min-w-[160px]">
+                      <div className="font-semibold text-[16px] tracking-[0.03em] text-ink min-w-[160px]">
                         {p.last_name}, {p.first_name}
                       </div>
                       <span className="eyebrow">

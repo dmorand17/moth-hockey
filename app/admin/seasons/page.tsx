@@ -33,7 +33,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 const inputCls =
   "bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice w-full";
 const primaryBtn =
-  "min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+  "min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
 const WEEKDAYS: WeekdayIdx[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
 
@@ -284,7 +284,7 @@ export default async function AdminSeasonsPage() {
                     <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block shrink-0">
                       ▶
                     </span>
-                    <span className="font-display text-[15px] tracking-[0.04em] text-ink flex-1 min-w-[160px]">
+                    <span className="font-semibold text-[15px] tracking-[0.04em] text-ink flex-1 min-w-[160px]">
                       {season.name.toUpperCase()}
                     </span>
                     {season.is_current && (
@@ -429,7 +429,7 @@ export default async function AdminSeasonsPage() {
                               className={`mt-1 ${inputCls}`}
                             />
                           </label>
-                          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
+                          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors shrink-0">
                             ADD TEAM
                           </SubmitButton>
                         </div>
@@ -513,7 +513,7 @@ export default async function AdminSeasonsPage() {
                                     className="h-3 w-3 rounded-sm shrink-0"
                                     style={{ background: team.color }}
                                   />
-                                  <span className="font-display text-[14px] tracking-[0.04em] text-ink">
+                                  <span className="font-semibold text-[14px] tracking-[0.04em] text-ink">
                                     {team.name.toUpperCase()}
                                   </span>
                                   <span className="font-mono text-[11px] text-ink-faint">
@@ -539,7 +539,7 @@ export default async function AdminSeasonsPage() {
                                           className={`mt-1 ${inputCls}`}
                                         />
                                       </label>
-                                      <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
+                                      <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors shrink-0">
                                         SAVE
                                       </SubmitButton>
                                     </div>
@@ -589,7 +589,7 @@ export default async function AdminSeasonsPage() {
                                       </div>
                                       <SubmitButton
                                         disabled={teamPlayers.length === 0}
-                                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className="px-2.5 py-1 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.1em] text-[11px] rounded transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                                       >
                                         SAVE
                                       </SubmitButton>
@@ -797,7 +797,7 @@ export default async function AdminSeasonsPage() {
                           <input type="hidden" name="id" value={season.id} />
                           <SubmitButton
                             disabled={!canDelete}
-                            className="text-goal/70 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors disabled:opacity-30 disabled:hover:text-goal/70 disabled:cursor-not-allowed"
+                            className="text-goal/70 hover:text-goal font-semibold tracking-[0.1em] text-[12px] transition-colors disabled:opacity-30 disabled:hover:text-goal/70 disabled:cursor-not-allowed"
                             title={
                               !canDelete
                                 ? "Season must be inactive and have no games"

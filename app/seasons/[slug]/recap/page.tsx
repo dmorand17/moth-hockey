@@ -9,11 +9,12 @@ import { PostThread } from "@/components/PostThread";
 import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
 import { RecapGameRow, RecapLeaders, RecapMoments, RecapNumbers, RecapPath, type Names } from "@/components/recap/parts";
+import { JumpBar } from "@/components/recap/JumpBar";
 import { ShareButton } from "@/components/recap/ShareButton";
 import { getBoardViewer } from "@/lib/auth";
 import { getSeasonRecap } from "@/lib/queries";
 import { computeSeasonTotals } from "@/lib/season-finalize";
-import { goalieMinGames, notableMoments, playoffPath, seasonNumbers } from "@/lib/season-recap";
+import { goalieMinGames, jumpLinks, notableMoments, playoffPath, seasonNumbers } from "@/lib/season-recap";
 
 type Params = Promise<{ slug: string }>;
 
@@ -103,15 +104,20 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
   const poNumbers = seasonNumbers(r.games, events, "playoff");
   const poMoments = notableMoments(r.games, events, "playoff", rosterTeam);
   const viewer = await getBoardViewer();
+  const hasSeason = !!regNumbers || !!r.standings || !!r.historical || regular.length > 0;
+  const links = jumpLinks({ summary: false, awards: r.awards.length > 0, season: hasSeason, playoffs: path.length > 0, board: true });
+  // Headings clear the sticky header plus the jump bar.
+  const anchor = "scroll-mt-[calc(var(--header-h)+64px)]!";
 
   return (
     <div className="space-y-8 md:space-y-12">
       {hero}
+      <JumpBar links={links} />
 
       {/* AI summary (PR 2) goes here */}
 
       {r.awards.length > 0 && (
-        <section>
+        <section id="awards" className={anchor}>
           <SectionHeader eyebrow="The hardware" title="Award winners" />
           <div className="lg:hidden">
             <AwardWinners awards={r.awards} layout="row" totals={regular} />
@@ -122,74 +128,76 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         </section>
       )}
 
-      {regNumbers && <RecapNumbers eyebrow="Regular season" numbers={regNumbers} />}
+      <div id="season" className={`space-y-8 md:space-y-12 ${anchor}`}>
+        {regNumbers && <RecapNumbers eyebrow="Regular season" numbers={regNumbers} />}
 
-      {(r.standings || r.historical) && (
-        <section>
-          <SectionHeader eyebrow="Regular season" title="Final standings" linkHref={`/standings?season=${r.season.id}`} linkLabel="Standings" />
-          {r.standings ? (
-            <DataTable caption={`${r.season.name} final standings`}>
-              <thead>
-                <tr>
-                  <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
-                  <th scope="col" className="text-left">Team</th>
-                  <th scope="col" className="text-right sm:w-14">GP</th>
-                  <th scope="col" className="text-right sm:w-14">W-L-OTL</th>
-                  <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
-                  <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
-                  <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">PTS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.standings.map((row, i) => (
-                  <tr key={row.team_id}>
-                    <td className={`pl-3 sm:pl-4 ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>{i + 1}</td>
-                    <td className="max-w-0 w-full">
-                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
-                    </td>
-                    <td className="text-right text-ink-dim">{row.gp}</td>
-                    <td className="text-right text-ink-dim whitespace-nowrap">{row.w}-{row.l}-{row.otl}</td>
-                    <td className="text-right text-ink-dim hidden sm:table-cell">{row.gf}</td>
-                    <td className="text-right text-ink-dim hidden sm:table-cell">{row.ga}</td>
-                    <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.pts}</td>
+        {(r.standings || r.historical) && (
+          <section>
+            <SectionHeader eyebrow="Regular season" title="Final standings" linkHref={`/standings?season=${r.season.id}`} linkLabel="Standings" />
+            {r.standings ? (
+              <DataTable caption={`${r.season.name} final standings`}>
+                <thead>
+                  <tr>
+                    <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
+                    <th scope="col" className="text-left">Team</th>
+                    <th scope="col" className="text-right sm:w-14">GP</th>
+                    <th scope="col" className="text-right sm:w-14">W-L-OTL</th>
+                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
+                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
+                    <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">PTS</th>
                   </tr>
-                ))}
-              </tbody>
-            </DataTable>
-          ) : (
-            <DataTable caption={`${r.season.name} final standings by goal differential`}>
-              <thead>
-                <tr>
-                  <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
-                  <th scope="col" className="text-left">Team</th>
-                  <th scope="col" className="text-right sm:w-14">GF</th>
-                  <th scope="col" className="text-right sm:w-14">GA</th>
-                  <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">DIFF</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.historical!.map((row, i) => (
-                  <tr key={row.team_id}>
-                    <td className="pl-3 sm:pl-4 text-ink-faint">{i + 1}</td>
-                    <td className="max-w-0 w-full">
-                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
-                    </td>
-                    <td className="text-right text-ink-dim">{row.gf}</td>
-                    <td className="text-right text-ink-dim">{row.ga}</td>
-                    <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
+                </thead>
+                <tbody>
+                  {r.standings.map((row, i) => (
+                    <tr key={row.team_id}>
+                      <td className={`pl-3 sm:pl-4 ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>{i + 1}</td>
+                      <td className="max-w-0 w-full">
+                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
+                      </td>
+                      <td className="text-right text-ink-dim">{row.gp}</td>
+                      <td className="text-right text-ink-dim whitespace-nowrap">{row.w}-{row.l}-{row.otl}</td>
+                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.gf}</td>
+                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.ga}</td>
+                      <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.pts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            ) : (
+              <DataTable caption={`${r.season.name} final standings by goal differential`}>
+                <thead>
+                  <tr>
+                    <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
+                    <th scope="col" className="text-left">Team</th>
+                    <th scope="col" className="text-right sm:w-14">GF</th>
+                    <th scope="col" className="text-right sm:w-14">GA</th>
+                    <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">DIFF</th>
                   </tr>
-                ))}
-              </tbody>
-            </DataTable>
-          )}
-        </section>
-      )}
+                </thead>
+                <tbody>
+                  {r.historical!.map((row, i) => (
+                    <tr key={row.team_id}>
+                      <td className="pl-3 sm:pl-4 text-ink-faint">{i + 1}</td>
+                      <td className="max-w-0 w-full">
+                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
+                      </td>
+                      <td className="text-right text-ink-dim">{row.gf}</td>
+                      <td className="text-right text-ink-dim">{row.ga}</td>
+                      <td className="text-right pr-3 sm:pr-4 font-bold text-ink">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            )}
+          </section>
+        )}
 
-      <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={goalieMinGames(r.games, "regular")} names={names} />
-      <RecapMoments eyebrow="Regular season" moments={regMoments} games={r.games} names={names} />
+        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={goalieMinGames(r.games, "regular")} names={names} />
+        <RecapMoments eyebrow="Regular season" moments={regMoments} games={r.games} names={names} />
+      </div>
 
       {path.length > 0 && (
-        <section className="space-y-6">
+        <section id="playoffs" className={`space-y-6 ${anchor}`}>
           <SectionHeader eyebrow={poNumbers ? `${poNumbers.games} games · ${poNumbers.goals} goals` : undefined} title="Playoffs" />
           <RecapPath path={path} names={names} />
           <RecapLeaders
@@ -205,7 +213,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
 
       {/* Media gallery (PR 3) goes here */}
 
-      <section>
+      <section id="board" className={anchor}>
         <SectionHeader
           eyebrow={`${r.season.name} message board`}
           title="Locker Room"

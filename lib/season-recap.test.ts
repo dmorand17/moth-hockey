@@ -3,6 +3,7 @@ import type { FinalizeEvent, SeasonTotals } from "@/lib/season-finalize";
 import {
   describeMoment,
   goalieMinGames,
+  jumpLinks,
   notableMoments,
   playoffPath,
   seasonNumbers,
@@ -176,5 +177,11 @@ describe("best single game", () => {
     const games = [g("z", "A", "B", 1, 0)];
     const events = [goal("z", "A", "p")];
     expect(notableMoments(games, events, "regular").filter((x) => x.kind === "points-game")).toEqual([]);
+  });
+});
+
+describe("jumpLinks", () => {
+  test("lists only the sections present, in page order", () => {
+    expect(jumpLinks({ summary: false, awards: true, season: true, playoffs: false, board: true }).map((l) => l.id)).toEqual(["awards", "season", "board"]);
   });
 });

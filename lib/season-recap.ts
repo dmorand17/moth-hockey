@@ -227,3 +227,16 @@ export function playoffPath(games: RecapGame[]): RecapGame[] {
         a.scheduled_at.localeCompare(b.scheduled_at),
     );
 }
+
+const JUMP_LINKS = [
+  ["summary", "Summary"],
+  ["awards", "Awards"],
+  ["season", "Season"],
+  ["playoffs", "Playoffs"],
+  ["board", "Board"],
+] as const;
+
+// The recap's jump-link chips, for the sections this season actually has.
+export function jumpLinks(has: Record<(typeof JUMP_LINKS)[number][0], boolean>): { id: string; label: string }[] {
+  return JUMP_LINKS.filter(([id]) => has[id]).map(([id, label]) => ({ id, label }));
+}

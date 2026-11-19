@@ -42,7 +42,7 @@ const finalGames = (games: RecapGame[], kind: Kind) =>
 
 // Winner by score; a shootout stored as a tied score falls back to the
 // shootout tally. null when there's no decided winner.
-function winnerOf(g: RecapGame): string | null {
+export function winnerOf(g: RecapGame): string | null {
   let home = g.home_score;
   let away = g.away_score;
   if (home === away) {

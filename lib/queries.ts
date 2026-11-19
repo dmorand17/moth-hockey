@@ -677,8 +677,12 @@ export async function getRecapSummary(seasonId: string): Promise<{ published: Re
       .eq("season_id", seasonId)
       .maybeSingle(),
   ]);
-  if (pub.error) throw pub.error;
-  if (draft.error) throw draft.error;
+  // The summary is one optional section: if it can't load (e.g. the code
+  // shipped before migration 0029), log and render the recap without it.
+  if (pub.error || draft.error) {
+    console.error("recap summary query failed", pub.error ?? draft.error);
+    return { published: null, draft: null };
+  }
   return {
     published: pub.data
       ? { markdown: pub.data.summary_markdown, input: pub.data.input as RecapFacts, model: pub.data.model, generated_at: pub.data.generated_at, edited_at: pub.data.edited_at, published: pub.data.published }

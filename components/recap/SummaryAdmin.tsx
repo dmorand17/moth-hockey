@@ -7,8 +7,10 @@ import { PostBody } from "@/components/PostBody";
 import { RecapSummary } from "@/components/recap/RecapSummary";
 import type { ActionResult } from "@/lib/action-result";
 import type { RecapSummaryRow } from "@/lib/queries";
+import { summaryActions } from "@/lib/recap-summary/admin";
 import { numbersNotInFacts } from "@/lib/recap-summary/check";
 import {
+  discardRecapDraft,
   generateRecapSummary,
   publishRecapSummary,
   saveRecapDraft,
@@ -53,7 +55,11 @@ export function SummaryAdmin({ slug, published, draft }: { slug: string; publish
       ? "Unpublished — not visible to the league."
       : null;
   const unknown = current ? numbersNotInFacts(editing ? text : current.markdown, current.input) : [];
-  const generate = () => run("generate", () => generateRecapSummary({ slug }), () => setEditing(false));
+  const actions = summaryActions({ hasDraft: !!draft, hasPublished: !!published, live });
+  const generate = () => {
+    if (draft?.edited_at && !window.confirm("Regenerating replaces your edited draft. Continue?")) return;
+    run("generate", () => generateRecapSummary({ slug }), () => setEditing(false));
+  };
 
   if (!current) {
     return (
@@ -105,7 +111,7 @@ export function SummaryAdmin({ slug, published, draft }: { slug: string; publish
           </>
         ) : (
           <>
-            {(draft || !live) && (
+            {actions.includes("publish") && (
               <button type="button" className={primary} disabled={pending} onClick={() => run("publish", () => publishRecapSummary({ slug }))}>
                 {busy === "publish" ? "Publishing…" : "Publish"}
               </button>
@@ -116,7 +122,17 @@ export function SummaryAdmin({ slug, published, draft }: { slug: string; publish
             <button type="button" className={btn} disabled={pending} onClick={generate}>
               {busy === "generate" ? "Writing…" : "Regenerate"}
             </button>
-            {live && !draft && (
+            {actions.includes("discard") && (
+              <button
+                type="button"
+                className={btn}
+                disabled={pending}
+                onClick={() => window.confirm("Discard this draft?") && run("discard", () => discardRecapDraft({ slug }))}
+              >
+                {busy === "discard" ? "Discarding…" : "Discard draft"}
+              </button>
+            )}
+            {actions.includes("unpublish") && (
               <button type="button" className={btn} disabled={pending} onClick={() => run("unpublish", () => unpublishRecapSummary({ slug }))}>
                 {busy === "unpublish" ? "Unpublishing…" : "Unpublish"}
               </button>

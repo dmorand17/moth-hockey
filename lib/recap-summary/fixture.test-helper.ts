@@ -9,10 +9,10 @@ export function facts(over: Partial<RecapFacts> = {}): RecapFacts {
     historicalStandings: null,
     regular: {
       numbers: null,
-      leaders: { points: [], goals: [], assists: [], goalies: [{ player: "Sam Lund", team: "Ember Wolves", value: 2.5, gp: 8 }] },
+      leaders: { points: [], goals: [], assists: [], goalies: [{ player: "Sam Lund", team: "Ember Wolves", gaa: 2.5, gp: 8 }] },
       moments: ["Hat tricks · 2: Lane Kane ×2"],
     },
-    playoffs: { games: [{ round: "final", away: "Ember Wolves", home: "Green Vipers", score: "2-1", decidedIn: "regulation" }], leaders: [], moments: [] },
+    playoffs: { games: [{ round: "final", away: "Ember Wolves", home: "Green Vipers", score: "2-1", winner: "Ember Wolves", decidedIn: "regulation" }], leaders: [], moments: [] },
     awards: [{ award: "MVP", winners: ["Lane Kane"] }],
     ...over,
   };

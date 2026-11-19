@@ -10,6 +10,7 @@ import {
   seasonNumbers,
   topGoalies,
   topSkaters,
+  winnerOf,
   type Moment,
   type Names,
   type RecapGame,
@@ -53,11 +54,12 @@ export type RecapFacts = {
   historicalStandings: { team: string; gf: number; ga: number; diff: number }[] | null;
   regular: {
     numbers: SeasonNumbers | null;
-    leaders: { points: Leader[]; goals: Leader[]; assists: Leader[]; goalies: (Leader & { gp: number })[] };
+    leaders: { points: Leader[]; goals: Leader[]; assists: Leader[]; goalies: { player: string; team: string | null; gaa: number; gp: number }[] };
     moments: string[];
   };
   playoffs: {
-    games: { round: string; away: string; home: string; score: string; decidedIn: string }[];
+    /** `score` is away-home. */
+    games: { round: string; away: string; home: string; score: string; winner: string | null; decidedIn: string }[];
     leaders: Leader[];
     moments: string[];
   } | null;
@@ -89,7 +91,9 @@ export function buildRecapFacts(r: SeasonRecap, c: RecapComputed): RecapFacts {
         goals: topSkaters(c.regular, "goals").map((t) => leader(t, t.goals)),
         assists: topSkaters(c.regular, "assists").map((t) => leader(t, t.assists)),
         goalies: topGoalies(c.regular, c.minGoalieGames).map((t) => ({
-          ...leader(t, Math.round(((t.goals_against ?? 0) / t.games_played) * 100) / 100),
+          player: player(t.player_id),
+          team: team(t.team_id),
+          gaa: Math.round(((t.goals_against ?? 0) / t.games_played) * 100) / 100,
           gp: t.games_played,
         })),
       },
@@ -104,6 +108,7 @@ export function buildRecapFacts(r: SeasonRecap, c: RecapComputed): RecapFacts {
               away: team(g.away_team_id) ?? "TBD",
               home: team(g.home_team_id) ?? "TBD",
               score: `${g.away_score}-${g.home_score}`,
+              winner: team(winnerOf(g)),
               decidedIn: g.decided_in ?? "regulation",
             })),
             leaders: topSkaters(c.playoffTotals, "points").map((t) => leader(t, t.goals + t.assists)),

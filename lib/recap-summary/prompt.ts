@@ -8,9 +8,12 @@ export const RECAP_SYSTEM =
   "group chat. You are careful with facts: you never invent stats, quotes, names or events.";
 
 export function buildRecapPrompt(facts: RecapFacts): string {
-  const champion = facts.champion
-    ? `Name the champion (${facts.champion}) and tell the story of their playoff run.`
-    : "No champion was decided this season; don't name one.";
+  // Imported seasons can have a champion but no playoff games on record.
+  const champion = !facts.champion
+    ? "No champion was decided this season; don't name one."
+    : facts.playoffs
+      ? `Name the champion (${facts.champion}) and tell the story of their playoffs.`
+      : `${facts.champion} won the championship. No playoff game details are available, so don't describe any games.`;
   const playoffs = facts.playoffs ? "Cover the playoffs separately from the regular season." : "There were no playoffs this season; don't mention any.";
   return [
     `Write the ${facts.season.name} season recap.`,

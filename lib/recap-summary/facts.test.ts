@@ -56,7 +56,7 @@ describe("buildRecapFacts", () => {
     expect(f.season).toEqual({ name: "Spring 2026", start: "2026-03-01", end: "2026-03-15" });
     expect(f.champion).toBe("Ember Wolves");
     expect(f.standings?.[0]).toEqual({ team: "Ember Wolves", record: "1-1-0", pts: 3, gf: 4, ga: 3 });
-    expect(f.playoffs?.games[0]).toMatchObject({ round: "final", away: "Ember Wolves", home: "Green Vipers", score: "2-1" });
+    expect(f.playoffs?.games[0]).toMatchObject({ round: "final", away: "Ember Wolves", home: "Green Vipers", score: "2-1", winner: "Ember Wolves" });
     expect(f.awards).toEqual([{ award: "MVP", winners: ["Lane Kane"] }]);
     expect(f.regular.leaders.goals[0]).toEqual({ player: "Lane Kane", team: "Ember Wolves", value: 2 });
   });

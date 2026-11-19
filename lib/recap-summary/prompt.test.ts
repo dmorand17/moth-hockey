@@ -15,4 +15,9 @@ describe("buildRecapPrompt", () => {
     expect(p).toContain("no playoffs");
     expect(p).not.toContain("Name the champion");
   });
+  test("a champion with no playoff games: name them, but describe no playoff run", () => {
+    const p = buildRecapPrompt(facts({ playoffs: null }));
+    expect(p).toContain("Ember Wolves won the championship");
+    expect(p).not.toContain("playoff run");
+  });
 });

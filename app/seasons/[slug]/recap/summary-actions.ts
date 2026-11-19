@@ -145,3 +145,15 @@ export async function unpublishRecapSummary({ slug }: { slug: string }): Promise
   revalidatePath(`/seasons/${slug}/recap`);
   return ok("Unpublished");
 }
+
+// Throws away the pending draft; the published summary (if any) is untouched.
+export async function discardRecapDraft({ slug }: { slug: string }): Promise<ActionResult> {
+  const auth = await adminOnly();
+  if (!auth.ok) return fail(auth.error);
+  const seasonId = await seasonIdFor(slug);
+  if (!seasonId) return fail("Season not found.");
+  const { error } = await auth.supabase.from("season_recap_drafts").delete().eq("season_id", seasonId);
+  if (error) return fail(error.message);
+  revalidatePath(`/seasons/${slug}/recap`);
+  return ok("Draft discarded");
+}

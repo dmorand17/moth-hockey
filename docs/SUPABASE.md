@@ -48,7 +48,7 @@ bunx supabase db reset
 bunx supabase db diff -f my_change
 
 # List local vs remote applied state (needs a linked project)
-bunx supabase migration list
+bunx supabase migration list --remote
 ```
 
 > **Enum gotcha:** Postgres rejects using a *new value* of an existing enum in the
@@ -69,7 +69,7 @@ bunx supabase gen types typescript --local > lib/supabase/database.types.ts
 
 ```bash
 bunx supabase projects list                     # shows projects; the linked one is marked
-bunx supabase link --project-ref <ref>          # link this repo to a project (interactive; needs DB password)
+bunx supabase link --project-ref <ref>          # link this repo to a project
 ```
 
 Use the ref from the [Projects](#projects) table. Linking is per-machine and
@@ -85,13 +85,14 @@ fill in the token + DB password, then:
 ./scripts/supabase-link.sh prod        # prompts to confirm (--yes to skip in CI)
 ```
 
-If `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` aren't already exported, the
+If `SUPABASE_ACCESS_TOKEN` isn't already exported, the
 script loads `.env.staging` / `.env.production` itself — inside the script only,
 so the secrets don't linger in your shell. CI can export the variables instead.
 
-The script reads `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
-(optionally) `SUPABASE_PROJECT_REF` from the loaded env, and cross-checks
-`SUPABASE_ENV` against the target to catch a wrong sourced file.
+The script reads `SUPABASE_ACCESS_TOKEN` and (optionally) `SUPABASE_PROJECT_REF`
+from the loaded env, and cross-checks `SUPABASE_ENV` against the target to catch
+a wrong sourced file. Linking needs no DB password; `db push` reads
+`SUPABASE_DB_PASSWORD` from the environment (see below).
 
 ## Pushing migrations to a cloud project
 
@@ -100,8 +101,18 @@ in order. **Confirm the linked project first.**
 
 ```bash
 bunx supabase link --project-ref <staging-or-prod-ref>   # be deliberate
-bunx supabase migration list                             # see what's pending
-bunx supabase db push                                    # apply pending migrations
+bunx supabase migration list --remote                    # see what's pending
+bunx supabase db push --remote                           # apply pending migrations
+```
+
+CLI v3 targets the local stack unless you pass `--remote`. `db push` needs the
+database password, and the token needs **Database Pooling Config: Read** so
+`link` can set up the IPv4 pooler; without it the CLI tries IPv6 and fails with
+`DbConfigIpv6Error` on most home networks. To use the one in `.env.staging` /
+`.env.production` without exporting it into your shell, run it in a subshell:
+
+```bash
+( set -a; source .env.staging; set +a; bunx supabase db push --remote --dry-run )
 ```
 
 - **Do NOT run `supabase/seed.sql` against a cloud DB** — it's local test

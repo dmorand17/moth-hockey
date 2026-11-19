@@ -5,7 +5,7 @@ set -euo pipefail
 # from environment variables. Wraps `supabase link` so you don't paste refs or
 # passwords by hand (and can't fat-finger the wrong project).
 #
-# If SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD aren't already set, the
+# If SUPABASE_ACCESS_TOKEN isn't already set, the
 # matching per-environment file (.env.staging or .env.production) is loaded
 # automatically — only inside this script, so secrets never leak into your shell:
 #   ./scripts/supabase-link.sh staging
@@ -37,11 +37,10 @@ Options:
     -y, --yes               Skip the production confirmation prompt (for CI)
     -h, --help              Show this help message
 
-Environment (read from the shell; if the token or password is missing, the
+Environment (read from the shell; if the token is missing, the
 matching .env.staging / .env.production in the repo root is loaded for you):
     SUPABASE_ACCESS_TOKEN   Personal access token (required)
                             Create one at https://supabase.com/dashboard/account/tokens
-    SUPABASE_DB_PASSWORD    Database password for the target project (required)
     SUPABASE_PROJECT_REF    Project ref (optional; defaults per target)
     SUPABASE_ENV            staging|production (optional; cross-checked vs the
                             target argument to catch a wrong sourced file)
@@ -51,7 +50,7 @@ Dependencies: ${DEPENDENCIES[*]}
 Examples:
     ${SCRIPT_NAME} staging                 # loads .env.staging if needed
     ${SCRIPT_NAME} prod                    # loads .env.production, asks to confirm
-    SUPABASE_ACCESS_TOKEN=... SUPABASE_DB_PASSWORD=... ${SCRIPT_NAME} prod --yes   # CI
+    SUPABASE_ACCESS_TOKEN=... ${SCRIPT_NAME} prod --yes   # CI
 
 EOF
     exit "${1:-0}"
@@ -78,7 +77,7 @@ function main() {
 
     exit_on_missing_tools "${DEPENDENCIES[@]}"
 
-    if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" || -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
+    if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
         load_env_file "$target"
     fi
 
@@ -91,7 +90,6 @@ function main() {
     fi
 
     : "${SUPABASE_ACCESS_TOKEN:?set SUPABASE_ACCESS_TOKEN (https://supabase.com/dashboard/account/tokens)}"
-    : "${SUPABASE_DB_PASSWORD:?set SUPABASE_DB_PASSWORD (in .env.${target})}"
 
     local default_ref ref
     if [[ "$target" == "production" ]]; then
@@ -112,7 +110,7 @@ function load_env_file() {
     local env_file="$REPO_ROOT/.env.$target"
 
     if [[ ! -f "$env_file" ]]; then
-        log_error "SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD not set and $env_file not found."
+        log_error "SUPABASE_ACCESS_TOKEN not set and $env_file not found."
         log_error "Copy .env.$target.example to .env.$target and fill it in, or export the variables."
         exit 1
     fi
@@ -141,15 +139,18 @@ function link_project() {
     local target="$1" ref="$2"
 
     log_info "Linking $target project ($ref)…"
-    # SUPABASE_ACCESS_TOKEN is read from the environment by the CLI. Pass the
-    # password via --password so linking is non-interactive; it is never logged.
-    if ! bunx supabase link --project-ref "$ref" --password "$SUPABASE_DB_PASSWORD"; then
+    # SUPABASE_ACCESS_TOKEN is read from the environment by the CLI. Linking
+    # needs no DB password (CLI v3 ignores --password); db push reads
+    # SUPABASE_DB_PASSWORD from the environment instead.
+    if ! bunx supabase link --project-ref "$ref"; then
         log_error "supabase link failed for $target ($ref)."
         exit 1
     fi
 
     log_info "Linked to $target ($ref). Verify before any db push/reset:"
-    log_info "  bunx supabase projects list"
+    log_info "  cat supabase/.temp/project-ref    # should print $ref"
+    log_info "Then push migrations (loads the DB password into a subshell only):"
+    log_info "  ( set -a; source .env.$target; set +a; bunx supabase db push --remote --dry-run )"
 }
 
 function exit_on_missing_tools() {

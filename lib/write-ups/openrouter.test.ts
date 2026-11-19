@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { generateText } from "@/lib/write-ups/openrouter";
 
 const realFetch = globalThis.fetch;
@@ -116,5 +116,13 @@ describe("generateText", () => {
     await generateText("s", "u", { maxTokens: 4000 });
     await generateText("s", "u");
     expect(sent).toEqual([4000, 1000]);
+  });
+  test("passes timeoutMs through, defaulting to 30s", async () => {
+    const spy = spyOn(AbortSignal, "timeout");
+    globalThis.fetch = mock(async () => respond(200, { choices: [{ message: { content: "ok" } }] })) as unknown as typeof fetch;
+    await generateText("s", "u", { timeoutMs: 75_000 });
+    await generateText("s", "u");
+    expect(spy.mock.calls.map((c) => c[0])).toEqual([75_000, 30_000]);
+    spy.mockRestore();
   });
 });

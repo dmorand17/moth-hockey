@@ -182,6 +182,9 @@ describe("best single game", () => {
 
 describe("jumpLinks", () => {
   test("lists only the sections present, in page order", () => {
-    expect(jumpLinks({ summary: false, awards: true, season: true, playoffs: false, board: true }).map((l) => l.id)).toEqual(["awards", "season", "board"]);
+    expect(jumpLinks({ summary: false, awards: true, season: true, playoffs: false, media: false, board: true }).map((l) => l.id)).toEqual(["awards", "season", "board"]);
+  });
+  test("photos sit between playoffs and the board", () => {
+    expect(jumpLinks({ summary: false, awards: false, season: false, playoffs: true, media: true, board: true }).map((l) => l.id)).toEqual(["playoffs", "media", "board"]);
   });
 });

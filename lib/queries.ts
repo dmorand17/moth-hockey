@@ -692,3 +692,42 @@ export async function getRecapSummary(seasonId: string): Promise<{ published: Re
       : null,
   };
 }
+
+export type SeasonMedia = {
+  id: string;
+  url: string;
+  pathname: string;
+  contentType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  caption: string;
+  sortOrder: number;
+};
+
+// The season's recap gallery in display order. Like the summary, it's an
+// optional section: on a query error, log and show the recap without it.
+export async function getSeasonMedia(seasonId: string): Promise<SeasonMedia[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("season_media")
+    .select("id, blob_url, pathname, content_type, size_bytes, width, height, caption, sort_order")
+    .eq("season_id", seasonId)
+    .order("sort_order")
+    .order("created_at");
+  if (error) {
+    console.error("season media query failed", error);
+    return [];
+  }
+  return data.map((m) => ({
+    id: m.id,
+    url: m.blob_url,
+    pathname: m.pathname,
+    contentType: m.content_type,
+    sizeBytes: m.size_bytes,
+    width: m.width,
+    height: m.height,
+    caption: m.caption,
+    sortOrder: m.sort_order,
+  }));
+}

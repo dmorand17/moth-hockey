@@ -618,6 +618,60 @@ export type Database = {
           },
         ]
       }
+      season_media: {
+        Row: {
+          blob_url: string
+          caption: string
+          content_type: string
+          created_at: string
+          height: number | null
+          id: string
+          pathname: string
+          season_id: string
+          size_bytes: number
+          sort_order: number
+          uploaded_by: string | null
+          width: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          blob_url: string
+          caption?: string
+          content_type: string
+          created_at?: string
+          height?: number | null
+          id?: string
+          pathname: string
+          season_id: string
+          size_bytes: number
+          sort_order?: number
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Update: {
+          blob_url?: string
+          caption?: string
+          content_type?: string
+          created_at?: string
+          height?: number | null
+          id?: string
+          pathname?: string
+          season_id?: string
+          size_bytes?: number
+          sort_order?: number
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "season_media_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       season_player_stats: {
         Row: {
           assists: number

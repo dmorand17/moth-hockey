@@ -1,7 +1,9 @@
 import Image from "next/image";
-import { GameRow } from "@/components/GameRow";
+import Link from "next/link";
+import { GameList, GameRow } from "@/components/GameRow";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { getCurrentSeason, getStandings, getUpcomingGames, getRecentResults, getScoringLeaders } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { getSessionIfRole } from "@/lib/auth";
@@ -13,7 +15,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   const [season, { before, boardSeason }] = await Promise.all([getCurrentSeason(), searchParams]);
   if (!season) {
     return (
-      <div className="space-y-6 sm:space-y-10">
+      <div className="space-y-8 md:space-y-12">
         <NoSeason isAdmin={!!(await getSessionIfRole(["admin"]))} />
         <HomeBoard before={before} boardSeason={boardSeason} />
       </div>
@@ -35,245 +37,227 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     [...leaders].sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))[0] ?? null;
 
   return (
-    <div className="space-y-6 sm:space-y-10">
-      <h1 className="sr-only">M.O.T.H Hockey — {season.name}</h1>
-      {/* BRAND BANNER */}
-      <div className="rise mx-auto w-full max-w-3xl rounded-lg overflow-hidden border border-rule">
+    <div className="space-y-8 md:space-y-12">
+      {/* HERO */}
+      <section className="rise flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
         <Image
           src="/moth-banner-strip.png"
           alt="M.O.T.H Hockey League — Mostly Over the Hill"
           width={1200}
           height={432}
           priority
-          className="w-full h-auto"
+          className="h-20 md:h-28 w-auto self-start rounded-lg border border-rule"
         />
-      </div>
-
-      {/* SEASON HEADER + LEADERS */}
-      <section className="rise space-y-4">
-        <div className="eyebrow flex items-center gap-3">
-          <span className="inline-block w-8 h-px bg-goal" />
-          <span>{season.name} · Season in progress</span>
+        <div className="min-w-0">
+          <p className="eyebrow">Mostly Over The Hill Hockey League</p>
+          <h1 className="font-display text-[40px] leading-[44px] md:text-[56px] md:leading-[64px] tracking-[0.02em]">
+            <span className="sr-only">M.O.T.H Hockey — </span>
+            {season.name}
+          </h1>
+          <p className="text-[14px] leading-5 text-ink-faint">
+            Season in progress · {totalGames} {totalGames === 1 ? "game" : "games"} played
+          </p>
         </div>
+      </section>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
+      {/* SNAPSHOT */}
+      <section aria-labelledby="snapshot-heading" className="rise">
+        <h2 id="snapshot-heading" className="sr-only">League snapshot</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {leader && (
-            <div
-              className="scoreboard col-span-2 md:col-span-1 border-l-[3px] p-3 sm:p-4 flex items-center justify-between gap-3"
-              style={{
-                borderColor: "#fbbf24",
-                background: "linear-gradient(90deg, #fbbf2426, transparent 60%)",
-              }}
-            >
+            <div className="panel col-span-2 md:col-span-1 p-4 md:p-5 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="eyebrow flex items-center gap-1.5" style={{ color: "#fbbf24" }}>
+                <div className="eyebrow flex items-center gap-1.5 text-gold!">
                   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-3.5 w-3.5 shrink-0">
                     <path d="M5 4h14v2a4 4 0 0 1-3 3.87A4 4 0 0 1 13 12.9V16h2a1 1 0 0 1 1 1v1H8v-1a1 1 0 0 1 1-1h2v-3.1A4 4 0 0 1 8 9.87 4 4 0 0 1 5 6Zm-2 2h1v0a5.98 5.98 0 0 0 1 3.32A3 3 0 0 1 3 8.83Zm18 0h-1a5.98 5.98 0 0 1-1 3.32A3 3 0 0 0 21 8.83Z" />
                   </svg>
-                  Atop the table
+                  Top of the table
                 </div>
-                <TeamBadge {...leader} size="lg" className="mt-1.5" />
+                <TeamBadge {...leader} size="lg" className="mt-1" />
               </div>
               <div className="text-right shrink-0">
-                <div className="digit text-2xl sm:text-3xl text-ink leading-none">{leader.pts}</div>
-                <div className="eyebrow mt-1">PTS · {leader.w}-{leader.l}-{leader.otl}</div>
+                <div className="digit text-[32px] leading-none text-ink">{leader.pts}</div>
+                <div className="mt-1 text-[12px] text-ink-faint tnum">
+                  PTS · {leader.w}-{leader.l}-{leader.otl}
+                </div>
               </div>
             </div>
           )}
           {pointsLeader ? (
-              <LeaderTile
-                label="Points leader"
-                name={pointsLeader.name}
-                team={pointsLeader.team}
-                stat={`${pointsLeader.points} PTS`}
-                sub={`${pointsLeader.goals}G · ${pointsLeader.assists}A`}
-                accent="ice"
-              />
-            ) : (
-              <StatTile label="Games played" value={String(totalGames)} accent="ice" />
-            )}
-            {goalLeader ? (
-              <LeaderTile
-                label="Top scorer"
-                name={goalLeader.name}
-                team={goalLeader.team}
-                stat={`${goalLeader.goals} G`}
-                accent="goal"
-              />
-            ) : (
-              <StatTile label="Goals scored" value={String(totalGoals)} accent="goal" />
-            )}
+            <LeaderTile
+              label="Points leader"
+              href={`/players/${pointsLeader.player_id}`}
+              name={pointsLeader.name}
+              team={pointsLeader.team}
+              value={pointsLeader.points}
+              unit="PTS"
+              sub={`${pointsLeader.goals} G · ${pointsLeader.assists} A`}
+            />
+          ) : (
+            <StatTile label="Games played" value={String(totalGames)} />
+          )}
+          {goalLeader ? (
+            <LeaderTile
+              label="Goals leader"
+              href={`/players/${goalLeader.player_id}`}
+              name={goalLeader.name}
+              team={goalLeader.team}
+              value={goalLeader.goals}
+              unit="G"
+            />
+          ) : (
+            <StatTile label="Goals scored" value={String(totalGoals)} />
+          )}
         </div>
       </section>
 
-      {/* MESSAGE BOARD */}
-      <HomeBoard eyebrow="01" before={before} boardSeason={boardSeason} />
-
-      {/* UPCOMING */}
-      <section
-        className="rise delay-1 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
-        style={{
-          borderColor: "var(--ice)",
-          background:
-            "linear-gradient(90deg, color-mix(in srgb, var(--ice) 9%, transparent), transparent 34%)",
-        }}
-      >
-        <SectionHeader eyebrow="02" title="Upcoming" linkHref="/schedule" linkLabel="All games" accent="ice" />
-        {upcoming.length === 0 ? (
-          <p className="eyebrow">No games on the schedule</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-3">
-            {upcoming.map((g) => (
-              <GameRow
-                key={g.id}
-                id={g.id}
-                scheduled_at={g.scheduled_at}
-                status={g.status}
-                home_team={g.home_team}
-                away_team={g.away_team}
-                kind={g.kind}
-                playoff_round={g.playoff_round}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* RECENT RESULTS */}
-      <section
-        className="rise delay-2 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
-        style={{
-          borderColor: "#fbbf24",
-          background:
-            "linear-gradient(90deg, color-mix(in srgb, #fbbf24 9%, transparent), transparent 34%)",
-        }}
-      >
-        <SectionHeader eyebrow="03" title="Recent Results" accent="gold" />
-        {recent.length === 0 ? (
-          <p className="eyebrow">No results yet — first puck drops soon.</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-3">
-            {recent.map((g) => (
-              <GameRow
-                key={g.id}
-                id={g.id}
-                scheduled_at={g.scheduled_at}
-                status="final"
-                home_team={g.home_team}
-                away_team={g.away_team}
-                home_score={g.home_score}
-                away_score={g.away_score}
-                decided_in={g.decided_in}
-                kind={g.kind}
-                playoff_round={g.playoff_round}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* STANDINGS PREVIEW */}
-      <section
-        className="rise delay-3 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5"
-        style={{
-          borderColor: "var(--goal)",
-          background:
-            "linear-gradient(90deg, color-mix(in srgb, var(--goal) 9%, transparent), transparent 34%)",
-        }}
-      >
-        <SectionHeader eyebrow="04" title="The Table" linkHref="/standings" linkLabel="Full standings" />
-        <div className="panel overflow-hidden">
-          <table className="board-table">
+      <section className="rise delay-1">
+        <SectionHeader eyebrow="League table" title="Standings" linkHref="/standings" linkLabel="Full standings" />
+        <div className="panel overflow-clip">
+          <table className="board-table striped dense">
+            <caption className="sr-only">{season.name} standings</caption>
             <thead>
               <tr>
-                <th className="text-left w-10 pl-5">#</th>
-                <th className="text-left">Team</th>
-                <th className="text-right">GP</th>
-                <th className="text-right hidden sm:table-cell">W</th>
-                <th className="text-right hidden sm:table-cell">L</th>
-                <th className="text-right hidden sm:table-cell">OTL</th>
-                <th className="text-right">GF</th>
-                <th className="text-right">GA</th>
-                <th className="text-right pr-5">PTS</th>
+                <th scope="col" className="text-left w-10 pl-4">#</th>
+                <th scope="col" className="text-left">Team</th>
+                <th scope="col" className="text-right">GP</th>
+                <th scope="col" className="text-right sm:hidden">W-L-OTL</th>
+                <th scope="col" className="text-right hidden sm:table-cell">W</th>
+                <th scope="col" className="text-right hidden sm:table-cell">L</th>
+                <th scope="col" className="text-right hidden sm:table-cell">OTL</th>
+                <th scope="col" className="text-right hidden sm:table-cell">GF</th>
+                <th scope="col" className="text-right hidden sm:table-cell">GA</th>
+                <th scope="col" className="text-right pr-4">PTS</th>
               </tr>
             </thead>
             <tbody>
               {standings.map((row, i) => (
                 <tr key={row.team_id}>
-                  <td className="pl-5 digit text-ink-faint">{String(i + 1).padStart(2, "0")}</td>
-                  <td><TeamBadge name={row.name} slug={row.slug} color={row.color} /></td>
+                  <td className={`pl-4 tnum ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>{i + 1}</td>
+                  <td className="max-w-0 w-full">
+                    <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" />
+                  </td>
                   <td className="text-right tnum text-ink-dim">{row.gp}</td>
+                  <td className="text-right tnum text-ink-dim whitespace-nowrap sm:hidden">
+                    {row.w}-{row.l}-{row.otl}
+                  </td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.w}</td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.l}</td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.otl}</td>
-                  <td className="text-right tnum text-ink-dim">{row.gf}</td>
-                  <td className="text-right tnum text-ink-dim">{row.ga}</td>
-                  <td className="text-right pr-5 digit text-lg text-ink">{row.pts}</td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.gf}</td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.ga}</td>
+                  <td className="text-right pr-4 tnum font-bold text-ink">{row.pts}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+
+      {/* RESULTS + UPCOMING */}
+      <div className="rise delay-2 grid gap-8 lg:grid-cols-2">
+        <section>
+          <SectionHeader eyebrow="Latest" title="Recent results" linkHref="/schedule" linkLabel="Schedule" />
+          {recent.length === 0 ? (
+            <EmptyState compact title="No results yet — first puck drops soon." />
+          ) : (
+            <GameList>
+              {recent.map((g) => (
+                <GameRow
+                  key={g.id}
+                  id={g.id}
+                  scheduled_at={g.scheduled_at}
+                  status="final"
+                  home_team={g.home_team}
+                  away_team={g.away_team}
+                  home_score={g.home_score}
+                  away_score={g.away_score}
+                  decided_in={g.decided_in}
+                  kind={g.kind}
+                  playoff_round={g.playoff_round}
+                  showDate
+                  stacked
+                />
+              ))}
+            </GameList>
+          )}
+        </section>
+
+        <section>
+          <SectionHeader eyebrow="Next up" title="Upcoming" />
+          {upcoming.length === 0 ? (
+            <EmptyState compact title="No upcoming games." linkHref="/schedule" linkLabel="Full schedule" />
+          ) : (
+            <GameList>
+              {upcoming.map((g) => (
+                <GameRow
+                  key={g.id}
+                  id={g.id}
+                  scheduled_at={g.scheduled_at}
+                  status={g.status}
+                  home_team={g.home_team}
+                  away_team={g.away_team}
+                  kind={g.kind}
+                  playoff_round={g.playoff_round}
+                  showDate
+                  stacked
+                />
+              ))}
+            </GameList>
+          )}
+        </section>
+      </div>
+
+      {/* MESSAGE BOARD */}
+      <HomeBoard before={before} boardSeason={boardSeason} />
     </div>
   );
 }
 
 function LeaderTile({
   label,
+  href,
   name,
   team,
-  stat,
+  value,
+  unit,
   sub,
-  accent,
 }: {
   label: string;
+  href: string;
   name: string;
   team?: { name: string; slug: string; color: string } | null;
-  stat: string;
+  value: number;
+  unit: string;
   sub?: string;
-  accent: "ice" | "goal";
 }) {
   return (
-    <div className="scoreboard p-3 sm:p-5 flex flex-col justify-between min-h-[88px] sm:min-h-[120px]">
+    <Link href={href} className="panel p-4 md:p-5 flex flex-col gap-2 hover:bg-board-hover hover:border-rule-strong transition-colors">
       <div className="eyebrow">{label}</div>
-      <div className="mt-2 sm:mt-3">
-        <div className="font-display text-[18px] sm:text-[22px] leading-none tracking-[0.04em] text-ink truncate">
-          {name}
-        </div>
+      <div className="flex items-baseline gap-1.5">
+        <span className="digit text-[32px] leading-none text-goal">{value}</span>
+        <span className="text-[14px] font-semibold text-ink-dim">{unit}</span>
+      </div>
+      <div className="min-w-0">
+        <div className="text-[16px] font-semibold leading-5 text-ink">{name}</div>
         {team && (
           <div className="mt-1 flex items-center gap-1.5 min-w-0">
-            <span
-              aria-hidden
-              className="h-2 w-2 shrink-0 rounded-[1px]"
-              style={{ background: team.color }}
-            />
-            <span className="eyebrow text-ink-dim normal-case tracking-[0.06em] truncate">
-              {team.name}
-            </span>
+            <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: team.color }} />
+            <span className="text-[13px] text-ink-faint truncate">{team.name}</span>
           </div>
         )}
-        <div className="mt-1.5 flex items-baseline gap-2">
-          <span
-            className={`digit text-xl sm:text-2xl ${accent === "goal" ? "text-goal" : "text-ice"}`}
-          >
-            {stat}
-          </span>
-          {sub && <span className="eyebrow text-ink-faint">{sub}</span>}
-        </div>
+        {sub && <div className="mt-0.5 text-[13px] text-ink-faint tnum">{sub}</div>}
       </div>
-    </div>
+    </Link>
   );
 }
 
-function StatTile({ label, value, accent }: { label: string; value: string; accent: "ice" | "goal" }) {
+function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="scoreboard p-3 sm:p-5 flex flex-col justify-between min-h-[88px] sm:min-h-[120px]">
+    <div className="panel p-4 md:p-5 flex flex-col gap-2">
       <div className="eyebrow">{label}</div>
-      <div className={`digit text-3xl sm:text-4xl md:text-5xl mt-2 sm:mt-3 ${accent === "goal" ? "text-goal" : "text-ice"}`}>
-        {value}
-      </div>
+      <div className="digit text-[32px] leading-none text-goal">{value}</div>
     </div>
   );
 }
-

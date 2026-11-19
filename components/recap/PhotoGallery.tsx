@@ -31,7 +31,11 @@ export function PhotoGallery({ items, offset, seasonName }: { items: SeasonMedia
           const video = mediaKind(m.contentType) === "video";
           const label = `Open ${video ? "video" : "photo"}: ${m.caption || (video ? `Video from ${seasonName}` : altFor(m, seasonName))}`;
           return (
-            <li key={m.id} className={`min-w-0 ${carousel ? "w-[80vw] max-w-[360px] shrink-0 snap-start md:w-auto md:max-w-none" : ""}`}>
+            // An odd last tile spans both phone columns, so no half-empty row.
+            <li
+              key={m.id}
+              className={`min-w-0 ${carousel ? "w-[80vw] max-w-[360px] shrink-0 snap-start md:w-auto md:max-w-none" : "max-md:[&:last-child:nth-child(odd)]:col-span-2"}`}
+            >
               <button
                 type="button"
                 ref={(el) => {

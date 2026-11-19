@@ -54,3 +54,32 @@ export const AWARD_PALETTE: Record<string, AwardStyle> = {
 export const DEFAULT_AWARD_STYLE: AwardStyle = award("★");
 
 export const HEADLINE_AWARDS = new Set(["champion", "mvp"]);
+
+export type AwardWinnerGroup = {
+  type: string;
+  label: string;
+  winners: { id: string; name: string }[];
+};
+
+type AwardRow = {
+  award_type: string;
+  player: { id: string; first_name: string; last_name: string } | null;
+};
+
+// player_awards rows → display groups in AWARD_ORDER, winners sorted by name.
+// Champion is a team award shown elsewhere (trophies, recap hero), so it's
+// excluded here; unknown award types are skipped.
+export function groupAwards(rows: AwardRow[]): AwardWinnerGroup[] {
+  const byType = new Map<string, { id: string; name: string }[]>();
+  for (const r of rows) {
+    if (!AWARD_LABELS[r.award_type] || !r.player || r.award_type === "champion") continue;
+    const list = byType.get(r.award_type) ?? [];
+    list.push({ id: r.player.id, name: `${r.player.first_name} ${r.player.last_name}` });
+    byType.set(r.award_type, list);
+  }
+  return AWARD_ORDER.filter((t) => byType.has(t)).map((type) => ({
+    type,
+    label: AWARD_LABELS[type],
+    winners: byType.get(type)!.sort((a, b) => a.name.localeCompare(b.name)),
+  }));
+}

@@ -27,8 +27,12 @@ const PLAYED_WEEKS = 7; // finalize the first 7 weeks; rest stay upcoming
 const weekday = new Date(2026, 2, 1).getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const count = Number(process.argv[2] ?? "5");
+// --complete: play every regular-season week and the whole playoff bracket
+// (SF1 = 1st v 4th, SF2 = 2nd v 3rd by points, then the final) — a finished
+// season to finalize and recap.
+const complete = process.argv.includes("--complete");
 if (count !== 4 && count !== 5) {
-  console.error("Usage: seed-sample.ts [4|5]");
+  console.error("Usage: seed-sample.ts [4|5] [--complete]");
   process.exit(1);
 }
 
@@ -80,7 +84,7 @@ const slots = buildGameSlots(START, weekday, TIMES, pairs.length);
 const bracket = playoffRoundsFor(2); // sf1, sf2, final
 const playoffTimes = playoffSlots(START, weekday, TIMES, pairs.length, bracket.length);
 const psByRound = new Map(bracket.map((r, i) => [r, playoffTimes[i]]));
-const playedGames = PLAYED_WEEKS * TIMES.length;
+const playedGames = complete ? pairs.length : PLAYED_WEEKS * TIMES.length;
 
 type GameRow = {
   id: string; home: string; away: string; at: string;
@@ -90,10 +94,9 @@ const appearances: string[] = []; // VALUES rows
 const events: string[] = []; // VALUES rows
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
-const games: GameRow[] = pairs.map(([home, away], i) => {
-  if (i >= playedGames) {
-    return { id: crypto.randomUUID(), home, away, at: slots[i], status: "scheduled", hs: 0, as: 0, decided: null };
-  }
+// A played game: winner, scores, appearances and goal events. Subs only in
+// regular-season games.
+function play(home: string, away: string, at: string, i: number, allowSub: boolean): GameRow {
   // Played game: pick a winner + scores; OT ~25% (margin 1).
   const homeWins = Math.random() < 0.5;
   const winGoals = 2 + ri(5); // 2..6
@@ -107,7 +110,7 @@ const games: GameRow[] = pairs.map(([home, away], i) => {
   // Roughly every 4th played game, one skater from a team not in this game
   // subs for the home side and scores that side's first goal.
   const others = teams.filter((t) => t.id !== home && t.id !== away);
-  const sub = i % 4 === 0 && others.length ? pick(rosterByTeam.get(pick(others).id)!.skaters) : null;
+  const sub = allowSub && i % 4 === 0 && others.length ? pick(rosterByTeam.get(pick(others).id)!.skaters) : null;
 
   for (const [teamId, goals] of [[home, hs], [away, as]] as const) {
     const roster = rosterByTeam.get(teamId)!;
@@ -133,8 +136,31 @@ const games: GameRow[] = pairs.map(([home, away], i) => {
       );
     }
   }
-  return { id, home, away, at: slots[i], status: "final", hs, as, decided: ot ? "ot" : "regulation" };
-});
+  return { id, home, away, at, status: "final", hs, as, decided: ot ? "ot" : "regulation" };
+}
+
+const games: GameRow[] = pairs.map(([home, away], i) =>
+  i >= playedGames
+    ? { id: crypto.randomUUID(), home, away, at: slots[i], status: "scheduled", hs: 0, as: 0, decided: null }
+    : play(home, away, slots[i], i, true),
+);
+
+// Playoffs for --complete: seed by points (W = 2, OT loss = 1), then play.
+const playoffGames: (GameRow & { round: string })[] = [];
+if (complete) {
+  const pts = new Map(teams.map((t) => [t.id, 0]));
+  for (const g of games) {
+    const homeWon = g.hs > g.as;
+    pts.set(homeWon ? g.home : g.away, pts.get(homeWon ? g.home : g.away)! + 2);
+    if (g.decided === "ot") pts.set(homeWon ? g.away : g.home, pts.get(homeWon ? g.away : g.home)! + 1);
+  }
+  const seeds = [...pts].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  const winner = (g: GameRow) => (g.hs > g.as ? g.home : g.away);
+  const sf1 = play(seeds[0], seeds[3], psByRound.get("sf1")!, 1, false);
+  const sf2 = play(seeds[1], seeds[2], psByRound.get("sf2")!, 1, false);
+  const final = play(winner(sf1), winner(sf2), psByRound.get("final")!, 1, false);
+  playoffGames.push({ ...sf1, round: "sf1" }, { ...sf2, round: "sf2" }, { ...final, round: "final" });
+}
 
 const lines: string[] = ["BEGIN;"];
 // Wipe the season's schedule/roster/stats, then clean up orphaned seed players
@@ -172,11 +198,20 @@ lines.push(
       `(${q(g.id)}, ${q(SEASON)}, ${q(g.home)}, ${q(g.away)}, ${q(g.at)}, 'regular', ${q(g.status)}, ${g.hs}, ${g.as}, ${g.decided ? q(g.decided) : "NULL"})`,
     ).join(",\n  ") + ";",
 );
-// Playoff stubs (TBD).
-lines.push(
-  `INSERT INTO games (season_id, home_team_id, away_team_id, scheduled_at, kind, status, playoff_round) VALUES\n  ` +
-    bracket.map((r) => `(${q(SEASON)}, NULL, NULL, ${q(psByRound.get(r)!)}, 'playoff', 'scheduled', ${q(r)})`).join(",\n  ") + ";",
-);
+if (complete) {
+  lines.push(
+    `INSERT INTO games (id, season_id, home_team_id, away_team_id, scheduled_at, kind, status, playoff_round, home_score, away_score, decided_in) VALUES\n  ` +
+      playoffGames.map((g) =>
+        `(${q(g.id)}, ${q(SEASON)}, ${q(g.home)}, ${q(g.away)}, ${q(g.at)}, 'playoff', 'final', ${q(g.round)}, ${g.hs}, ${g.as}, ${q(g.decided!)})`,
+      ).join(",\n  ") + ";",
+  );
+} else {
+  // Playoff stubs (TBD).
+  lines.push(
+    `INSERT INTO games (season_id, home_team_id, away_team_id, scheduled_at, kind, status, playoff_round) VALUES\n  ` +
+      bracket.map((r) => `(${q(SEASON)}, NULL, NULL, ${q(psByRound.get(r)!)}, 'playoff', 'scheduled', ${q(r)})`).join(",\n  ") + ";",
+  );
+}
 if (appearances.length) {
   lines.push(`INSERT INTO game_appearances (game_id, player_id, team_id, is_sub) VALUES\n  ` + appearances.join(",\n  ") + ";");
 }

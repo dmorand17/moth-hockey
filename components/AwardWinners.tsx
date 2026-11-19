@@ -1,13 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ScrollFade } from "./ScrollFade";
-import { AWARD_PALETTE, DEFAULT_AWARD_STYLE, HEADLINE_AWARDS } from "@/lib/awards";
+import { AWARD_PALETTE, DEFAULT_AWARD_STYLE, HEADLINE_AWARDS, type AwardWinnerGroup } from "@/lib/awards";
 
-export type AwardWinnerGroup = {
-  type: string;
-  label: string;
-  winners: { id: string; name: string }[];
-};
+export type { AwardWinnerGroup };
 
 // "grid": 2 columns (beside the stats leaders on desktop); "row": a
 // horizontal snap strip of fixed-width cards (phones).

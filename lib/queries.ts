@@ -1,12 +1,16 @@
 import { createSupabaseServerClient } from "./supabase/server";
 import { aggregateScoringLeaders, type LeaderGoalEvent, type LeaderRosterEntry, type ScoringLeader } from "./leaders";
-import { buildThreads, pickTeams, type AuthorRow, type BoardSeason, type PostRow, type RosterRow, type Thread } from "./board";
+import { boardSeasonWindow, buildThreads, pickTeams, type AuthorRow, type BoardSeason, type PostRow, type RosterRow, type Thread } from "./board";
+import { groupAwards, type AwardWinnerGroup } from "./awards";
+import { recapState, seasonSlug, type RecapSeason } from "./seasons";
+import type { RecapGame } from "./season-recap";
 import {
   championTeamId,
   type FinalizeAppearance,
   type FinalizeEvent,
   type FinalizeGame,
   type FinalizeRosterEntry,
+  type SeasonTotals,
 } from "./season-finalize";
 
 export type PointSystem = "2-1-0" | "3-2-1";
@@ -532,4 +536,117 @@ export async function getGamePosts(gameId: string): Promise<Thread[]> {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return hydrateThreads((data ?? []) as PostRow[]);
+}
+
+
+// ---- Season recap ----
+
+export async function getRecapSeasons(): Promise<RecapSeason[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("seasons")
+    .select("id, name, start_date, is_current, finalized_at")
+    .order("start_date", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as RecapSeason[];
+}
+
+type RecapTeam = { id: string; name: string; slug: string; color: string };
+
+export type SeasonRecap = {
+  season: RecapSeason;
+  state: "complete" | "in-progress";
+  hasGames: boolean;
+  teams: Map<string, RecapTeam>;
+  players: Map<string, { id: string; name: string }>;
+  games: RecapGame[];
+  inputs: SeasonFinalizeInputs;
+  standings: StandingsRow[] | null;
+  historical: HistoricalStandingsRow[] | null;
+  championTeamId: string | null;
+  awards: AwardWinnerGroup[];
+  /** Saved season totals; set only when the season has no final games (imported seasons). */
+  storedTotals: SeasonTotals[] | null;
+  board: { threads: Thread[]; from: string | null; to: string | null };
+};
+
+// Everything the recap page shows for one season, or null for an unknown slug
+// or an upcoming season. Sections are computed by lib/season-recap.
+export async function getSeasonRecap(slug: string, today = new Date().toISOString().slice(0, 10)): Promise<SeasonRecap | null> {
+  const seasons = await getRecapSeasons();
+  const season = seasons.find((x) => seasonSlug(x.name) === slug);
+  if (!season) return null;
+  const state = recapState(season, seasons, today);
+  if (state === "upcoming") return null;
+
+  const supabase = await createSupabaseServerClient();
+  const [{ data: games, error: gErr }, { data: teams, error: tErr }, { data: awardRows, error: aErr }, inputs, boardSeasons] =
+    await Promise.all([
+      supabase
+        .from("games")
+        .select(
+          "id, kind, status, playoff_round, home_team_id, away_team_id, home_score, away_score, decided_in, scheduled_at, shootout_home_goals, shootout_away_goals",
+        )
+        .eq("season_id", season.id)
+        .order("scheduled_at"),
+      supabase.from("teams").select("id, name, slug, color").eq("season_id", season.id),
+      supabase.from("player_awards").select("award_type, player:player_id(id, first_name, last_name)").eq("season_id", season.id),
+      getSeasonFinalizeInputs(season.id),
+      getBoardSeasons(),
+    ]);
+  if (gErr) throw gErr;
+  if (tErr) throw tErr;
+  if (aErr) throw aErr;
+
+  const recapGames = (games ?? []) as RecapGame[];
+  const hasGames = recapGames.some((g) => g.status === "final");
+
+  let storedTotals: SeasonTotals[] | null = null;
+  let storedPlayers: { id: string; first_name: string; last_name: string }[] = [];
+  if (!hasGames) {
+    const { data, error } = await supabase
+      .from("season_player_stats")
+      .select(
+        "player_id, team_id, position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, wins, losses, ot_losses, player:player_id(id, first_name, last_name)",
+      )
+      .eq("season_id", season.id);
+    if (error) throw error;
+    const rows = (data ?? []) as unknown as (SeasonTotals & { player: { id: string; first_name: string; last_name: string } | null })[];
+    storedTotals = rows;
+    storedPlayers = rows.flatMap((r) => (r.player ? [r.player] : []));
+  }
+
+  const rosterIds = [...new Set(inputs.roster.map((r) => r.player_id))];
+  const { data: rosterPlayers, error: pErr } =
+    rosterIds.length > 0
+      ? await supabase.from("players").select("id, first_name, last_name").in("id", rosterIds)
+      : { data: [], error: null };
+  if (pErr) throw pErr;
+  const players = new Map(
+    [...(rosterPlayers ?? []), ...storedPlayers].map((p) => [p.id, { id: p.id, name: `${p.first_name} ${p.last_name}` }]),
+  );
+
+  const window = boardSeasonWindow(boardSeasons, season.id);
+  const [standings, historical, champ, board] = await Promise.all([
+    hasGames ? getStandings(season.id) : Promise.resolve(null),
+    hasGames ? Promise.resolve(null) : getHistoricalStandings(season.id),
+    getChampionTeamId(season.id),
+    window ? getBoardPosts({ from: window.from, to: window.to }) : Promise.resolve({ threads: [], nextCursor: null }),
+  ]);
+
+  return {
+    season,
+    state,
+    hasGames,
+    teams: new Map(((teams ?? []) as RecapTeam[]).map((t) => [t.id, t])),
+    players,
+    games: recapGames,
+    inputs,
+    standings,
+    historical: historical && historical.length > 0 ? historical : null,
+    championTeamId: champ ?? historical?.find((r) => r.is_champion)?.team_id ?? null,
+    awards: groupAwards((awardRows ?? []) as unknown as Parameters<typeof groupAwards>[0]),
+    storedTotals,
+    board: { threads: board.threads, from: window?.from ?? null, to: window?.to ?? null },
+  };
 }

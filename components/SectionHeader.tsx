@@ -43,7 +43,7 @@ export function SectionHeader({
         {subtitle && <p className="mt-1 text-[14px] leading-5 text-ink-faint">{subtitle}</p>}
       </div>
       {(action || (linkHref && linkLabel)) && (
-        <div className="shrink-0 flex items-center gap-3">
+        <div className="max-w-full flex flex-wrap items-center gap-x-3">
           {action}
           {linkHref && linkLabel && (
             <Link

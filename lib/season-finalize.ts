@@ -72,9 +72,11 @@ export function computeSeasonTotals(
   roster: FinalizeRosterEntry[],
   appearances: FinalizeAppearance[],
   events: FinalizeEvent[],
+  opts: { kind?: "regular" | "playoff" } = {},
 ): SeasonTotals[] {
+  const kind = opts.kind ?? "regular";
   const counted = new Map(
-    games.filter((g) => g.kind === "regular" && g.status === "final").map((g) => [g.id, g]),
+    games.filter((g) => g.kind === kind && g.status === "final").map((g) => [g.id, g]),
   );
   const rosterByPlayer = new Map(roster.map((r) => [r.player_id, r]));
 

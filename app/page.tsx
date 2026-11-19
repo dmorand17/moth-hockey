@@ -6,7 +6,8 @@ import { ScrollFade } from "@/components/ScrollFade";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
-import { getCurrentSeason, getStandings, getUpcomingGames, getRecentResults, getScoringLeaders } from "@/lib/queries";
+import { getChampionTeamId, getCurrentSeason, getStandings, getUpcomingGames, getRecentResults, getScoringLeaders } from "@/lib/queries";
+import { seasonSlug } from "@/lib/seasons";
 import { NoSeason } from "@/components/NoSeason";
 import { getSessionIfRole } from "@/lib/auth";
 import { HomeBoard } from "@/components/HomeBoard";
@@ -24,12 +25,14 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     );
   }
 
-  const [standings, upcoming, recent, leaders] = await Promise.all([
+  const [standings, upcoming, recent, leaders, championId] = await Promise.all([
     getStandings(season.id),
     getUpcomingGames(season.id, 3),
     getRecentResults(season.id, 3),
     getScoringLeaders(season.id),
+    season.finalized_at ? getChampionTeamId(season.id) : Promise.resolve(null),
   ]);
+  const champion = standings.find((r) => r.team_id === championId);
 
   const totalGames = standings.reduce((s, r) => s + r.gp, 0) / 2;
   const top = (key: "points" | "goals" | "assists") =>
@@ -66,6 +69,23 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           </p>
         </div>
       </section>
+
+      {/* Season finished: point everyone at the recap. */}
+      {season.finalized_at && (
+        <Link
+          href={`/seasons/${seasonSlug(season.name)}/recap`}
+          className="rise panel flex items-center gap-3 p-4 md:p-5 hover:bg-board-hover hover:border-rule-strong transition-colors"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="eyebrow block text-gold!">🏆 Season recap</span>
+            <span className="mt-0.5 block text-[16px] font-semibold text-ink">
+              {champion ? `${champion.name} are the ${season.name} champions` : `${season.name} is in the books`}
+            </span>
+            <span className="block text-[14px] text-ink-faint">Awards, final standings, leaders and playoff highlights</span>
+          </span>
+          <span aria-hidden className="text-[20px] text-ink-faint">→</span>
+        </Link>
+      )}
 
       {/* PHONES: scores strip first — latest results, then upcoming */}
       {recent.length + upcoming.length > 0 && (

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { SectionHeader } from "./SectionHeader";
 import { SeasonSelect } from "./SeasonSelect";
-import { AwardWinners, type AwardWinnerGroup } from "./AwardWinners";
 import { Disclosure } from "./Disclosure";
 import { ScrollFade } from "./ScrollFade";
 import {
@@ -64,9 +63,8 @@ type Props = {
   seasons: SeasonOption[];
   selectedSeasonId: string;
   teams: Team[];
-  awardWinners: AwardWinnerGroup[];
-  // Awards aren't decided yet (current, in-progress season with no awards on file).
-  awardsPending: boolean;
+  /** The selected season's recap (null for an upcoming season). */
+  recap: StatsRecapLink | null;
   // Live (current-season) inputs — stats derive from game events.
   games?: GameMeta[];
   roster?: RosterEntry[];
@@ -84,8 +82,7 @@ export function StatsExplorer({
   seasons,
   selectedSeasonId,
   teams,
-  awardWinners,
-  awardsPending,
+  recap,
   games = [],
   roster = [],
   appearances = [],
@@ -231,20 +228,6 @@ export function StatsExplorer({
     };
   }, [skaters]);
 
-  const awards = (layout: "grid" | "row") =>
-    awardWinners.length > 0 ? (
-      <section>
-        <SectionHeader eyebrow="The hardware" title="Award winners" />
-        <AwardWinners awards={awardWinners} layout={layout} />
-      </section>
-    ) : (
-      awardsPending && (
-        <p className="text-[14px] text-ink-faint">
-          <span className="font-semibold text-ink-dim">Awards</span> are announced at the end of the season.
-        </p>
-      )
-    );
-
   return (
     <>
       <div className="rise">
@@ -256,6 +239,14 @@ export function StatsExplorer({
           action={
             <>
               <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
+              {recap && (
+                <Link
+                  href={recap.href}
+                  className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 whitespace-nowrap"
+                >
+                  Recap <span aria-hidden className="ml-1">→</span>
+                </Link>
+              )}
               <Link
                 href="/stats/all-time"
                 className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 whitespace-nowrap"
@@ -265,15 +256,12 @@ export function StatsExplorer({
             </>
           }
         />
-        {/* lg+: leaders and award winners side by side above the tables. */}
-        <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} />
-            <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} />
-            <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} />
-          </div>
-          <div className="hidden lg:block">{awards("grid")}</div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} />
+          <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} />
+          <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} />
         </div>
+        {recap && <RecapCard recap={recap} />}
       </div>
 
       <FilterBar
@@ -313,9 +301,6 @@ export function StatsExplorer({
           W-L-OTL isn&apos;t available for imported seasons. GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
         </Legend>
       </section>
-
-      {/* Below lg: award winners after the tables, as a swipeable row. */}
-      <div className="lg:hidden">{awards("row")}</div>
     </>
   );
 }
@@ -481,5 +466,38 @@ function SegmentedFilter<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+export type StatsRecapLink = {
+  href: string;
+  seasonName: string;
+  champion: { name: string; color: string } | null;
+  inProgress: boolean;
+};
+
+// Slim link to the season recap, where award winners now live.
+function RecapCard({ recap }: { recap: StatsRecapLink }) {
+  return (
+    <Link
+      href={recap.href}
+      className="panel mt-3 flex items-center gap-3 p-4 hover:bg-board-hover hover:border-rule-strong transition-colors"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="eyebrow block">Season recap</span>
+        <span className="mt-0.5 block text-[15px] font-semibold text-ink">{recap.seasonName}</span>
+        {recap.champion ? (
+          <span className="flex items-center gap-1.5 text-[14px] text-ink-dim">
+            <span aria-hidden className="swatch h-2 w-2 rounded-full" style={{ background: recap.champion.color }} />
+            Champions: {recap.champion.name}
+          </span>
+        ) : (
+          <span className="block text-[14px] text-ink-dim">
+            {recap.inProgress ? "In progress — current leaders" : "Awards, standings and highlights"}
+          </span>
+        )}
+      </span>
+      <span aria-hidden className="text-[18px] text-ink-faint">→</span>
+    </Link>
   );
 }

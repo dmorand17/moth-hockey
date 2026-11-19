@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { recapState, seasonSlug } from "@/lib/seasons";
 import { TeamBadge } from "@/components/TeamBadge";
 import { DataTable } from "@/components/DataTable";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -8,6 +10,7 @@ import {
   getHistoricalStandings,
   getChampionTeamId,
   getSeasonRules,
+  getRecapSeasons,
   type PointSystem,
   type TieKey,
 } from "@/lib/queries";
@@ -78,7 +81,12 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
     seasons.find((s) => s.is_current) ??
     seasons[0];
 
-  const rules = await getSeasonRules(season.id);
+  const [rules, recapSeasons] = await Promise.all([getSeasonRules(season.id), getRecapSeasons()]);
+  const recapSeason = recapSeasons.find((x) => x.id === season.id);
+  const recapHref =
+    recapSeason && recapState(recapSeason, recapSeasons, new Date().toISOString().slice(0, 10)) !== "upcoming"
+      ? `/seasons/${seasonSlug(season.name)}/recap`
+      : null;
   const points = pointsSummary(rules.system);
   const tieChain = ["points", ...rules.tiebreakers.map((k) => TIE_LABELS[k])].join(" → ");
 
@@ -89,7 +97,19 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
         title="Standings"
         size="lg"
         as="h1"
-        action={<SeasonSelect seasons={seasons} selectedId={season.id} />}
+        action={
+          <>
+            <SeasonSelect seasons={seasons} selectedId={season.id} />
+            {recapHref && (
+              <Link
+                href={recapHref}
+                className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 whitespace-nowrap"
+              >
+                Recap <span aria-hidden className="ml-1">→</span>
+              </Link>
+            )}
+          </>
+        }
       />
     </div>
   );

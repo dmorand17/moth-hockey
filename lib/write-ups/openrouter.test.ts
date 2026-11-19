@@ -107,4 +107,14 @@ describe("generateText", () => {
     expect(r.text).toBe("fallback ok");
     expect(calls.map((c) => c.model)).toEqual(["openai/gpt-6-luna", "google/gemini-2.5-flash-lite"]);
   });
+  test("passes maxTokens through, defaulting to 1000", async () => {
+    const sent: number[] = [];
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      sent.push(JSON.parse(String(init!.body)).max_tokens);
+      return respond(200, { choices: [{ message: { content: "ok" } }] });
+    }) as unknown as typeof fetch;
+    await generateText("s", "u", { maxTokens: 4000 });
+    await generateText("s", "u");
+    expect(sent).toEqual([4000, 1000]);
+  });
 });

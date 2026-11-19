@@ -20,12 +20,19 @@ export type SeasonNumbers = {
 };
 
 export type Moment = {
-  kind: "margin" | "high-scoring" | "hat-trick" | "points-game" | "win-streak";
+  kind: "margin" | "high-scoring" | "hat-tricks" | "big-night" | "points-game" | "win-streak";
   gameId: string | null;
   teamId: string | null;
   playerId: string | null;
   value: number;
   date: string;
+  /** `hat-tricks` only: each player with a hat trick and how many, most first. */
+  players?: { playerId: string; count: number }[];
+};
+
+export type Names = {
+  teams: Map<string, { id: string; name: string; slug: string; color: string }>;
+  players: Map<string, { id: string; name: string }>;
 };
 
 const finalGames = (games: RecapGame[], kind: Kind) =>
@@ -35,7 +42,7 @@ const finalGames = (games: RecapGame[], kind: Kind) =>
 
 // Winner by score; a shootout stored as a tied score falls back to the
 // shootout tally. null when there's no decided winner.
-function winnerOf(g: RecapGame): string | null {
+export function winnerOf(g: RecapGame): string | null {
   let home = g.home_score;
   let away = g.away_score;
   if (home === away) {
@@ -114,10 +121,20 @@ export function notableMoments(
   const byDate = (a: [string, number], b: [string, number]) =>
     byGame.get(split(a[0])[0])!.scheduled_at.localeCompare(byGame.get(split(b[0])[0])!.scheduled_at);
 
-  for (const [k, n] of [...goals].sort(byDate)) {
-    if (n < 3) continue;
+  // Hat tricks are common, so they collapse into one card; a 4+ goal game
+  // also gets its own "big night" card.
+  const hatTricks = [...goals].sort(byDate).filter(([, n]) => n >= 3);
+  if (hatTricks.length > 0) {
+    const per = new Map<string, number>();
+    for (const [k] of hatTricks) per.set(split(k)[1], (per.get(split(k)[1]) ?? 0) + 1);
+    // Map keeps first-hat-trick order, so the stable sort breaks count ties by date.
+    const players = [...per].map(([playerId, count]) => ({ playerId, count })).sort((a, b) => b.count - a.count);
+    out.push({ kind: "hat-tricks", gameId: null, teamId: null, playerId: null, value: hatTricks.length, date: byGame.get(split(hatTricks[0][0])[0])!.scheduled_at, players });
+  }
+  for (const [k, n] of hatTricks) {
+    if (n < 4) continue;
     const [gameId, playerId] = split(k);
-    out.push(moment({ kind: "hat-trick", game: byGame.get(gameId)!, gameId, teamId: null, playerId, value: n }));
+    out.push(moment({ kind: "big-night", game: byGame.get(gameId)!, gameId, teamId: null, playerId, value: n }));
   }
 
   let topPoints: [string, number] | null = null;
@@ -143,6 +160,32 @@ export function notableMoments(
     if (n >= 3) out.push(moment({ kind: "win-streak", game, gameId: game.id, teamId, playerId: null, value: n }));
   }
   return out;
+}
+
+// One line of copy per moment, shared by the recap page and the AI facts.
+export function describeMoment(m: Moment, game: RecapGame | undefined, names: Names): { label: string; text: string } {
+  const team = (id: string | null | undefined) => (id ? names.teams.get(id)?.name : undefined) ?? "TBD";
+  const player = (id: string | null) => (id ? names.players.get(id)?.name : undefined) ?? "A player";
+  const matchup = game ? `${team(game.away_team_id)} ${game.away_score} – ${game.home_score} ${team(game.home_team_id)}` : "";
+  switch (m.kind) {
+    case "margin": {
+      const loser = game && (m.teamId === game.home_team_id ? game.away_team_id : game.home_team_id);
+      return { label: "Biggest win", text: `${team(m.teamId)} beat ${team(loser)} by ${m.value} (${matchup})` };
+    }
+    case "high-scoring":
+      return { label: "Highest-scoring game", text: `${m.value} goals: ${matchup}` };
+    case "hat-tricks":
+      return {
+        label: `Hat tricks · ${m.value}`,
+        text: (m.players ?? []).map((p) => (p.count > 1 ? `${player(p.playerId)} ×${p.count}` : player(p.playerId))).join(" · "),
+      };
+    case "big-night":
+      return { label: "Big night", text: `${player(m.playerId)} scored ${m.value} (${matchup})` };
+    case "points-game":
+      return { label: "Best single game", text: `${player(m.playerId)}: ${m.value} points (${matchup})` };
+    case "win-streak":
+      return { label: "Win streak", text: `${team(m.teamId)} won ${m.value} straight` };
+  }
 }
 
 const points = (t: SeasonTotals) => t.goals + t.assists;
@@ -183,4 +226,17 @@ export function playoffPath(games: RecapGame[]): RecapGame[] {
         ROUND_ORDER.indexOf(a.playoff_round ?? "") - ROUND_ORDER.indexOf(b.playoff_round ?? "") ||
         a.scheduled_at.localeCompare(b.scheduled_at),
     );
+}
+
+const JUMP_LINKS = [
+  ["summary", "Summary"],
+  ["awards", "Awards"],
+  ["season", "Season"],
+  ["playoffs", "Playoffs"],
+  ["board", "Board"],
+] as const;
+
+// The recap's jump-link chips, for the sections this season actually has.
+export function jumpLinks(has: Record<(typeof JUMP_LINKS)[number][0], boolean>): { id: string; label: string }[] {
+  return JUMP_LINKS.filter(([id]) => has[id]).map(([id, label]) => ({ id, label }));
 }

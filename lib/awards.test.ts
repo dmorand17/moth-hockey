@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { groupAwards } from "./awards";
+import { groupAwards, tieSummary } from "./awards";
 
 const row = (award_type: string, id: string, first: string, last: string) => ({
   award_type,
@@ -22,5 +22,24 @@ describe("groupAwards", () => {
 
   test("skips rows without a player", () => {
     expect(groupAwards([{ award_type: "mvp", player: null }])).toEqual([]);
+  });
+});
+
+describe("tieSummary", () => {
+  const t = (player_id: string, penalties: number, goals = 0, assists = 0) => ({ player_id, goals, assists, penalties });
+  test("names the shared stat when everyone tied on it", () => {
+    expect(tieSummary("goon", ["a", "b", "c"], [t("a", 4), t("b", 4), t("c", 4)])).toBe("3 tied with 4 penalties");
+  });
+  test("falls back to a plain count when values differ", () => {
+    expect(tieSummary("goon", ["a", "b", "c"], [t("a", 4), t("b", 3), t("c", 4)])).toBe("3 tied");
+  });
+  test("plain count for awards without a stat", () => {
+    expect(tieSummary("mvd", ["a", "b", "c"], [t("a", 4), t("b", 4), t("c", 4)])).toBe("3 tied");
+  });
+  test("no stat line for a zero value", () => {
+    expect(tieSummary("goon", ["a", "b", "c"], [t("a", 0), t("b", 0), t("c", 0)])).toBe("3 tied");
+  });
+  test("singular unit", () => {
+    expect(tieSummary("goon", ["a", "b", "c"], [t("a", 1), t("b", 1), t("c", 1)])).toBe("3 tied with 1 penalty");
   });
 });

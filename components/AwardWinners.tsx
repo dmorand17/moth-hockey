@@ -1,13 +1,17 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Disclosure } from "./Disclosure";
 import { ScrollFade } from "./ScrollFade";
-import { AWARD_PALETTE, DEFAULT_AWARD_STYLE, HEADLINE_AWARDS, type AwardWinnerGroup } from "@/lib/awards";
+import { AWARD_PALETTE, DEFAULT_AWARD_STYLE, HEADLINE_AWARDS, tieSummary, type AwardWinnerGroup } from "@/lib/awards";
+
+type Totals = { player_id: string; goals: number; assists: number; penalties: number }[];
 
 export type { AwardWinnerGroup };
 
 // "grid": 2 columns (beside the stats leaders on desktop); "row": a
 // horizontal snap strip of fixed-width cards (phones).
-export function AwardWinners({ awards, layout = "grid" }: { awards: AwardWinnerGroup[]; layout?: "grid" | "row" }) {
+// An award shared by 3+ players collapses to one expandable "N tied" line.
+export function AwardWinners({ awards, layout = "grid", totals = [] }: { awards: AwardWinnerGroup[]; layout?: "grid" | "row"; totals?: Totals }) {
   if (awards.length === 0) return null;
 
   return (
@@ -33,23 +37,35 @@ export function AwardWinners({ awards, layout = "grid" }: { awards: AwardWinnerG
               <div className="eyebrow" style={{ color: style.fg }}>
                 {label}
               </div>
-              <ul className="mt-0.5 flex flex-col">
-                {winners.map((w) => (
-                  <li key={w.id}>
-                    <Link
-                      href={`/players/${w.id}`}
-                      className="text-[16px] font-semibold leading-6 text-ink hover:text-ice transition-colors inline-flex items-center min-h-[44px]"
-                    >
-                      {w.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {winners.length >= 3 ? (
+                <Disclosure label={tieSummary(type, winners.map((w) => w.id), totals)}>
+                  <WinnerList winners={winners} />
+                </Disclosure>
+              ) : (
+                <WinnerList winners={winners} />
+              )}
             </div>
           </div>
         );
       })}
     </Wrap>
+  );
+}
+
+function WinnerList({ winners }: { winners: AwardWinnerGroup["winners"] }) {
+  return (
+    <ul className="mt-0.5 flex flex-col">
+      {winners.map((w) => (
+        <li key={w.id}>
+          <Link
+            href={`/players/${w.id}`}
+            className="text-[16px] font-semibold leading-6 text-ink hover:text-ice transition-colors inline-flex items-center min-h-[44px]"
+          >
+            {w.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

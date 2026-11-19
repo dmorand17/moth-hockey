@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { deletePost, editPost } from "@/app/post-actions";
@@ -79,38 +79,32 @@ export function Avatar({ name, team, size }: { name: string | null; team: PostTe
         .join("")
         .toUpperCase()
     : "?";
-  const style: CSSProperties | undefined = team
-    ? {
-        background: `linear-gradient(145deg, color-mix(in srgb, ${team.color} 55%, var(--board-3)), color-mix(in srgb, ${team.color} 22%, var(--board)))`,
-        boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${team.color} 70%, transparent), 0 0 14px -4px ${team.color}`,
-      }
-    : undefined;
   return (
     <span
       aria-hidden
-      style={style}
-      className={`shrink-0 grid place-items-center rounded-full font-semibold tracking-[0.06em] text-ink select-none ${
-        team ? "" : "bg-board-3 ring-1 ring-rule-strong text-ink-faint"
-      } ${size === "md" ? "h-10 w-10 text-[17px]" : "h-8 w-8 text-[14px]"}`}
+      className={`relative shrink-0 grid place-items-center rounded-full bg-board-3 ring-1 ring-rule-strong font-semibold text-ink-dim select-none ${
+        size === "md" ? "h-10 w-10 text-[15px]" : "h-8 w-8 text-[13px]"
+      }`}
     >
       {initials}
+      {team && (
+        <span
+          className="swatch absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-board-2"
+          style={{ background: team.color }}
+        />
+      )}
     </span>
   );
 }
 
-// Team name as a small tinted chip in the team's color.
+// Team name with a small color dot.
 function TeamChip({ team }: { team: PostTeam }) {
   return (
     <Link
       href={`/teams/${team.slug}`}
-      className="inline-flex items-center gap-1 rounded-full pl-1.5 pr-2 py-[1px] text-[11px] font-bold uppercase tracking-[0.07em] leading-[18px] hover:brightness-125 transition"
-      style={{
-        color: `color-mix(in srgb, ${team.color} 72%, white)`,
-        background: `color-mix(in srgb, ${team.color} 16%, transparent)`,
-        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${team.color} 38%, transparent)`,
-      }}
+      className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-faint hover:text-ink transition-colors"
     >
-      <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: team.color }} />
+      <span aria-hidden className="swatch h-2 w-2 rounded-full" style={{ background: team.color }} />
       {team.name}
     </Link>
   );

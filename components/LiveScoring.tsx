@@ -302,7 +302,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
+          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-ink border-rule-strong rounded-[2px] hover:border-ink-faint disabled:opacity-50"
         >
           Start Next Period →
         </button>
@@ -311,7 +311,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
+          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-ink border-rule-strong rounded-[2px] hover:border-ink-faint disabled:opacity-50"
         >
           End regulation → Overtime
         </button>
@@ -329,7 +329,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
+          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-ink border-rule-strong rounded-[2px] hover:border-ink-faint disabled:opacity-50"
         >
           OT tied → Shootout
         </button>
@@ -493,44 +493,7 @@ function ScoreBar({
 }) {
   return (
     <div className="sticky top-0 z-20 -mx-4 sm:mx-0">
-      <div
-        className="scoreboard relative overflow-hidden p-3 space-y-2"
-        style={{
-          // Outer ring + drop shadow lifts the panel off the page
-          boxShadow:
-            "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,227,240,0.08)",
-        }}
-      >
-        {/* Per-team color washes from each side, fading to the centre */}
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `
-              radial-gradient(120% 80% at 0% 50%, ${game.awayTeam.color}26 0%, transparent 55%),
-              radial-gradient(120% 80% at 100% 50%, ${game.homeTeam.color}26 0%, transparent 55%),
-              radial-gradient(140% 60% at 50% -20%, rgba(255,255,255,0.06) 0%, transparent 70%)
-            `,
-          }}
-        />
-        {/* Top + bottom edge highlights */}
-        <div
-          aria-hidden
-          className="absolute top-0 left-0 right-0 h-px pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent, rgba(124,227,240,0.45), transparent)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent, rgba(255,56,56,0.35), transparent)",
-          }}
-        />
-        <div className="absolute inset-0 stripes opacity-30 pointer-events-none" />
+      <div className="scoreboard relative overflow-hidden p-3 space-y-2">
         <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <TeamScore team={game.awayTeam} score={game.awayScore} align="left" />
           <div className="flex flex-col items-center min-w-[120px] gap-1.5">
@@ -549,9 +512,6 @@ function ScoreBar({
               className={`digit text-[38px] leading-none tabular-nums transition-opacity hover:opacity-80 ${
                 running ? "text-ink" : "text-ink-dim"
               }`}
-              style={{
-                textShadow: running ? "0 0 14px rgba(255, 56, 56, 0.4)" : undefined,
-              }}
             >
               {formatClock(displayClock)}
             </button>
@@ -596,21 +556,17 @@ function TeamScore({
         <span
           aria-hidden
           className="inline-block w-1.5 h-5 rounded-[1px] shrink-0"
-          style={{ backgroundColor: team.color, boxShadow: `0 0 10px ${team.color}88` }}
+          style={{ backgroundColor: team.color }}
         />
         <span
-          className="font-semibold text-[13px] tracking-[0.1em] truncate max-w-[100px] sm:max-w-[160px] uppercase"
-          style={{ color: team.color }}
+          className="font-semibold text-[13px] tracking-[0.06em] text-ink truncate max-w-[100px] sm:max-w-[160px] uppercase"
         >
           {team.name}
         </span>
       </div>
       <span
         className="digit text-[44px] leading-none tabular-nums mt-1"
-        style={{
-          color: "var(--ink)",
-          textShadow: `0 0 12px ${team.color}55`,
-        }}
+        style={{ color: "var(--ink)" }}
       >
         {score}
       </span>
@@ -641,7 +597,6 @@ function TeamActionColumn({
           background: team.color,
           color: onColor,
           borderColor: team.color,
-          boxShadow: `0 0 18px ${team.color}44`,
         }}
       >
         GOAL
@@ -651,7 +606,7 @@ function TeamActionColumn({
         onClick={onPenalty}
         disabled={disabled}
         className="w-full min-h-[44px] font-semibold text-[14px] tracking-[0.06em] rounded-[2px] border bg-board/40 active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ color: team.color, borderColor: `${team.color}66` }}
+        style={{ color: "var(--ink)", borderColor: `${team.color}66` }}
       >
         PENALTY
       </button>
@@ -659,15 +614,15 @@ function TeamActionColumn({
   );
 }
 
-// Shared chrome for the two per-team action columns: a tinted body and a solid
-// team-color header, so each side reads as that team's block at a glance.
+// Shared chrome for the two per-team action columns: a flat body and a solid
+// team-color header band, so each side reads as that team's block at a glance.
 function TeamPanel({ team, children }: { team: Team; children: React.ReactNode }) {
   return (
     <div
       className="rounded-[3px] border overflow-hidden"
       style={{
         borderColor: `${team.color}59`,
-        background: `linear-gradient(180deg, ${team.color}2e 0%, ${team.color}0f 100%)`,
+        background: "var(--board-2)",
       }}
     >
       <div
@@ -698,7 +653,7 @@ function ShootoutTallyColumn({
         <span className="eyebrow text-[10px] text-ink-faint">SO TALLY</span>
         <span
           className="digit text-[44px] leading-none tabular-nums"
-          style={{ color: team.color, textShadow: `0 0 12px ${team.color}55` }}
+          style={{ color: "var(--ink)" }}
         >
           {tally}
         </span>

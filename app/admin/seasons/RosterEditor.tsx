@@ -140,7 +140,7 @@ export function RosterEditor({
       <div className="flex items-center justify-between min-h-[24px]">
         <h4 className="eyebrow text-[11px]">
           ROSTER · {rows.length} players
-          {dirty && <span className="text-amber-400 ml-1">· {changeCount} pending</span>}
+          {dirty && <span className="text-ice ml-1">· {changeCount} pending</span>}
         </h4>
         {dirty && (
           <div className="flex items-center gap-2">

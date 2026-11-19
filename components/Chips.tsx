@@ -44,5 +44,5 @@ export function StatusChip({
     const suffix = decidedIn === "ot" ? " · OT" : decidedIn === "shootout" ? " · SO" : "";
     return <span className="chip">Final{suffix}</span>;
   }
-  return <span className="chip text-ice!">{scheduledAt ? formatTime(scheduledAt) : "Upcoming"}</span>;
+  return <span className="chip text-ink!">{scheduledAt ? formatTime(scheduledAt) : "Upcoming"}</span>;
 }

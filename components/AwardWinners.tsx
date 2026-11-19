@@ -19,7 +19,7 @@ export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
           <div
             key={type}
             className="panel-bare p-3 sm:p-4 flex flex-col gap-1.5"
-            style={headline ? { borderColor: style.border } : undefined}
+            style={{ borderColor: headline ? style.border : undefined }}
           >
             <div
               className="text-[12px] font-bold tracking-[0.06em] uppercase flex items-center gap-1.5 leading-4"

@@ -544,7 +544,7 @@ export default async function PlayerPage({
                         <th scope="row" className="text-left pl-4 py-2 font-normal">
                           <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <span className="text-ink whitespace-nowrap">{r.season_name}</span>
-                            {r.isCurrent && <span className="chip text-ice!">Current</span>}
+                            {r.isCurrent && <span className="chip chip-live">Current</span>}
                           </span>
                           {r.team && (
                             <span className="sm:hidden mt-0.5 flex">

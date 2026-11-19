@@ -268,7 +268,7 @@ function RosterGroup({
                   {p.first_name} {p.last_name}
                 </span>
                 {isCaptain && (
-                  <span title="Captain" className="chip text-goal! border-goal/50!">
+                  <span title="Captain" className="chip text-ink!">
                     <span aria-hidden>C</span>
                     <span className="sr-only">Captain</span>
                   </span>

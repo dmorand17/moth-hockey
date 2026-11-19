@@ -95,10 +95,10 @@ export function ScheduleView({ weeks, teams }: { weeks: ScheduleWeek[]; teams: T
           return (
             <section key={w.date} id={isNext ? "next-games" : undefined} aria-labelledby={`wk-${w.date}`}>
               <div className="sticky top-[var(--header-h)] z-[3] -mx-4 px-4 sm:mx-0 sm:px-0 py-1.5 bg-board/95 backdrop-blur-sm flex items-center gap-2 flex-wrap">
-                <h2 id={`wk-${w.date}`} className={`text-[15px] font-bold ${isNext ? "text-ice" : "text-ink"}`}>
+                <h2 id={`wk-${w.date}`} className={`text-[15px] font-bold ${isNext ? "text-goal" : "text-ink"}`}>
                   {weekLabel(w.date)}
                 </h2>
-                {isNext && <span className="chip text-ice! border-ice/40!">Next up</span>}
+                {isNext && <span className="chip chip-live">Next up</span>}
                 {isLatest && !isNext && <span className="chip">Latest results</span>}
                 {byes.length > 0 && (
                   <span className="ml-auto text-[13px] text-ink-faint">
@@ -109,7 +109,7 @@ export function ScheduleView({ weeks, teams }: { weeks: ScheduleWeek[]; teams: T
 
               {w.skipReason && (
                 <p className="mb-2 text-[14px] text-ink-dim">
-                  <span className="font-semibold text-loss">Postponed</span> — {w.skipReason}
+                  <span className="font-semibold text-ink">Postponed</span> — {w.skipReason}
                 </p>
               )}
 

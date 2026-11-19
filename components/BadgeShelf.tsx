@@ -60,24 +60,18 @@ export function BadgeShelf({ awards }: { awards: Award[] }) {
               onClick={() => setSelectedType(type)}
               aria-pressed={active}
               aria-label={`${label}${seasons.length > 1 ? `, ${seasons.length} seasons` : ""}`}
-              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-[2px] font-mono text-[10.5px] uppercase tracking-[0.16em] cursor-pointer transition-all leading-none whitespace-nowrap ${
-                active ? "brightness-125" : "opacity-80 hover:opacity-100"
+              className={`inline-flex items-center gap-1.5 px-2.5 min-h-[36px] rounded-md text-[12px] font-bold uppercase tracking-[0.06em] cursor-pointer transition-colors whitespace-nowrap ${
+                active ? "bg-board-3" : "hover:bg-board-3"
               }`}
               style={{
-                background: style.bg,
-                border: `1px solid ${style.border}`,
+                background: active ? undefined : style.bg,
+                border: `1px solid ${headline || active ? "var(--gold)" : style.border}`,
                 color: style.fg,
-                boxShadow: headline
-                  ? style.glow ?? "none"
-                  : active
-                    ? "inset 0 0 0 1px rgba(255, 255, 255, 0.08)"
-                    : "none",
-                fontWeight: headline ? 600 : 500,
               }}
             >
               <span aria-hidden>{style.star}</span>
               <span>{label}</span>
-              {seasons.length > 1 && <span className="digit text-[11px]">×{seasons.length}</span>}
+              {seasons.length > 1 && <span className="num">×{seasons.length}</span>}
             </button>
           );
         })}

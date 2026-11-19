@@ -555,7 +555,7 @@ export default async function GamePage({
                         <span className="digit text-[15px] text-ink-dim">{formatClock(e.clock_seconds)}</span>
                         <div className="min-w-0">
                           <p className="text-[16px] leading-6">
-                            <span className={`mr-2 text-[12px] font-bold uppercase tracking-[0.06em] ${isGoal ? "text-goal" : "text-ice"}`}>
+                            <span className={`mr-2 text-[12px] font-bold uppercase tracking-[0.06em] ${isGoal ? "text-goal" : "text-ink-dim"}`}>
                               {isGoal ? "Goal" : "Penalty"}
                             </span>
                             {e.scorer && (
@@ -581,7 +581,7 @@ export default async function GamePage({
                                 {e.shooter.first_name} {e.shooter.last_name}
                               </Link>{" "}
                               —{" "}
-                              <span className={`font-semibold ${e.penalty_shot_result === "goal" ? "text-goal" : "text-ice"}`}>
+                              <span className={`font-semibold ${e.penalty_shot_result === "goal" ? "text-goal" : "text-ink-dim"}`}>
                                 {e.penalty_shot_result === "goal" ? "Goal" : "Saved"}
                               </span>
                             </p>

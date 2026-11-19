@@ -35,13 +35,6 @@ const ROLE_LABELS: Record<string, string> = {
   player: "Player",
 };
 
-const ROLE_COLOR: Record<string, string> = {
-  admin: "var(--goal)",
-  scorekeeper: "var(--ice)",
-  team_captain: "#fbbf24",
-  player: "var(--ink-dim)",
-};
-
 // First initials for the team monogram, e.g. "Ice Holes" → "IH".
 function teamInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -118,7 +111,6 @@ export default async function AccountPage() {
   }
 
   const roleLabel = roleRow?.role ? ROLE_LABELS[roleRow.role] ?? roleRow.role : "—";
-  const roleColor = ROLE_COLOR[roleRow?.role ?? "player"] ?? "var(--ink-dim)";
 
   return (
     <div className="mx-auto max-w-md rise">
@@ -137,16 +129,7 @@ export default async function AccountPage() {
             {profile?.email ?? userData.user.email}
           </span>
           <span className="text-rule-strong text-[12px]">·</span>
-          <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded-[2px] border font-mono text-[10px] uppercase tracking-[0.14em]"
-            style={{
-              color: roleColor,
-              borderColor: `color-mix(in srgb, ${roleColor} 45%, transparent)`,
-              background: `color-mix(in srgb, ${roleColor} 12%, transparent)`,
-            }}
-          >
-            {roleLabel}
-          </span>
+          <span className="chip">{roleLabel}</span>
         </div>
 
         {/* Linked player */}
@@ -177,15 +160,10 @@ export default async function AccountPage() {
         {roster?.team && (
           <Link
             href={`/teams/${roster.team.slug}`}
-            className="block rounded-lg border-l-[3px] p-4 tap transition-[filter] hover:brightness-125"
-            style={{
-              borderColor: roster.team.color,
-              background: `linear-gradient(90deg, ${roster.team.color}2e, transparent 72%)`,
-            }}
+            className="block rounded-lg border border-rule border-l-[3px] bg-board-3 p-4 tap hover:bg-board-hover transition-colors"
+            style={{ borderLeftColor: roster.team.color }}
           >
-            <div className="eyebrow" style={{ color: roster.team.color }}>
-              Current team
-            </div>
+            <div className="eyebrow">Current team</div>
             <div className="mt-2 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <span

@@ -165,14 +165,13 @@ body {
   background: rgba(124, 227, 240, 0.06);
 }
 .chip-linked {
-  color: #4ade80;
-  border-color: rgba(74, 222, 128, 0.3);
-  background: rgba(74, 222, 128, 0.05);
+  color: var(--win);
+  border-color: rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.08);
 }
 .chip.chip-playoff {
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.4);
-  background: rgba(251, 191, 36, 0.1);
+  color: var(--ink);
+  border-color: var(--ink-faint);
 }
 .chip-win {
   color: var(--win);

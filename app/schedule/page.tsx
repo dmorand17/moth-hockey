@@ -14,7 +14,8 @@ export const metadata: Metadata = {
 
 type GameRowData = ScheduleGame & { home_team_id: string | null; away_team_id: string | null };
 
-export default async function SchedulePage() {
+export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ team?: string }> }) {
+  const { team: teamParam } = await searchParams;
   const season = await getCurrentSeason();
   if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
@@ -88,7 +89,13 @@ export default async function SchedulePage() {
       {weekDates.length === 0 ? (
         <EmptyState title="No games scheduled yet." />
       ) : (
-        <ScheduleView weeks={weeks} teams={teamList} />
+        // Keyed on the param so back/forward (a new ?team) remounts with it.
+        <ScheduleView
+          key={teamParam ?? "all"}
+          weeks={weeks}
+          teams={teamList}
+          initialTeam={teamParam && teamMap.has(teamParam) ? teamParam : "all"}
+        />
       )}
     </div>
   );

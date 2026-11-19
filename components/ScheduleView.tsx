@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { GameList, GameRow } from "@/components/GameRow";
 
 type TeamRef = { name: string; slug: string; color: string };
@@ -36,10 +37,25 @@ function weekLabel(isoDate: string) {
 
 const plays = (g: ScheduleGame, slug: string) => g.home_team?.slug === slug || g.away_team?.slug === slug;
 
-// Season schedule grouped by game night, with a team filter and a jump link
-// to the next unplayed night.
-export function ScheduleView({ weeks, teams }: { weeks: ScheduleWeek[]; teams: TeamRef[] }) {
-  const [team, setTeam] = useState<string>("all");
+// Season schedule grouped by game night, with a team filter (kept in the URL
+// as ?team=<slug> so it's shareable) and a jump link to the next unplayed
+// night — or the latest played night once the season is over.
+export function ScheduleView({
+  weeks,
+  teams,
+  initialTeam,
+}: {
+  weeks: ScheduleWeek[];
+  teams: TeamRef[];
+  initialTeam: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [team, setTeamState] = useState<string>(initialTeam);
+  const setTeam = (slug: string) => {
+    setTeamState(slug);
+    router.replace(slug === "all" ? pathname : `${pathname}?team=${encodeURIComponent(slug)}`, { scroll: false });
+  };
   const teamName = teams.find((t) => t.slug === team)?.name;
 
   const visible = useMemo(() => {
@@ -52,6 +68,8 @@ export function ScheduleView({ weeks, teams }: { weeks: ScheduleWeek[]; teams: T
   // Next night with an unplayed game, and the most recent night with results.
   const nextDate = visible.find((w) => w.games.some((g) => g.status !== "final"))?.date;
   const latestDate = [...visible].reverse().find((w) => w.games.some((g) => g.status === "final"))?.date;
+  // The night to jump to and highlight.
+  const focusDate = nextDate ?? latestDate;
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -75,12 +93,12 @@ export function ScheduleView({ weeks, teams }: { weeks: ScheduleWeek[]; teams: T
             );
           })}
         </div>
-        {nextDate && (
+        {focusDate && (
           <a
-            href="#next-games"
+            href="#focus-night"
             className="sm:ml-auto shrink-0 inline-flex items-center min-h-[44px] text-[14px] font-semibold text-ice hover:text-ink transition-colors"
           >
-            Jump to next game <span aria-hidden className="ml-1">↓</span>
+            {nextDate ? "Jump to next game" : "Jump to latest results"} <span aria-hidden className="ml-1">↓</span>
           </a>
         )}
       </div>
@@ -91,15 +109,16 @@ export function ScheduleView({ weeks, teams }: { weeks: ScheduleWeek[]; teams: T
         visible.map((w) => {
           const isNext = w.date === nextDate;
           const isLatest = w.date === latestDate;
+          const isFocus = w.date === focusDate;
           const byes = teamName ? w.byes.filter((b) => b === teamName) : w.byes;
           return (
-            <section key={w.date} id={isNext ? "next-games" : undefined} aria-labelledby={`wk-${w.date}`}>
+            <section key={w.date} id={isFocus ? "focus-night" : undefined} aria-labelledby={`wk-${w.date}`}>
               <div className="sticky top-[var(--header-h)] z-[3] -mx-4 px-4 sm:mx-0 sm:px-0 py-1.5 bg-board/95 backdrop-blur-sm flex items-center gap-2 flex-wrap">
-                <h2 id={`wk-${w.date}`} className={`text-[15px] font-bold ${isNext ? "text-goal" : "text-ink"}`}>
+                <h2 id={`wk-${w.date}`} className={`text-[15px] font-bold ${isFocus ? "text-goal" : "text-ink"}`}>
                   {weekLabel(w.date)}
                 </h2>
                 {isNext && <span className="chip chip-live">Next up</span>}
-                {isLatest && !isNext && <span className="chip">Latest results</span>}
+                {isLatest && !isNext && <span className={`chip ${isFocus ? "chip-live" : ""}`}>Latest results</span>}
                 {byes.length > 0 && (
                   <span className="ml-auto text-[13px] text-ink-faint">
                     {teamName ? "Bye week" : `Bye: ${byes.join(", ")}`}

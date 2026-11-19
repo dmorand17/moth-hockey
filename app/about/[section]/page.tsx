@@ -3,6 +3,8 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SectionHeader } from "@/components/SectionHeader";
+import { EmptyState } from "@/components/EmptyState";
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const TITLES: Record<string, { title: string; eyebrow: string }> = {
@@ -10,6 +12,12 @@ const TITLES: Record<string, { title: string; eyebrow: string }> = {
   faq: { title: "FAQ", eyebrow: "Q & A" },
   league: { title: "About the league", eyebrow: "M.O.T.H" },
 };
+
+export async function generateMetadata({ params }: { params: Promise<{ section: string }> }): Promise<Metadata> {
+  const { section } = await params;
+  const meta = TITLES[section];
+  return meta ? { title: meta.title, description: `M.O.T.H hockey league — ${meta.title}.` } : {};
+}
 
 export default async function AboutSectionPage({
   params,
@@ -29,32 +37,30 @@ export default async function AboutSectionPage({
   const meta = TITLES[section];
 
   return (
-    <div className="space-y-8">
-      <Link href="/about" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
-        ← About
-      </Link>
-      <div className="rise delay-1">
-        <SectionHeader eyebrow={meta.eyebrow} title={meta.title} size="lg" as="h1" />
+    <div className="space-y-6 md:space-y-8">
+      <div className="rise">
+        <Link
+          href="/about"
+          className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11"
+        >
+          <span aria-hidden className="mr-1">←</span> About
+        </Link>
+        <div className="mt-2">
+          <SectionHeader eyebrow={meta.eyebrow} title={meta.title} size="lg" as="h1" />
+        </div>
       </div>
 
       {(pages ?? []).length === 0 ? (
-        <div className="rise delay-2 panel-bare p-6 stripes">
-          <div className="eyebrow mb-2 text-goal">Empty net</div>
-          <p className="text-ink-dim text-[14px]">
-            No content here yet — admin will add this soon.
-          </p>
+        <div className="rise delay-1">
+          <EmptyState title="Nothing here yet">An admin will add this soon.</EmptyState>
         </div>
       ) : (
-        <div className="rise delay-2 space-y-3">
+        <div className="rise delay-1 divide-y divide-rule">
           {(pages ?? []).map((p) => (
-            <article key={p.id} className="panel p-6">
-              <h2 className="font-display text-[24px] tracking-[0.03em] mb-3">
-                {p.title.toUpperCase()}
-              </h2>
-              <div className="prose-rink text-[14.5px] leading-relaxed text-ink-dim">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {p.body_md}
-                </ReactMarkdown>
+            <article key={p.id} className="py-6 first:pt-0">
+              <h2 className="text-[22px] md:text-[24px] font-bold leading-8 text-ink mb-3">{p.title}</h2>
+              <div className="prose-rink text-[16px] md:text-[17px]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{p.body_md}</ReactMarkdown>
               </div>
             </article>
           ))}

@@ -71,6 +71,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const viewport: Viewport = {
   themeColor: "#0b0d10",
+  // Draw under the notch / home indicator; the header and bottom bar pad
+  // themselves with env(safe-area-inset-*).
+  viewportFit: "cover",
 };
 
 const navLinks = [

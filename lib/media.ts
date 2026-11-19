@@ -88,3 +88,16 @@ export function formatBytes(n: number): string {
   if (n < MB) return `${Math.round(n / 1024)} KB`;
   return `${(n / MB).toFixed(1)} MB`;
 }
+
+// Blob stores the type it infers from the extension, so the size cap follows
+// the extension too (a client can't claim "video" to store a 200 MB photo).
+export function maxBytesForPath(pathname: string): number {
+  return /\.(mp4|mov)$/i.test(pathname) ? 200 * MB : 20 * MB;
+}
+
+// Swipes are touch-only, and a video owns its own drags (scrubbing) and
+// arrow keys (seeking), so neither changes the lightbox item.
+export function lightboxGesture(e: { kind: "swipe"; pointerType: string; onVideo: boolean } | { kind: "key"; onVideo: boolean }): boolean {
+  if (e.onVideo) return false;
+  return e.kind === "key" || e.pointerType === "touch";
+}

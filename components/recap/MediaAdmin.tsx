@@ -78,7 +78,7 @@ export function MediaAdmin({
       const blob = await upload(`${prefix}${safeName(file.name)}`, file, {
         access: "public",
         handleUploadUrl: "/api/media/upload",
-        clientPayload: JSON.stringify({ slug, contentType: file.type }),
+        clientPayload: JSON.stringify({ slug }),
         onUploadProgress: ({ percentage }) => patch(key, { pct: percentage }),
       });
       patch(key, { pct: 100, status: "saving" });

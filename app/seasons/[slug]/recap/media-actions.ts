@@ -47,8 +47,13 @@ export async function recordSeasonMedia(input: {
   if (!url.ok) return fail(url.error);
   const blob = await headBlob(input.url);
   if (!blob) return fail("Upload not found in storage.");
-  if (!MEDIA_TYPES.includes(blob.contentType)) return fail(`${blob.contentType} files aren't allowed.`);
-  if (blob.size > maxBytesFor(blob.contentType)) return fail("File is too large.");
+  // A rejected upload is already in the store; remove it so it isn't orphaned.
+  const reject = async (message: string) => {
+    await deleteBlob(input.url).catch((e) => console.error("orphan blob cleanup failed", e));
+    return fail(message);
+  };
+  if (!MEDIA_TYPES.includes(blob.contentType)) return reject(`${blob.contentType} files aren't allowed.`);
+  if (blob.size > maxBytesFor(blob.contentType)) return reject("File is too large.");
 
   const db = auth.supabase;
   const { data: last } = await db
@@ -71,7 +76,8 @@ export async function recordSeasonMedia(input: {
     uploaded_by: auth.session.userId,
     sort_order: (last?.sort_order ?? -1) + 1,
   });
-  if (error) return fail(error.message);
+  // 23505 = this blob is already recorded; keep the file, it's in use.
+  if (error) return error.code === "23505" ? fail("Already added.") : reject(error.message);
   return done(input.slug, "Added");
 }
 

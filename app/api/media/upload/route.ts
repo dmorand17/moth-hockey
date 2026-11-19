@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAuthSession } from "@/lib/auth";
-import { checkUploadRequest, MEDIA_TYPES, maxBytesFor } from "@/lib/media";
+import { checkUploadRequest, MEDIA_TYPES, maxBytesForPath } from "@/lib/media";
 import { handleMediaUpload } from "@/lib/storage";
 
 // Hands out Vercel Blob client-upload tokens for recap media — admins only,
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   try {
     const result = await handleMediaUpload(request, body, async (pathname, clientPayload) => {
-      const { slug, contentType } = JSON.parse(clientPayload ?? "{}") as { slug?: string; contentType?: string };
+      const { slug } = JSON.parse(clientPayload ?? "{}") as { slug?: string };
       const check = checkUploadRequest({
         isAdmin: true,
         pathname,
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
         vercelEnv: process.env.VERCEL_ENV,
       });
       if (!check.ok) throw new Forbidden(check.error);
-      return { allowedContentTypes: [...MEDIA_TYPES], maximumSizeInBytes: maxBytesFor(contentType ?? "") };
+      return { allowedContentTypes: [...MEDIA_TYPES], maximumSizeInBytes: maxBytesForPath(pathname) };
     });
     return NextResponse.json(result);
   } catch (e) {

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   checkUploadRequest,
+  lightboxGesture,
+  maxBytesForPath,
   formatBytes,
   maxBytesFor,
   mediaKind,
@@ -92,4 +94,23 @@ describe("lightbox navigation", () => {
 test("formatBytes", () => {
   expect(formatBytes(524288)).toBe("512 KB");
   expect(formatBytes(3_565_158)).toBe("3.4 MB");
+});
+
+describe("lightbox input on videos", () => {
+  test("swipes only count for touch, and never on a video", () => {
+    expect(lightboxGesture({ kind: "swipe", pointerType: "touch", onVideo: false })).toBe(true);
+    expect(lightboxGesture({ kind: "swipe", pointerType: "touch", onVideo: true })).toBe(false);
+    expect(lightboxGesture({ kind: "swipe", pointerType: "mouse", onVideo: false })).toBe(false);
+  });
+  test("arrow keys belong to a focused video", () => {
+    expect(lightboxGesture({ kind: "key", onVideo: true })).toBe(false);
+    expect(lightboxGesture({ kind: "key", onVideo: false })).toBe(true);
+  });
+});
+
+test("size cap comes from the file extension, not the claimed type", () => {
+  expect(maxBytesForPath("dev/seasons/s/clip-abc.mp4")).toBe(200 * MB);
+  expect(maxBytesForPath("dev/seasons/s/clip-abc.MOV")).toBe(200 * MB);
+  expect(maxBytesForPath("dev/seasons/s/photo-abc.jpg")).toBe(20 * MB);
+  expect(maxBytesForPath("dev/seasons/s/noext")).toBe(20 * MB);
 });

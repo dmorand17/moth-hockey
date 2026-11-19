@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { stepIndex, swipeDir } from "@/lib/media";
+import { lightboxGesture, stepIndex, swipeDir } from "@/lib/media";
 import type { SeasonMedia } from "@/lib/queries";
 
 const altFor = (m: SeasonMedia, seasonName: string) => m.caption || `Photo from ${seasonName}`;
@@ -84,11 +84,13 @@ export function MediaGrid({
         onClose={onClose}
         aria-label={current ? altFor(current, seasonName) : "Media viewer"}
         onKeyDown={(e) => {
+          if (!lightboxGesture({ kind: "key", onVideo: e.target instanceof HTMLVideoElement })) return;
           if (e.key === "ArrowRight") step(1);
           if (e.key === "ArrowLeft") step(-1);
         }}
         onPointerDown={(e) => {
-          start.current = { x: e.clientX, y: e.clientY };
+          const ok = lightboxGesture({ kind: "swipe", pointerType: e.pointerType, onVideo: e.target instanceof HTMLVideoElement });
+          start.current = ok ? { x: e.clientX, y: e.clientY } : null;
         }}
         onPointerUp={(e) => {
           if (!start.current) return;

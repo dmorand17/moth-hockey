@@ -133,14 +133,14 @@ value be used in the same transaction that adds it.
   one per season (PK `season_id`). `summary_markdown`, `input` (the exact facts
   JSON sent to the model), `model`, `generated_at`, `edited_by`/`edited_at`,
   `published` (Unpublish sets false) and `published_at`.
-- **`season_media`** — the recap gallery. The file lives in Vercel Blob
-  (`blob_url`, unique `pathname` under `seasons/{slug}/`, or `dev/seasons/{slug}/`
-  outside production); the row holds `content_type`, `size_bytes`, optional
-  `width`/`height`, `caption` (≤ 300 chars), `uploaded_by` and `sort_order`.
 - **`season_recap_drafts`** — the admin working copy (same shape, `draft_markdown`).
   Generate / Regenerate / Edit write here; Publish copies the draft into
   `season_recaps` and deletes it. A separate table because RLS can't hide one
   column of a public row.
+- **`season_media`** — the recap gallery. The file lives in Vercel Blob
+  (`blob_url`, unique `pathname` under `seasons/{slug}/`, or `dev/seasons/{slug}/`
+  outside production); the row holds `content_type`, `size_bytes`, optional
+  `width`/`height`, `caption` (≤ 300 chars), `uploaded_by` and `sort_order`.
 
 ### Auth
 

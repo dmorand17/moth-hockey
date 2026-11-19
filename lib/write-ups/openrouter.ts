@@ -39,11 +39,14 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
     max_tokens: maxTokens,
     usage: { include: true },
   };
-  // Reasoning models (OpenAI, DeepSeek, Gemini…) default to medium effort.
-  // Writing from precomputed stats doesn't need it, and reasoning tokens count
-  // against max_tokens and the timeout. OpenRouter's unified param: "low" caps
-  // reasoning at ~20% of max_tokens; non-reasoning models ignore it.
-  body.reasoning = { effort: "low" };
+  // Reasoning tokens count against max_tokens and the timeout. Writing from
+  // precomputed stats needs little, so cap reasoning at a quarter of the
+  // budget (OpenRouter maps it to an effort level for effort-only models).
+  // require_parameters: only route to providers that honour the cap — one
+  // that ignored it once spent the whole 6,000-token budget reasoning and
+  // returned nothing (finish_reason=length).
+  body.reasoning = { max_tokens: reasoningBudget(maxTokens) };
+  body.provider = { require_parameters: true };
 
   const res = await fetch(ENDPOINT, {
     method: "POST",
@@ -91,7 +94,17 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
   };
 }
 
-type CallInfo = { role: "primary" | "fallback"; requested: string; promptChars: number; maxTokens: number; timeoutMs: number; context: Record<string, string> };
+export const reasoningBudget = (maxTokens: number) => Math.floor(maxTokens / 4);
+
+type CallInfo = {
+  role: "primary" | "fallback";
+  requested: string;
+  promptChars: number;
+  maxTokens: number;
+  reasoningBudget: number;
+  timeoutMs: number;
+  context: Record<string, string>;
+};
 
 // One "ai.call" log line per model call: what asked for it (context), which
 // model and provider answered, timing, tokens, cost — or why it failed.
@@ -129,19 +142,27 @@ async function logged(info: CallInfo, call: () => Promise<ModelResult>): Promise
 export async function generateText(
   system: string,
   user: string,
-  opts: { maxTokens?: number; timeoutMs?: number; context?: Record<string, string> } = {},
+  opts: {
+    maxTokens?: number;
+    timeoutMs?: number;
+    context?: Record<string, string>;
+    // Per-feature model choice (e.g. the season report); unset or empty
+    // falls back to WRITE_UP_MODEL / WRITE_UP_FALLBACK_MODEL, then the defaults.
+    models?: { primary?: string; fallback?: string };
+  } = {},
 ): Promise<ModelResult> {
   const maxTokens = opts.maxTokens ?? 1000;
   const timeoutMs = opts.timeoutMs ?? 30_000;
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
-  const primary = process.env.WRITE_UP_MODEL || DEFAULT_MODEL;
-  const fallback = process.env.WRITE_UP_FALLBACK_MODEL || DEFAULT_FALLBACK;
+  const primary = opts.models?.primary || process.env.WRITE_UP_MODEL || DEFAULT_MODEL;
+  const fallback = opts.models?.fallback || process.env.WRITE_UP_FALLBACK_MODEL || DEFAULT_FALLBACK;
 
   const info = (role: CallInfo["role"], requested: string): CallInfo => ({
     role,
     requested,
     promptChars: system.length + user.length,
+    reasoningBudget: reasoningBudget(maxTokens),
     maxTokens,
     timeoutMs,
     context: opts.context ?? {},

@@ -5,11 +5,10 @@ import {
   type PrecomputedSkater,
   type PrecomputedGoalie,
 } from "@/components/StatsExplorer";
-import { type AwardWinnerGroup } from "@/components/AwardWinners";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSeasons } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
-import { AWARD_LABELS, AWARD_ORDER } from "@/lib/awards";
+import { groupAwards } from "@/lib/awards";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -43,26 +42,12 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
   ]);
   const teams = teamsRes.data ?? [];
 
-  // Group awards by type (newest-first display order from AWARD_ORDER); each
-  // type can have multiple winners (e.g. champion → the whole winning team).
-  const winnersByType = new Map<string, { id: string; name: string }[]>();
-  const championPlayerIds = new Set<string>();
-  for (const a of awardsRes.data ?? []) {
-    if (!AWARD_LABELS[a.award_type] || !a.player) continue;
-    if (a.award_type === "champion") championPlayerIds.add(a.player.id);
-    const list = winnersByType.get(a.award_type) ?? [];
-    list.push({ id: a.player.id, name: `${a.player.first_name} ${a.player.last_name}` });
-    winnersByType.set(a.award_type, list);
-  }
-  // Champion is a team award — it's surfaced as a small badge on the stats rows
-  // (see championTeamIds below), not as a "hardware" card, so exclude it here.
-  const awardWinners: AwardWinnerGroup[] = AWARD_ORDER.filter(
-    (t) => t !== "champion" && winnersByType.has(t),
-  ).map((type) => ({
-    type,
-    label: AWARD_LABELS[type],
-    winners: winnersByType.get(type)!.sort((a, b) => a.name.localeCompare(b.name)),
-  }));
+  // Champion is a team award: its players get a trophy beside their team on
+  // the stats rows (see championTeamIds below).
+  const championPlayerIds = new Set(
+    (awardsRes.data ?? []).filter((a) => a.award_type === "champion" && a.player).map((a) => a.player!.id),
+  );
+  const awardWinners = groupAwards(awardsRes.data ?? []);
 
   // ---- Past season: pre-aggregated totals (imported, or saved by finalize). ----
   if (!season.is_current) {

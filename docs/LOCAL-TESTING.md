@@ -68,6 +68,29 @@ no real mail is ever sent and you never need a real inbox.
 Links are single-use and expire, so always click the newest message. If a link
 seems dead, request a fresh one from `/login`.
 
+## Previewing the mobile layout
+
+Most league members use the site on a phone, so check every UI change at phone
+width first. The quickest way is a desktop browser in device mode:
+
+1. Open the app at http://127.0.0.1:3001.
+2. Open DevTools (`Cmd+Option+I` in Chrome) and toggle device mode
+   (`Cmd+Shift+M`), the phone-and-tablet icon in the DevTools toolbar.
+3. Pick a phone preset such as **iPhone 12 Pro** (390×844) and reload.
+
+Things to check at 390px wide:
+
+- No sideways scrolling on the page (wide tables may scroll inside their own
+  box).
+- Buttons and links are easy to tap (at least 44px tall).
+- The sticky header doesn't cover headings when you jump to an anchor.
+
+Safari works too: enable **Settings → Advanced → Show features for web
+developers**, then use **Develop → Enter Responsive Design Mode**
+(`Cmd+Option+R`).
+
+To try it on a real phone, see the next section.
+
 ## Testing from your phone (same Wi-Fi)
 
 `bun dev` only listens on localhost, so a phone can't reach it. Use:

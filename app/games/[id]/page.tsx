@@ -524,6 +524,7 @@ export default async function GamePage({
           {
             id: "box-score",
             label: "Box Score",
+            shortLabel: "Box",
             content: (
               <>
                 {(isLive || isFinal) && box && hasLineup ? (
@@ -538,6 +539,7 @@ export default async function GamePage({
           {
             id: "play-by-play",
             label: "Play-by-Play",
+            shortLabel: "Plays",
             content: (
               <>
         {events.length === 0 ? (
@@ -606,7 +608,7 @@ export default async function GamePage({
               </>
             ),
           },
-          { id: "discussion", label: "Discussion", content: discussionSection },
+          { id: "discussion", label: "Discussion", shortLabel: "Chat", content: discussionSection },
         ]}
       />
     </div>

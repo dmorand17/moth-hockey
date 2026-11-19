@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { maskClockInput, teamAbbr } from "./format";
+import { formatShortDate, maskClockInput, teamAbbr } from "./format";
 
 describe("maskClockInput", () => {
   test("shifts digits in from the right with a colon always present", () => {
@@ -35,5 +35,14 @@ describe("teamAbbr", () => {
   });
   test("trims extra whitespace", () => {
     expect(teamAbbr("  Ice   Holes ")).toBe("IH");
+  });
+});
+
+describe("formatShortDate", () => {
+  test("month and day without a weekday", () => {
+    const out = formatShortDate("2026-04-12T23:00:00Z");
+    expect(out).toContain("Apr");
+    expect(out).toMatch(/1[12]/); // local day may shift by timezone
+    expect(out).not.toMatch(/Sun|Sat|Mon/);
   });
 });

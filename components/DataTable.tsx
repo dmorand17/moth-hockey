@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ScrollFade } from "./ScrollFade";
 
 // Shared table shell: panel frame, zebra rows, hover, tabular numbers, and a
 // header that sticks under the site header. `scroll` adds a horizontal scroll
@@ -27,6 +28,6 @@ export function DataTable({
       {children}
     </table>
   );
-  const body = scroll ? <div className="table-scroll">{table}</div> : table;
+  const body = scroll ? <ScrollFade>{table}</ScrollFade> : table;
   return <div className={`${framed ? "panel" : ""} overflow-clip ${className}`}>{body}</div>;
 }

@@ -94,7 +94,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                         {i === 0 && <span className="sr-only"> (first place)</span>}
                       </td>
                       <td className="max-w-0 w-full">
-                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" />
+                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
                       </td>
                       <td className="text-right text-ink-dim">{row.gp}</td>
                       <td className="text-right text-ink-dim whitespace-nowrap sm:hidden">

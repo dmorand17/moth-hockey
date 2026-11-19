@@ -395,6 +395,27 @@ table.board-table .col-dim { color: var(--ink-faint); }
 
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+/* Horizontal scroller hint: a right-edge fade until the end is reached. */
+.scroll-fade {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-fade > * > * {
+  scroll-snap-align: start;
+}
+.scroll-fade:not([data-end="true"]) {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+/* Phones: tighter cell padding so primary columns fit at 360px. */
+@media (max-width: 639px) {
+  table.board-table thead th,
+  table.board-table tbody td {
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+  }
+}
+
 /* Visible, on-brand keyboard focus. The browser default ring is a faint 1px
    on the near-black board; this makes focus obvious and matches the palette.
    Controls that set their own focus treatment (e.g. inputs with a focus

@@ -64,8 +64,8 @@ const skaterCols: Column<Skater>[] = [
 const goalieCols: Column<Goalie>[] = [
   { key: "gp", label: "GP", title: "Games played", defaultDir: "desc" },
   { key: "w", label: "W", title: "Wins", defaultDir: "desc" },
-  { key: "l", label: "L", title: "Losses", defaultDir: "asc" },
-  { key: "otl", label: "OTL", title: "Overtime/shootout losses", defaultDir: "asc" },
+  { key: "l", label: "L", title: "Losses", defaultDir: "asc", secondary: true },
+  { key: "otl", label: "OTL", title: "Overtime/shootout losses", defaultDir: "asc", secondary: true },
   { key: "ga", label: "GA", title: "Goals against", defaultDir: "asc" },
   { key: "ps_faced", label: "PSF", title: "Penalty shots faced", defaultDir: "desc", secondary: true },
   { key: "ps_saved", label: "PSV", title: "Penalty shots saved", defaultDir: "desc", primary: true },

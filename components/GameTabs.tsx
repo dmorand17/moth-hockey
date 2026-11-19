@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
+import { ScrollFade } from "./ScrollFade";
 
-export type GameTab = { id: string; label: string; content: ReactNode };
+export type GameTab = { id: string; label: string; shortLabel?: string; content: ReactNode };
 
 function subscribe(onChange: () => void) {
   window.addEventListener("hashchange", onChange);
@@ -42,7 +43,8 @@ export function GameTabs({ tabs, label }: { tabs: GameTab[]; label: string }) {
   return (
     <div>
       <div className="sticky top-[var(--header-h)] z-[4] -mx-4 sm:mx-0 bg-board/95 backdrop-blur-sm border-b border-rule">
-        <div role="tablist" aria-label={label} className="flex overflow-x-auto px-4 sm:px-0">
+        <ScrollFade>
+        <div role="tablist" aria-label={label} className="flex px-4 sm:px-0">
           {tabs.map((t, i) => {
             const selected = t.id === active;
             return (
@@ -59,17 +61,25 @@ export function GameTabs({ tabs, label }: { tabs: GameTab[]; label: string }) {
                 tabIndex={selected ? 0 : -1}
                 onClick={() => select(t.id)}
                 onKeyDown={(e) => onKeyDown(e, i)}
-                className={`relative shrink-0 min-h-[48px] px-4 text-[15px] font-semibold whitespace-nowrap transition-colors ${
+                className={`relative flex-1 sm:flex-none shrink-0 min-h-[48px] px-2 sm:px-4 text-[15px] font-semibold whitespace-nowrap transition-colors ${
                   selected
                     ? "text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-[2px] after:bg-goal"
                     : "text-ink-dim hover:text-ink"
                 }`}
               >
-                {t.label}
+                {t.shortLabel ? (
+                  <>
+                    <span className="sm:hidden">{t.shortLabel}</span>
+                    <span className="hidden sm:inline">{t.label}</span>
+                  </>
+                ) : (
+                  t.label
+                )}
               </button>
             );
           })}
         </div>
+        </ScrollFade>
       </div>
       {tabs.map((t) => (
         <div

@@ -529,7 +529,7 @@ export default async function PlayerPage({
                       <th scope="col" className="text-left pl-4">Season</th>
                       <th scope="col" className="text-left hidden sm:table-cell">Team</th>
                       {statCols.map((c) => (
-                        <th key={c.label} scope="col" title={c.title} className={`text-right w-12 sm:w-14 ${c.dim ? "col-dim" : ""}`}>
+                        <th key={c.label} scope="col" title={c.title} className={`text-right w-12 sm:w-14 ${c.dim ? "col-dim hidden sm:table-cell" : ""}`}>
                           {c.label}
                         </th>
                       ))}
@@ -556,7 +556,7 @@ export default async function PlayerPage({
                         {statCols.map((c) => (
                           <td
                             key={c.label}
-                            className={`text-right ${c.dim ? "col-dim" : c.key ? "font-bold text-ink" : "text-ink-dim"}`}
+                            className={`text-right ${c.dim ? "col-dim hidden sm:table-cell" : c.key ? "font-bold text-ink" : "text-ink-dim"}`}
                           >
                             {c.get(r) ?? "—"}
                           </td>
@@ -575,7 +575,7 @@ export default async function PlayerPage({
                         <td
                           key={c.label}
                           className={`text-right px-2 py-2.5 tnum border-t border-rule-strong bg-board-3 ${
-                            c.dim ? "text-ink-faint" : c.key ? "font-bold text-goal" : "text-ink font-semibold"
+                            c.dim ? "text-ink-faint hidden sm:table-cell" : c.key ? "font-bold text-goal" : "text-ink font-semibold"
                           }`}
                         >
                           {c.get(totals) ?? "—"}
@@ -587,8 +587,8 @@ export default async function PlayerPage({
             </DataTable>
             <Disclosure label="Legend" className="mt-2">
               {isGoalie
-                ? "W-L-OTL is tracked for live seasons only (— for imported seasons). GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved."
-                : "PEN = penalties committed. PS = penalty shots taken; PSG = penalty shots scored."}
+                ? "W-L-OTL is tracked for live seasons only (— for imported seasons). GA includes penalty-shot goals. PSF = penalty shots faced (shown on wider screens); PSV = penalty shots saved."
+                : "PEN = penalties committed. PS = penalty shots taken; PSG = penalty shots scored. PEN, PS and PSG show on wider screens."}
             </Disclosure>
           </>
         )}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { useRef, useState, useMemo, type ReactNode } from "react";
 import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
 import { TeamTag } from "./TeamBadge";
+import { paginate } from "@/lib/paginate";
 
 type Team = { name: string; slug: string; color: string };
 
@@ -64,8 +65,8 @@ const skaterCols: Column<Skater>[] = [
 const goalieCols: Column<Goalie>[] = [
   { key: "gp", label: "GP", title: "Games played", defaultDir: "desc" },
   { key: "w", label: "W", title: "Wins", defaultDir: "desc" },
-  { key: "l", label: "L", title: "Losses", defaultDir: "asc" },
-  { key: "otl", label: "OTL", title: "Overtime/shootout losses", defaultDir: "asc" },
+  { key: "l", label: "L", title: "Losses", defaultDir: "asc", secondary: true },
+  { key: "otl", label: "OTL", title: "Overtime/shootout losses", defaultDir: "asc", secondary: true },
   { key: "ga", label: "GA", title: "Goals against", defaultDir: "asc" },
   { key: "ps_faced", label: "PSF", title: "Penalty shots faced", defaultDir: "desc", secondary: true },
   { key: "ps_saved", label: "PSV", title: "Penalty shots saved", defaultDir: "desc", primary: true },
@@ -100,6 +101,7 @@ function StatTable<T extends Row>({
   noun,
   caption,
   empty,
+  pageSize,
 }: {
   rows: T[];
   cols: Column<T>[];
@@ -107,10 +109,19 @@ function StatTable<T extends Row>({
   noun: string;
   caption: string;
   empty: string;
+  /** Show this many rows per page (all rows when omitted). */
+  pageSize?: number;
 }) {
   const [sortKey, setSortKey] = useState<string>(initialSort);
   const [dir, setDir] = useState<Direction>("desc");
   const [moreCols, setMoreCols] = useState(false);
+  const [pageReq, setPageState] = useState(1);
+  const top = useRef<HTMLDivElement>(null);
+  // Changing page brings the table's first row back into view.
+  const setPage = (n: number) => {
+    setPageState(n);
+    requestAnimationFrame(() => top.current?.scrollIntoView({ block: "start" }));
+  };
 
   const sorted = useMemo(() => {
     const copy = [...rows];
@@ -123,7 +134,11 @@ function StatTable<T extends Row>({
     return copy;
   }, [rows, sortKey, dir]);
 
+  const view = pageSize ? paginate(sorted, pageReq, pageSize) : { rows: sorted, page: 1, pages: 1 };
+  const offset = pageSize ? (view.page - 1) * pageSize : 0;
+
   const sortBy = (key: string, defaultDir: Direction) => {
+    setPageState(1);
     if (sortKey === key) setDir((d) => (d === "desc" ? "asc" : "desc"));
     else {
       setSortKey(key);
@@ -161,7 +176,7 @@ function StatTable<T extends Row>({
   };
 
   return (
-    <div>
+    <div ref={top} style={{ scrollMarginTop: "calc(var(--header-h) + 12px)" }}>
       {/* Mobile sort chips */}
       <div className="sm:hidden mb-3 flex items-center gap-2 overflow-x-auto pb-1" role="group" aria-label={`Sort ${noun}`}>
         <span className="eyebrow shrink-0">Sort</span>
@@ -175,7 +190,7 @@ function StatTable<T extends Row>({
                 type="button"
                 aria-pressed={active}
                 onClick={() => sortBy(c.key, c.defaultDir)}
-                className={`shrink-0 inline-flex items-center gap-1 min-h-[44px] px-3 rounded-full border text-[14px] font-semibold transition-colors ${
+                className={`shrink-0 inline-flex items-center justify-center gap-1 min-h-[44px] min-w-[44px] px-3 rounded-full border text-[14px] font-semibold transition-colors ${
                   active ? "bg-ice text-board border-ice" : "border-rule-strong text-ink-dim hover:text-ink"
                 }`}
               >
@@ -193,7 +208,7 @@ function StatTable<T extends Row>({
               {th("name", noun === "goalies" ? "Goalie" : "Player", "name", "asc", "", "left")}
               {th("team", "Team", "team", "asc", "hidden sm:table-cell w-20", "left")}
               {cols.map((c) =>
-                th(c.key, c.label, c.title, c.defaultDir, `${c.secondary ? `${secondaryVis} col-dim` : ""} w-10 sm:w-14`, "right"),
+                th(c.key, c.label, c.title, c.defaultDir, `${c.secondary ? `${secondaryVis} col-dim` : ""} w-11 sm:w-14`, "right"),
               )}
             </tr>
           </thead>
@@ -205,7 +220,8 @@ function StatTable<T extends Row>({
                 </td>
               </tr>
             ) : (
-              sorted.map((r, i) => {
+              view.rows.map((r, idx) => {
+                const i = offset + idx;
                 const medal = isLeaderboard && i < 3 ? i : null;
                 return (
                   <tr key={r.id}>
@@ -260,6 +276,29 @@ function StatTable<T extends Row>({
             )}
           </tbody>
       </DataTable>
+      {view.pages > 1 && (
+        <nav aria-label={`${noun} pages`} className="mt-2 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setPage(view.page - 1)}
+            disabled={view.page === 1}
+            className="min-h-[44px] min-w-[44px] px-4 rounded-md border border-rule-strong text-[14px] font-semibold text-ink hover:bg-board-3 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          >
+            <span aria-hidden>←</span> Prev
+          </button>
+          <span className="text-[14px] text-ink-faint" aria-live="polite">
+            Page {view.page} of {view.pages} · {sorted.length} {noun}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(view.page + 1)}
+            disabled={view.page === view.pages}
+            className="min-h-[44px] min-w-[44px] px-4 rounded-md border border-rule-strong text-[14px] font-semibold text-ink hover:bg-board-3 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          >
+            Next <span aria-hidden>→</span>
+          </button>
+        </nav>
+      )}
       {hasSecondary && (
         <button
           type="button"
@@ -283,9 +322,10 @@ function Trophy() {
   );
 }
 
-export function SkaterTable({ rows }: { rows: Skater[] }) {
+export function SkaterTable({ rows, pageSize }: { rows: Skater[]; pageSize?: number }) {
   return (
     <StatTable
+      pageSize={pageSize}
       rows={rows}
       cols={skaterCols}
       initialSort="points"
@@ -296,9 +336,10 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
   );
 }
 
-export function GoalieTable({ rows }: { rows: Goalie[] }) {
+export function GoalieTable({ rows, pageSize }: { rows: Goalie[]; pageSize?: number }) {
   return (
     <StatTable
+      pageSize={pageSize}
       rows={rows}
       cols={goalieCols}
       initialSort="ps_saved"

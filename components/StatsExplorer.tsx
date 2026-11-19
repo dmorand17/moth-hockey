@@ -6,6 +6,7 @@ import { SectionHeader } from "./SectionHeader";
 import { SeasonSelect } from "./SeasonSelect";
 import { AwardWinners, type AwardWinnerGroup } from "./AwardWinners";
 import { Disclosure } from "./Disclosure";
+import { ScrollFade } from "./ScrollFade";
 import {
   SkaterTable,
   GoalieTable,
@@ -230,6 +231,20 @@ export function StatsExplorer({
     };
   }, [skaters]);
 
+  const awards = (layout: "grid" | "row") =>
+    awardWinners.length > 0 ? (
+      <section>
+        <SectionHeader eyebrow="The hardware" title="Award winners" />
+        <AwardWinners awards={awardWinners} layout={layout} />
+      </section>
+    ) : (
+      awardsPending && (
+        <p className="text-[14px] text-ink-faint">
+          <span className="font-semibold text-ink-dim">Awards</span> are announced at the end of the season.
+        </p>
+      )
+    );
+
   return (
     <>
       <div className="rise">
@@ -250,25 +265,16 @@ export function StatsExplorer({
             </>
           }
         />
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} />
-          <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} />
-          <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} />
+        {/* lg+: leaders and award winners side by side above the tables. */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <LeaderTile label="Goals" leader={leaders.goals} stat={leaders.goals?.goals ?? 0} />
+            <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} />
+            <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} />
+          </div>
+          <div className="hidden lg:block">{awards("grid")}</div>
         </div>
       </div>
-
-      {awardWinners.length > 0 ? (
-        <section className="rise delay-1">
-          <SectionHeader eyebrow="The hardware" title="Award winners" />
-          <AwardWinners awards={awardWinners} />
-        </section>
-      ) : (
-        awardsPending && (
-          <p className="rise delay-1 text-[14px] text-ink-faint">
-            <span className="font-semibold text-ink-dim">Awards</span> are announced at the end of the season.
-          </p>
-        )
-      )}
 
       <FilterBar
         teams={teams}
@@ -307,6 +313,9 @@ export function StatsExplorer({
           W-L-OTL isn&apos;t available for imported seasons. GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved. Position filter does not apply.
         </Legend>
       </section>
+
+      {/* Below lg: award winners after the tables, as a swipeable row. */}
+      <div className="lg:hidden">{awards("row")}</div>
     </>
   );
 }
@@ -348,8 +357,10 @@ function FilterBar({
   };
 
   return (
-    <div role="toolbar" aria-label="Filter stats" className="rise delay-1 panel-bare px-3 py-3 sm:px-4">
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+    <div role="toolbar" aria-label="Filter stats" className="rise delay-1 panel-bare py-3">
+      <ScrollFade className="px-3 sm:px-4">
+      {/* Phones: one swipeable row; wraps from sm. */}
+      <div className="flex flex-nowrap sm:flex-wrap items-center gap-x-5 gap-y-3 w-max sm:w-auto">
         <FilterField label="Position">
           <SegmentedFilter<PositionFilter>
             value={position}
@@ -398,6 +409,7 @@ function FilterBar({
           Reset
         </button>
       </div>
+      </ScrollFade>
     </div>
   );
 }
@@ -405,7 +417,7 @@ function FilterBar({
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="inline-flex items-center gap-2" role="group" aria-label={label}>
-      <span className="eyebrow w-[4.5rem] sm:w-auto">{label}</span>
+      <span className="eyebrow">{label}</span>
       {children}
     </div>
   );
@@ -420,9 +432,9 @@ function LeaderTile({ label, leader, stat }: { label: string; leader: Skater | n
           <div className="digit text-[32px] sm:text-[44px] leading-none text-gold">{stat}</div>
           <Link
             href={`/players/${leader.id}`}
-            className="mt-1 text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors line-clamp-2 break-words"
+            className="flex items-center min-h-[44px] text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors"
           >
-            {leader.name}
+            <span className="line-clamp-2 break-words">{leader.name}</span>
           </Link>
           {leader.team && (
             <div className="flex items-start gap-1.5 min-w-0">
@@ -459,7 +471,7 @@ function SegmentedFilter<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`px-3 text-[14px] font-semibold transition-colors min-h-[44px] ${
+            className={`px-3 min-w-[44px] text-[14px] font-semibold transition-colors min-h-[44px] ${
               active ? "bg-ice text-board" : "text-ink-dim hover:text-ink hover:bg-board-3"
             } ${i > 0 ? "border-l border-rule-strong" : ""}`}
             aria-pressed={active}

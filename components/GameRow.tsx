@@ -90,6 +90,8 @@ export function GameRow({
         {/* Mobile: two stacked team lines + status column */}
         <div className={`${stacked ? "" : "sm:hidden "}flex items-center gap-3`}>
           <div className="flex-1 min-w-0 space-y-1">
+            {/* Playoff label gets its own line: the status column is too narrow. */}
+            {playoff && <div>{playoff}</div>}
             {[away, home].map((side, i) => (
               <div key={i} className="flex items-center gap-2">
                 <Bar team={side.team} />
@@ -107,7 +109,6 @@ export function GameRow({
           <div className="shrink-0 w-[5.5rem] flex flex-col items-end gap-1 text-right">
             {status_}
             {showDate && <span className="text-[12px] text-ink-faint">{formatDate(scheduled_at)}</span>}
-            {playoff}
           </div>
         </div>
 
@@ -146,6 +147,45 @@ export function GameRow({
         )}
       </Link>
     </li>
+  );
+}
+
+// Compact card for horizontal strips (home "Scores" on phones). Same props
+// as GameRow; always shows the date.
+export function GameCard(props: Props) {
+  const { id, scheduled_at, status, home_team, away_team, home_score, away_score, decided_in, kind, playoff_round } = props;
+  const isFinal = status === "final";
+  const showScore = isFinal || status === "live";
+  const sides: Side[] = [
+    { team: away_team, score: away_score, won: isFinal && (away_score ?? 0) > (home_score ?? 0) },
+    { team: home_team, score: home_score, won: isFinal && (home_score ?? 0) > (away_score ?? 0) },
+  ];
+  return (
+    <Link
+      href={`/games/${id}`}
+      className="panel block w-[200px] shrink-0 p-3 hover:bg-board-hover hover:border-rule-strong transition-colors"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] text-ink-faint">{formatDate(scheduled_at)}</span>
+        <StatusChip status={status} decidedIn={decided_in} scheduledAt={scheduled_at} />
+      </div>
+      {kind === "playoff" && (
+        <div className="mt-1.5">
+          <PlayoffChip round={playoff_round} />
+        </div>
+      )}
+      <div className="mt-2 space-y-1">
+        {sides.map((side, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Bar team={side.team} />
+            <span className={`flex-1 min-w-0 truncate text-[15px] ${teamTone(side, isFinal)}`}>
+              {side.team?.name ?? "TBD"}
+            </span>
+            {showScore && <span className={`digit text-[17px] ${scoreTone(side)}`}>{side.score ?? 0}</span>}
+          </div>
+        ))}
+      </div>
+    </Link>
   );
 }
 

@@ -22,8 +22,13 @@
   --loss: #f87171;
   --otl: #fbbf24;
 
-  /* Sticky site header height — sticky table heads and anchors sit below it. */
-  --header-h: 106px;
+  /* Sticky site header height — sticky table heads and anchors sit below it.
+     Phones: one 56px row + 1px border (+ notch). MobileHeaderController sets
+     it to 0px while the header is hidden on scroll. */
+  --header-h: calc(57px + env(safe-area-inset-top));
+  --bottom-nav-h: calc(57px + env(safe-area-inset-bottom)); /* 56px row + 1px border */
+  /* 1 while the site header is on screen, 0 while it's hidden on scroll. */
+  --header-shown: 1;
 }
 @media (min-width: 768px) {
   :root {
@@ -66,6 +71,9 @@ html {
 }
 
 body {
+  /* viewport-fit=cover: keep content clear of the notch in landscape. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -73,6 +81,30 @@ body {
   background: var(--board);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Phones: the header slides away on scroll down; the bottom tab bar is
+   fixed, so the page reserves room for it. */
+@media (max-width: 767px) {
+  body > header {
+    transition: transform 0.2s ease;
+  }
+  body > header[data-hidden="true"] {
+    transform: translateY(-100%);
+  }
+  .sticky,
+  table.board-table.sticky-head thead th {
+    transition: top 0.2s ease;
+  }
+  body {
+    padding-bottom: var(--bottom-nav-h);
+  }
+  body.chrome-off {
+    padding-bottom: 0;
+  }
+}
+body.chrome-off > [data-bottom-nav] {
+  display: none !important;
 }
 
 /* Anchored sections land below the sticky header. */
@@ -367,6 +399,27 @@ table.board-table.dense tbody td {
 table.board-table .col-dim { color: var(--ink-faint); }
 
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Horizontal scroller hint: a right-edge fade until the end is reached. */
+.scroll-fade {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-fade > * > * {
+  scroll-snap-align: start;
+}
+.scroll-fade:not([data-end="true"]) {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+/* Phones: tighter cell padding so primary columns fit at 360px. */
+@media (max-width: 639px) {
+  table.board-table thead th,
+  table.board-table tbody td {
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+  }
+}
 
 /* Visible, on-brand keyboard focus. The browser default ring is a faint 1px
    on the near-black board; this makes focus obvious and matches the palette.

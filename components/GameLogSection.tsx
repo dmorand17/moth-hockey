@@ -7,7 +7,7 @@ import { TeamBadge, TeamTag } from "@/components/TeamBadge";
 import { ResultChip } from "@/components/Chips";
 import { PlayoffChip } from "@/components/PlayoffChip";
 import { EmptyState } from "@/components/EmptyState";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatShortDate } from "@/lib/format";
 
 const PAGE_SIZE = 10;
 
@@ -98,7 +98,10 @@ export function GameLogSection({
                       href={`/games/${row.game_id}`}
                       className="flex flex-col justify-center min-h-[44px] text-ink hover:text-ice transition-colors"
                     >
-                      <span className="whitespace-nowrap text-[14px]">{formatDate(row.scheduled_at)}</span>
+                      <span className="whitespace-nowrap text-[14px]">
+                        <span className="sm:hidden">{formatShortDate(row.scheduled_at)}</span>
+                        <span className="hidden sm:inline">{formatDate(row.scheduled_at)}</span>
+                      </span>
                       {(row.is_sub || row.kind === "playoff") && (
                         <span className="flex gap-1 mt-0.5">
                           {row.is_sub && (

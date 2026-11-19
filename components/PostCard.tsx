@@ -10,9 +10,9 @@ import type { ActionResult } from "@/lib/action-result";
 import { BODY_MAX, type Post, type PostTeam } from "@/lib/board";
 
 const pill =
-  "min-h-8 px-3.5 rounded-full text-[13px] font-semibold border border-rule-strong text-ink-dim hover:text-ink hover:bg-board-3 transition-colors disabled:opacity-50";
+  "min-h-11 px-4 rounded-full text-[14px] font-semibold border border-rule-strong text-ink-dim hover:text-ink hover:bg-board-3 transition-colors disabled:opacity-50";
 const savePill =
-  "min-h-8 px-4 rounded-full text-[13px] font-bold bg-ice text-board hover:brightness-110 transition disabled:opacity-40";
+  "min-h-11 px-5 rounded-full text-[14px] font-bold bg-ice text-board hover:brightness-110 transition disabled:opacity-40";
 
 const icons = {
   reply: "M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z",
@@ -48,7 +48,7 @@ function Action({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className={`group inline-flex items-center gap-0.5 text-[13px] text-ink-faint transition-colors disabled:opacity-50 ${hover}`}
+      className={`group inline-flex items-center gap-0.5 min-h-11 min-w-11 text-[13px] text-ink-faint transition-colors disabled:opacity-50 ${hover}`}
     >
       <span className="grid place-items-center h-8 w-8 -ml-2 rounded-full transition-colors">
         <svg

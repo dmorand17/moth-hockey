@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SectionHeader } from "@/components/SectionHeader";
 import { PlayoffChip } from "@/components/PlayoffChip";
-import { TeamBadge, TeamTag } from "@/components/TeamBadge";
+import { TeamBadge } from "@/components/TeamBadge";
 import { StatusChip } from "@/components/Chips";
 import { CheckInToggle } from "@/components/CheckInToggle";
 import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
@@ -524,6 +524,7 @@ export default async function GamePage({
           {
             id: "box-score",
             label: "Box Score",
+            shortLabel: "Box",
             content: (
               <>
                 {(isLive || isFinal) && box && hasLineup ? (
@@ -538,6 +539,7 @@ export default async function GamePage({
           {
             id: "play-by-play",
             label: "Play-by-Play",
+            shortLabel: "Plays",
             content: (
               <>
         {events.length === 0 ? (
@@ -560,7 +562,7 @@ export default async function GamePage({
                               {isGoal ? "Goal" : "Penalty"}
                             </span>
                             {e.scorer && (
-                              <Link href={`/players/${e.scorer.id}`} className="font-semibold text-ink hover:text-ice transition-colors">
+                              <Link href={`/players/${e.scorer.id}`} className="inline-flex items-center min-h-[44px] font-semibold text-ink hover:text-ice transition-colors">
                                 {e.scorer.first_name} {e.scorer.last_name}
                               </Link>
                             )}
@@ -578,7 +580,7 @@ export default async function GamePage({
                           {!isGoal && e.shooter && (
                             <p className="text-[14px] leading-5 text-ink-faint">
                               Penalty shot:{" "}
-                              <Link href={`/players/${e.shooter.id}`} className="text-ink-dim hover:text-ice transition-colors">
+                              <Link href={`/players/${e.shooter.id}`} className="inline-flex items-center min-h-[44px] text-ink-dim hover:text-ice transition-colors">
                                 {e.shooter.first_name} {e.shooter.last_name}
                               </Link>{" "}
                               —{" "}
@@ -588,10 +590,7 @@ export default async function GamePage({
                             </p>
                           )}
                         </div>
-                        <span className="sm:hidden">
-                          <TeamTag name={team.name} color={team.color} />
-                        </span>
-                        <span className="hidden sm:inline-flex items-center gap-1.5 text-[13px] text-ink-faint">
+                        <span className="inline-flex items-center gap-1.5 text-[13px] leading-4 text-ink-faint text-right max-w-[6.5rem] sm:max-w-none">
                           <span aria-hidden className="swatch h-2 w-2 rounded-full" style={{ background: team.color }} />
                           {team.name}
                         </span>
@@ -606,7 +605,7 @@ export default async function GamePage({
               </>
             ),
           },
-          { id: "discussion", label: "Discussion", content: discussionSection },
+          { id: "discussion", label: "Discussion", shortLabel: "Chat", content: discussionSection },
         ]}
       />
     </div>
@@ -670,7 +669,7 @@ function AvailGroup({
       <ul className="mt-1 space-y-0.5">
         {players.map((p) => (
           <li key={p.id} className="text-[14px] text-ink-dim">
-            <Link href={`/players/${p.id}`} className="inline-flex items-center min-h-[32px] hover:text-ink transition-colors">
+            <Link href={`/players/${p.id}`} className="inline-flex items-center min-h-[44px] hover:text-ink transition-colors">
               {p.name}
               {p.jersey != null ? ` · #${p.jersey}` : ""}
             </Link>
@@ -711,7 +710,7 @@ function TeamColumn({
         </div>
         <Link
           href={`/teams/${team.slug}`}
-          className={`block font-display text-[28px] leading-8 md:text-[36px] md:leading-10 tracking-[0.02em] hover:text-ice transition-colors ${
+          className={`flex items-center min-h-[44px] ${align === "right" ? "md:justify-end" : ""} font-display text-[28px] leading-8 md:text-[36px] md:leading-10 tracking-[0.02em] hover:text-ice transition-colors ${
             dimmed ? "text-ink-dim" : "text-ink"
           }`}
         >

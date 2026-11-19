@@ -22,7 +22,7 @@ export function WriteUpCard({ writeUp, footer, admin }: { writeUp: WriteUp; foot
       <h2 className="font-display text-[26px] leading-[30px] md:text-[32px] md:leading-[36px] tracking-[0.02em] text-ink max-w-[30ch]">
         {writeUp.headline}
       </h2>
-      <div className="space-y-3 text-[16px] leading-[1.65] text-ink-dim max-w-[75ch]">
+      <div className="space-y-3 text-[16px] leading-[1.65] text-ink-dim max-w-[75ch] lg:max-w-none lg:columns-2 lg:gap-10 lg:[&>p]:break-inside-avoid">
         {writeUp.body.split(/\n{2,}/).map((p, i) => (
           <p key={i}>{p}</p>
         ))}

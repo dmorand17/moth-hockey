@@ -80,7 +80,7 @@ export function PostThread({
               <li key={t.id} className="px-4 pt-3 pb-2 hover:bg-board-hover transition-colors">
                 {card(t, { replyCount: t.replies.length })}
                 {t.replies.length > 0 && (
-                  <ol className="relative mt-1 space-y-3 pb-1 pl-[52px] before:absolute before:left-[19px] before:-top-1 before:bottom-5 before:w-0.5 before:rounded-full before:bg-rule-strong">
+                  <ol className="relative mt-2 space-y-4 pb-2 pl-[52px] before:absolute before:left-[19px] before:-top-1 before:bottom-5 before:w-0.5 before:rounded-full before:bg-rule-strong">
                     {t.replies.map((r) => (
                       <li key={r.id}>{card(r, { size: "sm" })}</li>
                     ))}

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { doubleTapZoom, lightboxGesture, mediaKind, neighbors, pinchZoom, stepIndex, swipeDir } from "@/lib/media";
+import { clampPan, doubleTapZoom, lightboxGesture, mediaKind, neighbors, pinchZoom, stepIndex, swipeDir } from "@/lib/media";
 import type { SeasonMedia } from "@/lib/queries";
 
 export const altFor = (m: SeasonMedia, seasonName: string) => m.caption || `Photo from ${seasonName}`;
@@ -35,6 +35,15 @@ export function Lightbox({
   const pointers = useRef(new Map<number, Pt>());
   const gesture = useRef<{ start: Pt; pan: Pt; moved: number; pinch?: { dist: number; scale: number }; ignore: boolean } | null>(null);
   const lastTap = useRef(0);
+  const backdropTap = useRef(false);
+  const stage = useRef<HTMLDivElement>(null);
+
+  // Forget zoom and in-flight touches (on close and when changing items).
+  const reset = () => {
+    setZoomState({ for: -1, scale: 1, x: 0, y: 0 });
+    pointers.current.clear();
+    gesture.current = null;
+  };
 
   const open = index !== null;
   const current = open ? items[index] : null;
@@ -57,7 +66,11 @@ export function Lightbox({
     };
   }, [open]);
 
-  const step = (dir: -1 | 1) => index !== null && many && onIndex(stepIndex(index, dir, items.length));
+  const step = (dir: -1 | 1) => {
+    if (index === null || !many) return;
+    reset();
+    onIndex(stepIndex(index, dir, items.length));
+  };
   const dist = () => {
     const [a, b] = [...pointers.current.values()];
     return Math.hypot(a.x - b.x, a.y - b.y);
@@ -86,13 +99,23 @@ export function Lightbox({
     const dx = e.clientX - g.start.x;
     const dy = e.clientY - g.start.y;
     g.moved = Math.max(g.moved, Math.hypot(dx, dy));
-    if (zoom.scale > 1) setZoom((z) => ({ ...z, x: g.pan.x + dx, y: g.pan.y + dy }));
+    if (zoom.scale > 1) {
+      const box = stage.current?.getBoundingClientRect();
+      setZoom((z) => ({ ...z, ...clampPan(g.pan.x + dx, g.pan.y + dy, z.scale, box?.width ?? 0, box?.height ?? 0) }));
+    }
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
     pointers.current.delete(e.pointerId);
     const g = gesture.current;
-    if (!g || pointers.current.size > 0) return;
+    if (!g) return;
+    if (pointers.current.size === 1 && g.pinch) {
+      // One finger left after a pinch: pan from where it is now, no jump.
+      const [rest] = [...pointers.current.values()];
+      gesture.current = { start: rest, pan: { x: zoom.x, y: zoom.y }, moved: 99, ignore: false };
+      return;
+    }
+    if (pointers.current.size > 0) return;
     gesture.current = null;
     if (g.ignore || g.pinch) return;
 
@@ -105,7 +128,9 @@ export function Lightbox({
           lastTap.current = 0;
         } else lastTap.current = now;
       } else if (!(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLVideoElement)) {
-        dialog.current?.close(); // tap on the backdrop
+        // Close on the click that follows, so the tap can't fall through
+        // to whatever is under it on the page.
+        backdropTap.current = true;
       }
       return;
     }
@@ -121,7 +146,10 @@ export function Lightbox({
   return (
     <dialog
       ref={dialog}
-      onClose={onClose}
+      onClose={() => {
+        reset();
+        onClose();
+      }}
       aria-label={current ? altFor(current, seasonName) : "Media viewer"}
       onKeyDown={(e) => {
         if (!lightboxGesture({ kind: "key", onVideo: e.target instanceof HTMLVideoElement })) return;
@@ -144,6 +172,11 @@ export function Lightbox({
             </button>
           </div>
           <div
+            ref={stage}
+            onClick={() => {
+              if (backdropTap.current) dialog.current?.close();
+              backdropTap.current = false;
+            }}
             className="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden touch-none select-none"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}

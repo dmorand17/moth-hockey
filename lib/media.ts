@@ -135,3 +135,12 @@ export function neighbors(i: number, length: number): number[] {
   if (length < 2) return [];
   return [...new Set([stepIndex(i, -1, length), stepIndex(i, 1, length)])].filter((n) => n !== i);
 }
+
+// Keeps a zoomed photo from being dragged off the stage: at `scale` it can
+// move at most half its overflow in each direction; unzoomed it can't move.
+export function clampPan(x: number, y: number, scale: number, width: number, height: number): { x: number; y: number } {
+  const mx = ((scale - 1) * width) / 2;
+  const my = ((scale - 1) * height) / 2;
+  const clamp = (v: number, m: number) => (m <= 0 ? 0 : Math.max(-m, Math.min(m, v)));
+  return { x: clamp(x, mx), y: clamp(y, my) };
+}

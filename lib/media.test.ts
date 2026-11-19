@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   checkUploadRequest,
+  clampPan,
   clampZoom,
   doubleTapZoom,
   mediaAspect,
@@ -160,4 +161,11 @@ describe("lightbox zoom and preload", () => {
     expect(neighbors(0, 1)).toEqual([]);
     expect(neighbors(0, 2)).toEqual([1]);
   });
+});
+
+test("clampPan keeps a zoomed photo on screen", () => {
+  // 2x on a 400x300 stage: may move up to half the overflow each way.
+  expect(clampPan(500, -500, 2, 400, 300)).toEqual({ x: 200, y: -150 });
+  expect(clampPan(50, 20, 2, 400, 300)).toEqual({ x: 50, y: 20 });
+  expect(clampPan(80, 80, 1, 400, 300)).toEqual({ x: 0, y: 0 });
 });

@@ -17,7 +17,7 @@ set -euo pipefail
 # Prefer the generic SUPABASE_DB_URL (per-env files); fall back to the older
 # STAGING_DB_URL for back-compat.
 db_url="${SUPABASE_DB_URL:-${STAGING_DB_URL:-}}"
-: "${db_url:?set SUPABASE_DB_URL to the Supabase Session-pooler connection string (see .env.staging.example)}"
+: "${db_url:?set SUPABASE_DB_URL to the Supabase Session-pooler connection string (see .env.example)}"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 

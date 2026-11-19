@@ -110,7 +110,7 @@ path. It isn't worth that today.
 
 In the Vercel project, add these to the target environment (**Production** /
 **Preview**), as plain server vars — **not** `NEXT_PUBLIC_*`. See
-`.env.production.example` for the full list:
+`.env.example` (the "App" section) for the full list:
 
 - `NEW_USER_WEBHOOK_SECRET` — a random shared secret (also set as the webhook
   header below)

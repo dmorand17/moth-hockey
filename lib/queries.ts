@@ -4,6 +4,7 @@ import { boardSeasonWindow, buildThreads, pickTeams, type AuthorRow, type BoardS
 import { groupAwards, type AwardWinnerGroup } from "./awards";
 import { recapState, seasonSlug, type RecapSeason } from "./seasons";
 import type { RecapGame } from "./season-recap";
+import type { RecapFacts } from "./recap-summary/facts";
 import {
   championTeamId,
   type FinalizeAppearance,
@@ -648,5 +649,42 @@ export async function getSeasonRecap(slug: string, today = new Date().toISOStrin
     awards: groupAwards((awardRows ?? []) as unknown as Parameters<typeof groupAwards>[0]),
     storedTotals,
     board: { threads: board.threads, from: window?.from ?? null, to: window?.to ?? null },
+  };
+}
+
+export type RecapSummaryRow = {
+  markdown: string;
+  input: RecapFacts;
+  model: string;
+  generated_at: string;
+  edited_at: string | null;
+  published?: boolean;
+};
+
+// The season's AI summary. RLS decides what comes back: everyone gets a
+// published summary; only admins get an unpublished one and the draft.
+export async function getRecapSummary(seasonId: string): Promise<{ published: RecapSummaryRow | null; draft: RecapSummaryRow | null }> {
+  const supabase = await createSupabaseServerClient();
+  const [pub, draft] = await Promise.all([
+    supabase
+      .from("season_recaps")
+      .select("summary_markdown, input, model, generated_at, edited_at, published")
+      .eq("season_id", seasonId)
+      .maybeSingle(),
+    supabase
+      .from("season_recap_drafts")
+      .select("draft_markdown, input, model, generated_at, edited_at")
+      .eq("season_id", seasonId)
+      .maybeSingle(),
+  ]);
+  if (pub.error) throw pub.error;
+  if (draft.error) throw draft.error;
+  return {
+    published: pub.data
+      ? { markdown: pub.data.summary_markdown, input: pub.data.input as RecapFacts, model: pub.data.model, generated_at: pub.data.generated_at, edited_at: pub.data.edited_at, published: pub.data.published }
+      : null,
+    draft: draft.data
+      ? { markdown: draft.data.draft_markdown, input: draft.data.input as RecapFacts, model: draft.data.model, generated_at: draft.data.generated_at, edited_at: draft.data.edited_at }
+      : null,
   };
 }

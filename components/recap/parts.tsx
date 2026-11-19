@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { GameList, GameRow } from "@/components/GameRow";
 import { SectionHeader } from "@/components/SectionHeader";
+import { BigNightsList, type BigNightRow } from "@/components/recap/BigNightsList";
+import { HatTrickChips } from "@/components/recap/HatTrickChips";
+import { ScrollFade } from "@/components/ScrollFade";
 import { formatShortDate } from "@/lib/format";
 import type { SeasonTotals } from "@/lib/season-finalize";
 import { describeMoment, topGoalies, topSkaters, type Moment, type Names, type RecapGame, type SeasonNumbers } from "@/lib/season-recap";
@@ -109,13 +112,15 @@ const pts = (t: SeasonTotals) => String(t.goals + t.assists);
 const gaa = (t: SeasonTotals) => ((t.goals_against ?? 0) / t.games_played).toFixed(2);
 
 export function RecapLeaders({
+  title,
   eyebrow,
   totals,
   minGoalieGames,
   names,
   skaterKeys = ["points", "goals", "assists"],
 }: {
-  eyebrow: string;
+  title: string;
+  eyebrow?: string;
   totals: SeasonTotals[];
   minGoalieGames: number;
   names: Names;
@@ -132,66 +137,80 @@ export function RecapLeaders({
   if (lists.every((l) => l.rows.length === 0) && goalies.length === 0) return null;
   return (
     <section>
-      <SectionHeader eyebrow={eyebrow} title="Leaders" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {lists.map((l) => (
-          <LeaderList key={l.key} title={l.title} rows={l.rows} value={l.value} unit={l.unit} names={names} />
-        ))}
-        <LeaderList title="Goalies · GAA" rows={goalies} value={gaa} unit="GAA" names={names} />
-      </div>
+      <SectionHeader eyebrow={eyebrow} title={title} />
+      {/* Phones: a swipe row of category cards (next one peeks); grid from sm. */}
+      <ScrollFade className="-mx-4 sm:mx-0">
+        <div className="flex gap-3 px-4 pb-1 snap-x sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+          {lists
+            .filter((l) => l.rows.length > 0)
+            .map((l) => (
+              <div key={l.key} className="w-[270px] shrink-0 snap-start sm:w-auto">
+                <LeaderList title={l.title} rows={l.rows} value={l.value} unit={l.unit} names={names} />
+              </div>
+            ))}
+          {goalies.length > 0 && (
+            <div className="w-[270px] shrink-0 snap-start sm:w-auto">
+              <LeaderList title="Goalies · GAA" rows={goalies} value={gaa} unit="GAA" names={names} />
+            </div>
+          )}
+        </div>
+      </ScrollFade>
     </section>
   );
 }
 
-export function RecapMoments({ eyebrow, moments, games, names }: { eyebrow: string; moments: Moment[]; games: RecapGame[]; names: Names }) {
+export function RecapMoments({
+  title,
+  eyebrow,
+  moments,
+  games,
+  names,
+}: {
+  title: string;
+  eyebrow?: string;
+  moments: Moment[];
+  games: RecapGame[];
+  names: Names;
+}) {
   if (moments.length === 0) return null;
+  // Several win streaks share one card instead of a card each.
+  const streaks = moments.filter((m) => m.kind === "win-streak").sort((a, b) => b.value - a.value);
+  const display = streaks.length > 1 ? moments.filter((m) => m.kind !== "win-streak") : moments;
   const byId = new Map(games.map((g) => [g.id, g]));
   const player = (id: string) => names.players.get(id)?.name ?? "A player";
   const team = (id: string | null) => (id ? names.teams.get(id)?.name : undefined) ?? "TBD";
   return (
     <section>
-      <SectionHeader eyebrow={eyebrow} title="Notable moments" />
+      <SectionHeader eyebrow={eyebrow} title={title} />
       <ul className="grid gap-2 sm:grid-cols-2 items-start">
-        {moments.map((m, i) => {
+        {display.map((m, i) => {
           const key = `${m.kind}-${m.gameId}-${m.playerId ?? m.teamId}-${i}`;
           const { label, text } = describeMoment(m, byId.get(m.gameId ?? ""), names, byId);
 
-          // Collapsed cards: one row per player (hat tricks) or per game (big nights).
-          if (m.kind === "hat-tricks" || m.kind === "big-nights") {
+          // Hat tricks: wrapped name chips. Big nights: top 5 + "Show all".
+          if (m.kind === "hat-tricks") {
             return (
               <li key={key} className="panel p-3 sm:p-4">
                 <span className="eyebrow">{label}</span>
-                <ul className="mt-1 divide-y divide-rule">
-                  {m.kind === "hat-tricks"
-                    ? (m.players ?? []).map((p) => (
-                        <li key={p.playerId} className="flex items-center justify-between gap-3 min-h-11 text-[15px]">
-                          <Link href={`/players/${p.playerId}`} className="font-semibold text-ink hover:text-ice truncate">
-                            {player(p.playerId)}
-                          </Link>
-                          {p.count > 1 && <span className="tnum text-ink-dim">×{p.count}</span>}
-                        </li>
-                      ))
-                    : (m.nights ?? []).map((n) => {
-                        const g = byId.get(n.gameId);
-                        return (
-                          <li key={`${n.gameId}-${n.playerId}`}>
-                            <Link href={`/games/${n.gameId}`} className="flex items-center justify-between gap-3 min-h-11 py-1.5 group">
-                              <span className="min-w-0">
-                                <span className="block text-[15px] font-semibold text-ink group-hover:text-ice">
-                                  {player(n.playerId)} — <span className="tnum">{n.goals}</span> goals
-                                </span>
-                                {g && (
-                                  <span className="block text-[13px] text-ink-faint tnum truncate">
-                                    {team(g.away_team_id)} {g.away_score} – {g.home_score} {team(g.home_team_id)} · {formatShortDate(g.scheduled_at)}
-                                  </span>
-                                )}
-                              </span>
-                              <span aria-hidden className="text-ink-faint group-hover:text-ice">→</span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                </ul>
+                <HatTrickChips chips={(m.players ?? []).map((p) => ({ playerId: p.playerId, name: player(p.playerId), count: p.count }))} />
+              </li>
+            );
+          }
+          if (m.kind === "big-nights") {
+            const rows: BigNightRow[] = (m.nights ?? []).map((n) => {
+              const g = byId.get(n.gameId);
+              return {
+                key: `${n.gameId}-${n.playerId}`,
+                gameId: n.gameId,
+                player: player(n.playerId),
+                goals: n.goals,
+                detail: g ? `${team(g.away_team_id)} ${g.away_score} – ${g.home_score} ${team(g.home_team_id)} · ${formatShortDate(g.scheduled_at)}` : "",
+              };
+            });
+            return (
+              <li key={key} className="panel p-3 sm:p-4">
+                <span className="eyebrow">{label}</span>
+                <BigNightsList rows={rows} />
               </li>
             );
           }
@@ -214,6 +233,19 @@ export function RecapMoments({ eyebrow, moments, games, names }: { eyebrow: stri
             </li>
           );
         })}
+        {streaks.length > 1 && (
+          <li className="panel p-3 sm:p-4">
+            <span className="eyebrow">Win streaks</span>
+            <ul className="mt-1 divide-y divide-rule">
+              {streaks.map((m) => (
+                <li key={m.teamId} className="flex items-center justify-between gap-3 min-h-11 text-[16px]">
+                  <span className="font-semibold text-ink truncate">{team(m.teamId)}</span>
+                  <span className="tnum text-ink-dim">{m.value} straight</span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        )}
       </ul>
     </section>
   );

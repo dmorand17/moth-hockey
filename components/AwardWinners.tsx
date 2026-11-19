@@ -15,14 +15,15 @@ export function AwardWinners({ awards, layout = "grid", totals = [] }: { awards:
   if (awards.length === 0) return null;
 
   return (
-    <Wrap layout={layout}>
+    // Two or fewer awards don't need a swipe row on narrow phones: stack them.
+    <Wrap layout={layout} stack={layout === "row" && awards.length <= 2}>
       {awards.map(({ type, label, winners }) => {
         const style = AWARD_PALETTE[type] ?? DEFAULT_AWARD_STYLE;
         const headline = HEADLINE_AWARDS.has(type);
         return (
           <div
             key={type}
-            className={`panel-bare p-3 sm:p-4 flex items-start gap-3 ${layout === "row" ? "w-[220px] shrink-0" : ""}`}
+            className={`panel-bare p-3 sm:p-4 flex items-start gap-3 ${layout === "row" ? `w-[220px] shrink-0 ${awards.length <= 2 ? "max-[399px]:w-full" : ""}` : ""}`}
             style={{ borderColor: style.border }}
           >
             <span
@@ -69,11 +70,11 @@ function WinnerList({ winners }: { winners: AwardWinnerGroup["winners"] }) {
   );
 }
 
-function Wrap({ layout, children }: { layout: "grid" | "row"; children: ReactNode }) {
+function Wrap({ layout, stack = false, children }: { layout: "grid" | "row"; stack?: boolean; children: ReactNode }) {
   if (layout === "grid") return <div className="grid grid-cols-2 gap-2 sm:gap-3">{children}</div>;
   return (
     <ScrollFade className="-mx-4 sm:mx-0">
-      <div className="flex gap-3 px-4 sm:px-0 pb-1">{children}</div>
+      <div className={`flex gap-3 px-4 sm:px-0 pb-1 ${stack ? "max-[399px]:flex-col" : ""}`}>{children}</div>
     </ScrollFade>
   );
 }

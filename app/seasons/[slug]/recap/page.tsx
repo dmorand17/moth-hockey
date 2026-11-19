@@ -102,7 +102,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         <p className="panel-bare px-4 py-5 text-[16px] text-ink-dim">
           Recap available when the season ends. Here&apos;s how the leaders stand so far.
         </p>
-        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
+        <RecapLeaders title="Regular season leaders" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
       </div>
     );
   }
@@ -219,8 +219,8 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
           </section>
         )}
 
-        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
-        <RecapMoments eyebrow="Regular season" moments={regMoments} games={r.games} names={names} />
+        <RecapLeaders title="Regular season leaders" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
+        <RecapMoments title="Regular season highlights" moments={regMoments} games={r.games} names={names} />
       </div>
 
       {path.length > 0 && (
@@ -228,13 +228,13 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
           <SectionHeader eyebrow={poNumbers ? `${poNumbers.games} games · ${poNumbers.goals} goals` : undefined} title="Playoffs" />
           <RecapPath path={path} names={names} />
           <RecapLeaders
-            eyebrow="Playoffs"
+            title="Playoff leaders"
             totals={playoffTotals}
             minGoalieGames={1}
             names={names}
             skaterKeys={["points"]}
           />
-          <RecapMoments eyebrow="Playoffs" moments={poMoments} games={r.games} names={names} />
+          <RecapMoments title="Playoff highlights" moments={poMoments} games={r.games} names={names} />
         </section>
       )}
 

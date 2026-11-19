@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { ScrollFade } from "./ScrollFade";
 import { AWARD_PALETTE, DEFAULT_AWARD_STYLE, HEADLINE_AWARDS } from "@/lib/awards";
 
 export type AwardWinnerGroup = {
@@ -7,18 +9,20 @@ export type AwardWinnerGroup = {
   winners: { id: string; name: string }[];
 };
 
-export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
+// "grid": 2 columns (beside the stats leaders on desktop); "row": a
+// horizontal snap strip of fixed-width cards (phones).
+export function AwardWinners({ awards, layout = "grid" }: { awards: AwardWinnerGroup[]; layout?: "grid" | "row" }) {
   if (awards.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+    <Wrap layout={layout}>
       {awards.map(({ type, label, winners }) => {
         const style = AWARD_PALETTE[type] ?? DEFAULT_AWARD_STYLE;
         const headline = HEADLINE_AWARDS.has(type);
         return (
           <div
             key={type}
-            className="panel-bare p-3 sm:p-4 flex items-start gap-3"
+            className={`panel-bare p-3 sm:p-4 flex items-start gap-3 ${layout === "row" ? "w-[220px] shrink-0" : ""}`}
             style={{ borderColor: style.border }}
           >
             <span
@@ -49,6 +53,15 @@ export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
           </div>
         );
       })}
-    </div>
+    </Wrap>
+  );
+}
+
+function Wrap({ layout, children }: { layout: "grid" | "row"; children: ReactNode }) {
+  if (layout === "grid") return <div className="grid grid-cols-2 gap-2 sm:gap-3">{children}</div>;
+  return (
+    <ScrollFade className="-mx-4 sm:mx-0">
+      <div className="flex gap-3 px-4 sm:px-0 pb-1">{children}</div>
+    </ScrollFade>
   );
 }

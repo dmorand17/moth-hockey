@@ -27,6 +27,8 @@
      it to 0px while the header is hidden on scroll. */
   --header-h: calc(57px + env(safe-area-inset-top));
   --bottom-nav-h: calc(57px + env(safe-area-inset-bottom)); /* 56px row + 1px border */
+  /* 1 while the site header is on screen, 0 while it's hidden on scroll. */
+  --header-shown: 1;
 }
 @media (min-width: 768px) {
   :root {

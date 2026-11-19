@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ScrollFade } from "./ScrollFade";
 import { usePathname, useRouter } from "next/navigation";
 import { GameList, GameRow } from "@/components/GameRow";
 
@@ -71,37 +72,51 @@ export function ScheduleView({
   // The night to jump to and highlight.
   const focusDate = nextDate ?? latestDate;
 
+  // Open at the latest results night (unless the URL already targets an
+  // anchor). Runs on mount, i.e. on load and after a team filter change.
+  useEffect(() => {
+    if (window.location.hash || !latestDate) return;
+    document.getElementById(latestDate === focusDate ? "focus-night" : `night-${latestDate}`)?.scrollIntoView({ block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
+  }, []);
+
   return (
     <div className="space-y-4 max-w-3xl">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div role="group" aria-label="Filter by team" className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
-          {[{ name: "All teams", slug: "all", color: "" }, ...teams].map((t) => {
-            const active = team === t.slug;
-            return (
-              <button
-                key={t.slug}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setTeam(t.slug)}
-                className={`shrink-0 inline-flex items-center gap-2 min-h-[44px] px-3.5 rounded-full border text-[14px] font-semibold whitespace-nowrap transition-colors ${
-                  active ? "bg-ice text-board border-ice" : "border-rule-strong text-ink-dim hover:text-ink hover:bg-board-3"
-                }`}
-              >
-                {t.color && <span aria-hidden className="swatch h-2.5 w-2.5 rounded-full" style={{ background: t.color }} />}
-                {t.name}
-              </button>
-            );
-          })}
-        </div>
-        {focusDate && (
-          <a
-            href="#focus-night"
-            className="sm:ml-auto shrink-0 inline-flex items-center min-h-[44px] text-[14px] font-semibold text-ice hover:text-ink transition-colors"
-          >
-            {nextDate ? "Jump to next game" : "Jump to latest results"} <span aria-hidden className="ml-1">↓</span>
-          </a>
-        )}
+      {/* Phones: while the header is hidden (scrolling down) the team chips
+          (48px) pin at the top with the night's date header (~30px) below;
+          while it shows, the chips tuck under it and the date header sits
+          right below the header. */}
+      <div className="sticky top-[calc(var(--header-h)-var(--header-shown)*48px)] z-[4] -mx-4 bg-board/95 backdrop-blur-sm py-0.5 sm:static sm:mx-0 sm:bg-transparent sm:backdrop-blur-none sm:py-0">
+        <ScrollFade className="px-4 sm:px-0">
+          <div role="group" aria-label="Filter by team" className="flex gap-2 w-max sm:w-auto sm:flex-wrap">
+            {[{ name: "All teams", slug: "all", color: "" }, ...teams].map((t) => {
+              const active = team === t.slug;
+              return (
+                <button
+                  key={t.slug}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setTeam(t.slug)}
+                  className={`shrink-0 inline-flex items-center gap-2 min-h-[44px] px-3.5 rounded-full border text-[14px] font-semibold whitespace-nowrap transition-colors ${
+                    active ? "bg-ice text-board border-ice" : "border-rule-strong text-ink-dim hover:text-ink hover:bg-board-3"
+                  }`}
+                >
+                  {t.color && <span aria-hidden className="swatch h-2.5 w-2.5 rounded-full" style={{ background: t.color }} />}
+                  {t.name}
+                </button>
+              );
+            })}
+          </div>
+        </ScrollFade>
       </div>
+      {focusDate && (
+        <a
+          href="#focus-night"
+          className="inline-flex items-center min-h-[44px] text-[14px] font-semibold text-ice hover:text-ink transition-colors"
+        >
+          {nextDate ? "Jump to next game" : "Jump to latest results"} <span aria-hidden className="ml-1">↓</span>
+        </a>
+      )}
 
       {visible.length === 0 ? (
         <p className="text-[14px] text-ink-faint">No games for {teamName ?? "this team"} yet.</p>
@@ -112,8 +127,13 @@ export function ScheduleView({
           const isFocus = w.date === focusDate;
           const byes = teamName ? w.byes.filter((b) => b === teamName) : w.byes;
           return (
-            <section key={w.date} id={isFocus ? "focus-night" : undefined} aria-labelledby={`wk-${w.date}`}>
-              <div className="sticky top-[var(--header-h)] z-[3] -mx-4 px-4 sm:mx-0 sm:px-0 py-1.5 bg-board/95 backdrop-blur-sm flex items-center gap-2 flex-wrap">
+            <section
+              key={w.date}
+              id={isFocus ? "focus-night" : `night-${w.date}`}
+              aria-labelledby={`wk-${w.date}`}
+              className="scroll-mt-[calc(var(--header-h)+56px)]! sm:scroll-mt-[calc(var(--header-h)+12px)]!"
+            >
+              <div className="sticky top-[calc(var(--header-h)+(1-var(--header-shown))*48px)] sm:top-[var(--header-h)] z-[3] -mx-4 px-4 sm:mx-0 sm:px-0 py-1 sm:py-1.5 bg-board/95 backdrop-blur-sm flex items-center gap-2 flex-wrap">
                 <h2 id={`wk-${w.date}`} className={`text-[15px] font-bold ${isFocus ? "text-goal" : "text-ink"}`}>
                   {weekLabel(w.date)}
                 </h2>

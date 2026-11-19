@@ -25,8 +25,13 @@ export function MobileHeaderController() {
       if (next === visible) return;
       visible = next;
       header.dataset.hidden = next ? "false" : "true";
-      if (next) root.style.removeProperty("--header-h");
-      else root.style.setProperty("--header-h", "0px");
+      if (next) {
+        root.style.removeProperty("--header-h");
+        root.style.removeProperty("--header-shown");
+      } else {
+        root.style.setProperty("--header-h", "0px");
+        root.style.setProperty("--header-shown", "0");
+      }
     };
     const onScroll = () => {
       cancelAnimationFrame(frame);

@@ -4,6 +4,7 @@ import { useState, useMemo, type ReactNode } from "react";
 import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
 import { TeamTag } from "./TeamBadge";
+import { paginate } from "@/lib/paginate";
 
 type Team = { name: string; slug: string; color: string };
 
@@ -100,6 +101,7 @@ function StatTable<T extends Row>({
   noun,
   caption,
   empty,
+  pageSize,
 }: {
   rows: T[];
   cols: Column<T>[];
@@ -107,10 +109,13 @@ function StatTable<T extends Row>({
   noun: string;
   caption: string;
   empty: string;
+  /** Show this many rows per page (all rows when omitted). */
+  pageSize?: number;
 }) {
   const [sortKey, setSortKey] = useState<string>(initialSort);
   const [dir, setDir] = useState<Direction>("desc");
   const [moreCols, setMoreCols] = useState(false);
+  const [pageReq, setPage] = useState(1);
 
   const sorted = useMemo(() => {
     const copy = [...rows];
@@ -123,7 +128,11 @@ function StatTable<T extends Row>({
     return copy;
   }, [rows, sortKey, dir]);
 
+  const view = pageSize ? paginate(sorted, pageReq, pageSize) : { rows: sorted, page: 1, pages: 1 };
+  const offset = pageSize ? (view.page - 1) * pageSize : 0;
+
   const sortBy = (key: string, defaultDir: Direction) => {
+    setPage(1);
     if (sortKey === key) setDir((d) => (d === "desc" ? "asc" : "desc"));
     else {
       setSortKey(key);
@@ -205,7 +214,8 @@ function StatTable<T extends Row>({
                 </td>
               </tr>
             ) : (
-              sorted.map((r, i) => {
+              view.rows.map((r, idx) => {
+                const i = offset + idx;
                 const medal = isLeaderboard && i < 3 ? i : null;
                 return (
                   <tr key={r.id}>
@@ -260,6 +270,29 @@ function StatTable<T extends Row>({
             )}
           </tbody>
       </DataTable>
+      {view.pages > 1 && (
+        <nav aria-label={`${noun} pages`} className="mt-2 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setPage(view.page - 1)}
+            disabled={view.page === 1}
+            className="min-h-[44px] min-w-[44px] px-4 rounded-md border border-rule-strong text-[14px] font-semibold text-ink hover:bg-board-3 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          >
+            <span aria-hidden>←</span> Prev
+          </button>
+          <span className="text-[14px] text-ink-faint" aria-live="polite">
+            Page {view.page} of {view.pages} · {sorted.length} {noun}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(view.page + 1)}
+            disabled={view.page === view.pages}
+            className="min-h-[44px] min-w-[44px] px-4 rounded-md border border-rule-strong text-[14px] font-semibold text-ink hover:bg-board-3 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+          >
+            Next <span aria-hidden>→</span>
+          </button>
+        </nav>
+      )}
       {hasSecondary && (
         <button
           type="button"
@@ -283,9 +316,10 @@ function Trophy() {
   );
 }
 
-export function SkaterTable({ rows }: { rows: Skater[] }) {
+export function SkaterTable({ rows, pageSize }: { rows: Skater[]; pageSize?: number }) {
   return (
     <StatTable
+      pageSize={pageSize}
       rows={rows}
       cols={skaterCols}
       initialSort="points"
@@ -296,9 +330,10 @@ export function SkaterTable({ rows }: { rows: Skater[] }) {
   );
 }
 
-export function GoalieTable({ rows }: { rows: Goalie[] }) {
+export function GoalieTable({ rows, pageSize }: { rows: Goalie[]; pageSize?: number }) {
   return (
     <StatTable
+      pageSize={pageSize}
       rows={rows}
       cols={goalieCols}
       initialSort="ps_saved"

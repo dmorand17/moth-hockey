@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GameList, GameRow } from "@/components/GameRow";
 import { SectionHeader } from "@/components/SectionHeader";
+import { formatShortDate } from "@/lib/format";
 import type { SeasonTotals } from "@/lib/season-finalize";
 import { describeMoment, topGoalies, topSkaters, type Moment, type Names, type RecapGame, type SeasonNumbers } from "@/lib/season-recap";
 
@@ -145,12 +146,56 @@ export function RecapLeaders({
 export function RecapMoments({ eyebrow, moments, games, names }: { eyebrow: string; moments: Moment[]; games: RecapGame[]; names: Names }) {
   if (moments.length === 0) return null;
   const byId = new Map(games.map((g) => [g.id, g]));
+  const player = (id: string) => names.players.get(id)?.name ?? "A player";
+  const team = (id: string | null) => (id ? names.teams.get(id)?.name : undefined) ?? "TBD";
   return (
     <section>
       <SectionHeader eyebrow={eyebrow} title="Notable moments" />
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <ul className="grid gap-2 sm:grid-cols-2 items-start">
         {moments.map((m, i) => {
-          const { label, text } = describeMoment(m, byId.get(m.gameId ?? ""), names);
+          const key = `${m.kind}-${m.gameId}-${m.playerId ?? m.teamId}-${i}`;
+          const { label, text } = describeMoment(m, byId.get(m.gameId ?? ""), names, byId);
+
+          // Collapsed cards: one row per player (hat tricks) or per game (big nights).
+          if (m.kind === "hat-tricks" || m.kind === "big-nights") {
+            return (
+              <li key={key} className="panel p-3 sm:p-4">
+                <span className="eyebrow">{label}</span>
+                <ul className="mt-1 divide-y divide-rule">
+                  {m.kind === "hat-tricks"
+                    ? (m.players ?? []).map((p) => (
+                        <li key={p.playerId} className="flex items-center justify-between gap-3 min-h-11 text-[15px]">
+                          <Link href={`/players/${p.playerId}`} className="font-semibold text-ink hover:text-ice truncate">
+                            {player(p.playerId)}
+                          </Link>
+                          {p.count > 1 && <span className="tnum text-ink-dim">×{p.count}</span>}
+                        </li>
+                      ))
+                    : (m.nights ?? []).map((n) => {
+                        const g = byId.get(n.gameId);
+                        return (
+                          <li key={`${n.gameId}-${n.playerId}`}>
+                            <Link href={`/games/${n.gameId}`} className="flex items-center justify-between gap-3 min-h-11 py-1.5 group">
+                              <span className="min-w-0">
+                                <span className="block text-[15px] font-semibold text-ink group-hover:text-ice">
+                                  {player(n.playerId)} — <span className="tnum">{n.goals}</span> goals
+                                </span>
+                                {g && (
+                                  <span className="block text-[13px] text-ink-faint tnum truncate">
+                                    {team(g.away_team_id)} {g.away_score} – {g.home_score} {team(g.home_team_id)} · {formatShortDate(g.scheduled_at)}
+                                  </span>
+                                )}
+                              </span>
+                              <span aria-hidden className="text-ink-faint group-hover:text-ice">→</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                </ul>
+              </li>
+            );
+          }
+
           const body = (
             <>
               <span className="eyebrow">{label}</span>
@@ -158,7 +203,7 @@ export function RecapMoments({ eyebrow, moments, games, names }: { eyebrow: stri
             </>
           );
           return (
-            <li key={`${m.kind}-${m.gameId}-${m.playerId ?? m.teamId}-${i}`}>
+            <li key={key}>
               {m.gameId ? (
                 <Link href={`/games/${m.gameId}`} className="panel block p-3 sm:p-4 hover:bg-board-hover hover:border-rule-strong transition-colors">
                   {body}

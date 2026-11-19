@@ -50,11 +50,11 @@ export function PostThread({
             {archived} archive — read only. New posts go on the current season&apos;s board.
           </p>
         ) : !viewer ? (
-          <div className="flex items-center justify-between gap-3 py-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-1">
             <p className="text-[14px] text-ink-dim">Join the conversation.</p>
             <Link
               href="/login"
-              className="inline-flex items-center min-h-11 px-5 rounded-full text-[14px] font-bold bg-ice text-board hover:brightness-110 transition"
+              className="inline-flex items-center min-h-11 px-5 rounded-full whitespace-nowrap text-[14px] font-bold bg-ice text-board hover:brightness-110 transition"
             >
               Sign in to post
             </Link>

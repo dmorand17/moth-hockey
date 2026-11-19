@@ -417,7 +417,7 @@ function LeaderTile({ label, leader, stat }: { label: string; leader: Skater | n
       <div className="eyebrow">{label}</div>
       {leader ? (
         <>
-          <div className="digit text-[32px] sm:text-[44px] leading-none text-goal">{stat}</div>
+          <div className="digit text-[32px] sm:text-[44px] leading-none text-gold">{stat}</div>
           <Link
             href={`/players/${leader.id}`}
             className="mt-1 text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors line-clamp-2 break-words"

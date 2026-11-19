@@ -61,9 +61,10 @@ no real mail is ever sent and you never need a real inbox.
    form uses `shouldCreateUser: false`, so only emails that already exist get a
    link — the seeded accounts qualify; a typo'd address silently gets nothing.
 3. Open **Mailpit** at http://127.0.0.1:54324. The newest message at the top is
-   your login email — open it and click **"Log In"** (the magic link).
-4. It redirects back to the app, now signed in as that user. To switch users,
-   sign out and repeat with a different seeded email.
+   your login email — open it and click **"Sign in"** (the magic link).
+4. The link opens `/auth/confirm`; tap **SIGN IN** there to finish. It redirects
+   back to the app, now signed in as that user.
+   To switch users, sign out and repeat with a different seeded email.
 
 Links are single-use and expire, so always click the newest message. If a link
 seems dead, request a fresh one from `/login`.
@@ -138,6 +139,7 @@ byes — load a sample dataset into the current season:
 ```bash
 scripts/local/seed-sample.sh 5   # 5 teams (odd → one bye per week)
 scripts/local/seed-sample.sh 4   # 4 teams (even → no byes)
+scripts/local/seed-sample.sh 5 --complete   # a finished season (see below)
 ```
 
 Each run seeds the current season with:
@@ -148,6 +150,10 @@ Each run seeds the current season with:
 
 So `/standings`, `/stats`, `/schedule` (with the bye lines), and player profiles
 all populate. Use the **5-team** set to see bye weeks in action.
+
+Add `--complete` to play **every** regular-season week plus the full playoff
+bracket (semifinals and final), so the season can be finalized
+(`/admin/seasons/[id]/finalize`) and recapped (`/recap`).
 
 It's re-runnable — it wipes the season's games/rosters/stats and cleans up
 orphaned seed players first. To get back to the base seed, run `supabase db reset`.
@@ -160,12 +166,18 @@ The dev server must be able to reach the local DB (`supabase start`).
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local` and fill from `supabase status`:
+Copy `.env.local.example` to `.env.local` and fill from `supabase status`:
 
-| Variable                             | Local value (`supabase status`)        |
-| ------------------------------------ | -------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`           | `Project URL` (http://127.0.0.1:54321) |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `Publishable` key                    |
+| Variable                             | Local value                                         |
+| ------------------------------------ | --------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`           | `Project URL` (http://127.0.0.1:54321)              |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `Publishable` key                                 |
+| `NEXT_PUBLIC_SITE_URL`               | Optional; base URL for OpenGraph links              |
+| `SUPABASE_SECRET_KEY`                | `Secret` key (server-only; write-ups cron/finalize) |
+| `OPENROUTER_API_KEY`                 | Your OpenRouter key (AI write-ups only)             |
+| `WRITE_UP_MODEL`                     | Optional; primary write-up model                    |
+| `WRITE_UP_FALLBACK_MODEL`            | Optional; fallback write-up model                   |
+| `CRON_SECRET`                        | Any string; `Authorization: Bearer` for the cron    |
 
 The publishable/anon key is safe to expose. Never commit the secret/service-role key.
 

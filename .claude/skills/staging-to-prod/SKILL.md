@@ -64,4 +64,3 @@ Use the `/create-release` skill once the PR is merged.
 
 - Don't merge the PR as part of this skill — creating it is the deliverable;
   merging is the user's call.
-- `git-c` is only needed for pushing; PR creation uses `gh` directly.

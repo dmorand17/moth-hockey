@@ -88,7 +88,7 @@ ${included}"
 
 # Create an annotated tag on origin/main HEAD.
 git tag -a "${tag}" "origin/${BASE}" -m "Release ${tag}"
-git-c push origin "${tag}"
+git push origin "${tag}"
 
 # Create the GitHub release.
 gh release create "${tag}" \

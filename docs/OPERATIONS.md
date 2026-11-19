@@ -12,16 +12,18 @@ them afterward). Unlike `supabase db reset --linked`, this never touches
 `auth.users`, `user_profiles`, or `user_roles`.
 
 ```bash
-export STAGING_DB_URL="postgresql://postgres.<ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:5432/postgres"
+set -a; source .env.staging; set +a   # provides SUPABASE_DB_URL (see .env.staging.example)
 ./scripts/reset-staging.sh
 ```
+
+The script reads `SUPABASE_DB_URL`, falling back to the older `STAGING_DB_URL`.
 
 The wrapper runs two steps (you can also run them by hand, or paste the SQL into
 the dashboard SQL Editor):
 
 ```bash
-psql "$STAGING_DB_URL" -f supabase/reset-staging.sql   # wipe league data, keep users
-psql "$STAGING_DB_URL" -f supabase/seed.sql            # reload seed data
+psql "$SUPABASE_DB_URL" -f supabase/reset-staging.sql   # wipe league data, keep users
+psql "$SUPABASE_DB_URL" -f supabase/seed.sql            # reload seed data
 ```
 
 - `supabase/reset-staging.sql` truncates the league tables
@@ -29,6 +31,9 @@ psql "$STAGING_DB_URL" -f supabase/seed.sql            # reload seed data
   **preserves** `auth.users`, `auth.identities`, `user_profiles`, `user_roles`,
   and `account_requests`. It uses `TRUNCATE` (not `DELETE`) so the team-captain
   role-sync trigger doesn't fire — admins/scorekeepers keep their roles.
+- `TRUNCATE … CASCADE` also wipes every table with a foreign key into those:
+  `game_availability`, `game_subs`, `game_write_ups`, `schedule_skips`, and
+  **all** `posts` (site board included, not just game threads).
 - Use the **Session pooler** string (port 5432), not the transaction pooler
   (6543) — the seed needs multi-statement transactions.
 - After reloading: **player↔user links are cleared** (players are recreated), so
@@ -45,5 +50,5 @@ self-contained (creates the players it references with `on conflict do nothing`)
 and safe to re-run:
 
 ```bash
-psql "$STAGING_DB_URL" -f supabase/seed-spring-2025.sql
+psql "$SUPABASE_DB_URL" -f supabase/seed-spring-2025.sql
 ```

@@ -2,13 +2,10 @@ import Link from "next/link";
 import { GameList, GameRow } from "@/components/GameRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import type { SeasonTotals } from "@/lib/season-finalize";
-import { topGoalies, topSkaters, type Moment, type RecapGame, type SeasonNumbers } from "@/lib/season-recap";
+import { describeMoment, topGoalies, topSkaters, type Moment, type Names, type RecapGame, type SeasonNumbers } from "@/lib/season-recap";
 
 export type Team = { id: string; name: string; slug: string; color: string };
-export type Names = {
-  teams: Map<string, Team>;
-  players: Map<string, { id: string; name: string }>;
-};
+export type { Names };
 
 const Dot = ({ color }: { color: string }) => (
   <span aria-hidden className="swatch h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
@@ -145,26 +142,6 @@ export function RecapLeaders({
   );
 }
 
-function momentText(m: Moment, game: RecapGame | undefined, names: Names): { label: string; text: string } {
-  const team = (id: string | null | undefined) => (id ? names.teams.get(id)?.name : undefined) ?? "TBD";
-  const player = (id: string | null) => (id ? names.players.get(id)?.name : undefined) ?? "A player";
-  const matchup = game ? `${team(game.away_team_id)} ${game.away_score} – ${game.home_score} ${team(game.home_team_id)}` : "";
-  switch (m.kind) {
-    case "margin": {
-      const loser = game && (m.teamId === game.home_team_id ? game.away_team_id : game.home_team_id);
-      return { label: "Biggest win", text: `${team(m.teamId)} beat ${team(loser)} by ${m.value} (${matchup})` };
-    }
-    case "high-scoring":
-      return { label: "Highest-scoring game", text: `${m.value} goals: ${matchup}` };
-    case "hat-trick":
-      return { label: "Hat trick", text: `${player(m.playerId)} scored ${m.value} (${matchup})` };
-    case "points-game":
-      return { label: "Best single game", text: `${player(m.playerId)}: ${m.value} points (${matchup})` };
-    case "win-streak":
-      return { label: "Win streak", text: `${team(m.teamId)} won ${m.value} straight` };
-  }
-}
-
 export function RecapMoments({ eyebrow, moments, games, names }: { eyebrow: string; moments: Moment[]; games: RecapGame[]; names: Names }) {
   if (moments.length === 0) return null;
   const byId = new Map(games.map((g) => [g.id, g]));
@@ -173,7 +150,7 @@ export function RecapMoments({ eyebrow, moments, games, names }: { eyebrow: stri
       <SectionHeader eyebrow={eyebrow} title="Notable moments" />
       <ul className="grid gap-2 sm:grid-cols-2">
         {moments.map((m, i) => {
-          const { label, text } = momentText(m, byId.get(m.gameId ?? ""), names);
+          const { label, text } = describeMoment(m, byId.get(m.gameId ?? ""), names);
           const body = (
             <>
               <span className="eyebrow">{label}</span>

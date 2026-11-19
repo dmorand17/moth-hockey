@@ -12,7 +12,7 @@ them afterward). Unlike `supabase db reset --linked`, this never touches
 `auth.users`, `user_profiles`, or `user_roles`.
 
 ```bash
-set -a; source .env.staging; set +a   # provides SUPABASE_DB_URL (see .env.staging.example)
+set -a; source .env.staging; set +a   # provides SUPABASE_DB_URL (see .env.example)
 ./scripts/reset-staging.sh
 ```
 

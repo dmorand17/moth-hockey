@@ -10,21 +10,33 @@ export const RECAP_SYSTEM =
 export function buildRecapPrompt(facts: RecapFacts): string {
   // Imported seasons can have a champion but no playoff games on record.
   const champion = !facts.champion
-    ? "No champion was decided this season; don't name one."
+    ? "No champion was decided this season; don't name one and leave out the Champions section."
     : facts.playoffs
       ? `Name the champion (${facts.champion}) and tell the story of their playoffs.`
       : `${facts.champion} won the championship. No playoff game details are available, so don't describe any games.`;
-  const playoffs = facts.playoffs ? "Cover the playoffs separately from the regular season." : "There were no playoffs this season; don't mention any.";
+  const sections = [
+    "## The season in brief — 1–2 paragraphs: the headline story of the season.",
+    ...(facts.champion ? [`## Champions — a paragraph on ${facts.champion}: their regular season and how they won it.`] : []),
+    ...(facts.playoffs ? ["## Playoffs — round by round, with each game's score and winner from the facts."] : []),
+    "## Regular season — the standings race: who finished where, close races, and team records.",
+    "## Leaders — a bulleted list: top scorers (points, goals, assists) and goalies, with their numbers.",
+    "## Award winners — a bulleted list: **Award** — winner(s), with a short line on why where the stats show it.",
+    "## Moments to remember — a bulleted list built from the notable moments.",
+  ];
   return [
-    `Write the ${facts.season.name} season recap.`,
+    `Write the ${facts.season.name} season recap as a markdown report.`,
+    "",
+    "Format:",
+    "- 700–1,100 words. No title line; start with the first section heading.",
+    "- Use these sections, in this order, each starting with its `##` heading:",
+    ...sections.map((x) => `  ${x}`),
+    "- Bold team and player names the first time they appear in each section.",
+    "- Short paragraphs; lists where the section says so.",
     "",
     "Rules:",
-    "- 250–400 words, in 3–5 short paragraphs of markdown. No headings, no lists, no title.",
     "- Use only the facts below. Never invent stats, scores, quotes, nicknames or names; if a fact isn't listed, leave it out.",
     `- ${champion}`,
-    `- ${playoffs}`,
-    "- Mention the award winners.",
-    "- Pick 2–3 storylines from the standings, leaders and notable moments.",
+    ...(facts.playoffs ? ["- Keep playoff numbers separate from regular-season numbers."] : ["- There were no playoffs this season; don't mention any."]),
     "",
     "FACTS:",
     JSON.stringify(facts),

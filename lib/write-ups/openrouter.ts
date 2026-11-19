@@ -14,7 +14,7 @@ const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-6-luna";
 const DEFAULT_FALLBACK = "google/gemini-2.5-flash-lite";
 
-async function callOnce(apiKey: string, model: string, system: string, user: string, maxTokens: number): Promise<ModelResult> {
+async function callOnce(apiKey: string, model: string, system: string, user: string, maxTokens: number, timeoutMs: number): Promise<ModelResult> {
   const body: Record<string, unknown> = {
     model,
     messages: [
@@ -36,7 +36,7 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
       "X-Title": "moth-hockey write-ups",
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const json = (await res.json()) as {
     model?: string;
@@ -60,18 +60,19 @@ async function callOnce(apiKey: string, model: string, system: string, user: str
 
 // `maxTokens` caps output (reasoning tokens count too); game write-ups use the
 // default, the season summary asks for more.
-export async function generateText(system: string, user: string, opts: { maxTokens?: number } = {}): Promise<ModelResult> {
+export async function generateText(system: string, user: string, opts: { maxTokens?: number; timeoutMs?: number } = {}): Promise<ModelResult> {
   const maxTokens = opts.maxTokens ?? 1000;
+  const timeoutMs = opts.timeoutMs ?? 30_000;
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
   const primary = process.env.WRITE_UP_MODEL || DEFAULT_MODEL;
   const fallback = process.env.WRITE_UP_FALLBACK_MODEL || DEFAULT_FALLBACK;
 
   try {
-    return await callOnce(apiKey, primary, system, user, maxTokens);
+    return await callOnce(apiKey, primary, system, user, maxTokens, timeoutMs);
   } catch (first) {
     try {
-      return await callOnce(apiKey, fallback, system, user, maxTokens);
+      return await callOnce(apiKey, fallback, system, user, maxTokens, timeoutMs);
     } catch (second) {
       throw new Error(`both models failed — ${String(first)}; ${String(second)}`);
     }

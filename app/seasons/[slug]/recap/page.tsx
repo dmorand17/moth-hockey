@@ -10,18 +10,23 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { TeamBadge } from "@/components/TeamBadge";
 import { RecapGameRow, RecapLeaders, RecapMoments, RecapNumbers, RecapPath, type Names } from "@/components/recap/parts";
 import { JumpBar } from "@/components/recap/JumpBar";
+import { MediaAdmin } from "@/components/recap/MediaAdmin";
+import { MediaFiles } from "@/components/recap/MediaFiles";
+import { MediaGrid } from "@/components/recap/MediaGrid";
 import { RecapSummary } from "@/components/recap/RecapSummary";
 import { SummaryAdmin } from "@/components/recap/SummaryAdmin";
 import { ShareButton } from "@/components/recap/ShareButton";
 import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
-import { getRecapSummary, getSeasonRecap } from "@/lib/queries";
+import { getRecapSummary, getSeasonMedia, getSeasonRecap } from "@/lib/queries";
+import { mediaKind, mediaPrefix } from "@/lib/media";
 import { computeRecap } from "@/lib/recap-summary/facts";
 import { jumpLinks } from "@/lib/season-recap";
 
 type Params = Promise<{ slug: string }>;
 
-// Generating the AI summary (a server action on this page) can take a while.
-export const maxDuration = 90;
+// Generating the AI summary (a server action on this page) can take two
+// 75s model calls (primary + fallback).
+export const maxDuration = 180;
 
 // One fetch per request for both metadata and the page.
 const load = cache(getSeasonRecap);
@@ -101,11 +106,19 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
     );
   }
 
-  const [viewer, admin, summary] = await Promise.all([getBoardViewer(), getSessionIfRole(["admin"]), getRecapSummary(r.season.id)]);
+  const [viewer, admin, summary, media] = await Promise.all([
+    getBoardViewer(),
+    getSessionIfRole(["admin"]),
+    getRecapSummary(r.season.id),
+    getSeasonMedia(r.season.id),
+  ]);
+  const visual = media.filter((m) => mediaKind(m.contentType) !== "file");
+  const files = media.filter((m) => mediaKind(m.contentType) === "file");
+  const showMedia = media.length > 0 || !!admin;
   const livePublished = summary.published?.published ? summary.published : null;
   const showSummary = !!admin || !!livePublished;
   const hasSeason = !!regNumbers || !!r.standings || !!r.historical || regular.length > 0;
-  const links = jumpLinks({ summary: showSummary, awards: r.awards.length > 0, season: hasSeason, playoffs: path.length > 0, board: true });
+  const links = jumpLinks({ summary: showSummary, awards: r.awards.length > 0, season: hasSeason, playoffs: path.length > 0, media: showMedia, board: true });
   // Headings clear the sticky header plus the jump bar.
   const anchor = "scroll-mt-[calc(var(--header-h)+64px)]!";
 
@@ -220,7 +233,25 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         </section>
       )}
 
-      {/* Media gallery (PR 3) goes here */}
+      {showMedia && (
+        <section id="media" className={`space-y-3 ${anchor}`}>
+          <SectionHeader eyebrow={`${media.length} ${media.length === 1 ? "item" : "items"}`} title="Photos & video" />
+          {admin ? (
+            <MediaAdmin
+              slug={slug}
+              prefix={mediaPrefix(slug, process.env.VERCEL_ENV)}
+              seasonName={r.season.name}
+              items={media}
+              uploadsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
+            />
+          ) : (
+            <>
+              {visual.length > 0 && <MediaGrid items={visual} seasonName={r.season.name} />}
+              <MediaFiles items={files} />
+            </>
+          )}
+        </section>
+      )}
 
       <section id="board" className={anchor}>
         <SectionHeader

@@ -5,7 +5,7 @@ import { facts } from "./fixture.test-helper";
 describe("buildRecapPrompt", () => {
   test("includes the rules and every fact section", () => {
     const p = buildRecapPrompt(facts());
-    for (const s of ["Ember Wolves", "250–400 words", "Use only the facts", "FACTS:", '"standings"', '"playoffs"', '"awards"']) expect(p).toContain(s);
+    for (const s of ["Ember Wolves", "700–1,100 words", "## Award winners", "## Playoffs", "## Champions", "Use only the facts", "FACTS:", '"standings"', '"playoffs"', '"awards"']) expect(p).toContain(s);
     expect(RECAP_SYSTEM).toContain("Mostly Over The Hill");
   });
 
@@ -15,6 +15,13 @@ describe("buildRecapPrompt", () => {
     expect(p).toContain("no playoffs");
     expect(p).not.toContain("Name the champion");
   });
+  test("sections for missing champion/playoffs are left out", () => {
+    const p = buildRecapPrompt(facts({ champion: null, playoffs: null }));
+    expect(p).not.toContain("## Champions");
+    expect(p).not.toContain("## Playoffs");
+    expect(p).toContain("## Leaders");
+  });
+
   test("a champion with no playoff games: name them, but describe no playoff run", () => {
     const p = buildRecapPrompt(facts({ playoffs: null }));
     expect(p).toContain("Ember Wolves won the championship");

@@ -34,7 +34,7 @@ stored as aggregates.
 | **Game pages**      | Box score with goal and penalty-shot log (OT and shootout), a projected line and AI-written preview before the game, and an AI recap after it. |
 | **Player profiles** | Career stats per season plus all-time totals, interactive award badges, and captain history.     |
 | **Stats**           | Season leaders (points, goals, assists, penalties, goalies; subs don't count toward leaders) and paginated all-time stats. |
-| **Season recap**    | `/seasons/<slug>/recap` (and `/recap` for the latest): champion, awards, final standings, leaders, notable moments, and a separate playoffs section. Shareable, with a link-preview image. |
+| **Season recap**    | `/seasons/<slug>/recap` (and `/recap` for the latest): champion, an AI-written season report, awards, final standings, leaders, notable moments, a separate playoffs section, and a photo/video gallery. Jump links at the top; shareable, with a link-preview image. |
 | **Locker Room**     | Season message board on the home page, plus per-game threads.                                    |
 | **Content pages**   | Markdown-powered rules, FAQ, and league info, editable by admins.                                |
 
@@ -71,6 +71,7 @@ stored as aggregates.
 | **Finalize a season**  | Lock in season totals and awards once the playoffs end; the season recap links from here. |
 | **Content & awards**   | Edit the markdown content pages and assign per-season player awards.          |
 | **AI write-ups**       | Edit or hide the AI-written game previews and recaps.                         |
+| **Season recap**       | Generate, edit and publish the AI season report; upload, caption, reorder and delete gallery photos, videos and PDFs (stored in Vercel Blob). |
 | **Users & roles**      | Link signups to players and assign roles (scorekeeper, admin, etc.).          |
 | **Edit finalized games** | Correct events on games scorekeepers have already locked.                    |
 
@@ -93,7 +94,8 @@ Contact info (email/phone) is never exposed on public pages; RLS limits reads to
 - **TypeScript** — path alias `@/*` → repo root.
 - **Tailwind v4** — configured in `app/globals.css`, not `tailwind.config.*`.
 - **Supabase** — Postgres + Auth.
-- **OpenRouter** — LLM calls for the AI game previews and recaps.
+- **OpenRouter** — LLM calls for the AI game previews, recaps and season reports.
+- **Vercel Blob** — season recap photos, videos and PDFs (direct browser uploads).
 - **bun** — package manager and runtime.
 - Deployed on **Vercel + Supabase cloud** (free tiers, ~$0/month).
 
@@ -173,13 +175,11 @@ The MVP is live in production. Releases are tagged on GitHub; the original build
 
 **Shipped:** public site, magic-link signup + roles, admin CRUD, full scorekeeper scoring, derived
 stats/standings, game previews with projected lines, AI game write-ups, availability and subs,
-the Locker Room board, season finalization with all-time stats, the season recap page, and the
-mobile-first layout with a bottom tab bar.
+the Locker Room board, season finalization with all-time stats, the season recap page with an
+AI season report and a photo/video gallery, and the mobile-first layout with a bottom tab bar.
 
 **Next:**
 
-- Season recap AI summary — an admin-generated, editable season write-up on the recap page.
-- Season recap media gallery — admin-uploaded photos and video.
 - Realtime box score — `/games/[id]` updating live from scorekeeper input.
 
 ## Documentation

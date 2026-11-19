@@ -10,7 +10,7 @@ import { buildRecapPrompt, RECAP_SYSTEM } from "@/lib/recap-summary/prompt";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { generateText } from "@/lib/write-ups/openrouter";
 
-const MAX_CHARS = 6000;
+const MAX_CHARS = 12000;
 
 // Writes go through the request client, so RLS ("admins manage recap…")
 // enforces the same rule this check reports.
@@ -36,7 +36,7 @@ export async function generateRecapSummary({ slug }: { slug: string }): Promise<
   const facts = buildRecapFacts(r, computeRecap(r));
   let result;
   try {
-    result = await generateText(RECAP_SYSTEM, buildRecapPrompt(facts), { maxTokens: 4000 });
+    result = await generateText(RECAP_SYSTEM, buildRecapPrompt(facts), { maxTokens: 6000, timeoutMs: 75_000 });
   } catch (e) {
     console.error("recap summary generation failed", e);
     return fail("The AI didn't respond. Try again in a minute.");

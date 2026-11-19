@@ -37,6 +37,7 @@ this doc reflects what the migrations actually create.
 | `0027_posts.sql` | Message board: `posts`, `is_linked_player()`, threading, rate-limit and column-immutability triggers (#140) |
 | `0028_season_finalize.sql` | `seasons.finalized_at`; goalie `wins`/`losses`/`ot_losses` on `season_player_stats` |
 | `0029_season_recaps.sql` | `season_recaps` (published AI season summary) and admin-only `season_recap_drafts` |
+| `0030_season_media.sql` | `season_media` — recap photo/video/PDF gallery (files in Vercel Blob) |
 
 Enum changes are isolated in `0003` on purpose: Postgres won't let a new enum
 value be used in the same transaction that adds it.
@@ -136,6 +137,10 @@ value be used in the same transaction that adds it.
   Generate / Regenerate / Edit write here; Publish copies the draft into
   `season_recaps` and deletes it. A separate table because RLS can't hide one
   column of a public row.
+- **`season_media`** — the recap gallery. The file lives in Vercel Blob
+  (`blob_url`, unique `pathname` under `seasons/{slug}/`, or `dev/seasons/{slug}/`
+  outside production); the row holds `content_type`, `size_bytes`, optional
+  `width`/`height`, `caption` (≤ 300 chars), `uploaded_by` and `sort_order`.
 
 ### Auth
 
@@ -216,6 +221,7 @@ All `security definer`, `search_path = public`, keyed on `auth.uid()`:
 | `account_requests` | admin | anyone may INSERT; admin update |
 | `season_recaps` | public when `published`; admins see all | admin |
 | `season_recap_drafts` | admin only | admin |
+| `season_media` | public | admin |
 | `posts` | public | insert: linked player as self; update (body only, via trigger): author or admin; delete: admin (replies cascade) |
 
 Anonymous queries never return `user_profiles` rows — no public select policy

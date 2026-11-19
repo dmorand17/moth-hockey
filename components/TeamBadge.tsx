@@ -9,6 +9,8 @@ type Props = {
   className?: string;
   asChild?: boolean;
   size?: "sm" | "md" | "lg";
+  /** Let a long name wrap instead of truncating. */
+  wrap?: boolean;
 };
 
 export function TeamBadge({
@@ -19,6 +21,7 @@ export function TeamBadge({
   className = "",
   asChild = false,
   size = "md",
+  wrap = false,
 }: Props) {
   const sizes = {
     sm: { bar: "w-1 h-4", text: "text-[14px]" },
@@ -33,7 +36,7 @@ export function TeamBadge({
         className={`swatch ${s.bar} shrink-0 rounded-[1px]`}
         style={{ background: color }}
       />
-      <span className={`truncate ${s.text} font-medium tracking-tight`}>{name}</span>
+      <span className={`${wrap ? "leading-5" : "truncate"} ${s.text} font-medium tracking-tight`}>{name}</span>
     </>
   );
   const layout = `inline-flex items-center gap-2.5 ${
@@ -42,7 +45,7 @@ export function TeamBadge({
 
   if (asChild) return <span className={layout}>{inner}</span>;
   return (
-    <Link href={`/teams/${slug}`} className={`${layout} min-h-11 hover:text-ink transition-colors`}>
+    <Link href={`/teams/${slug}`} className={`${layout} min-h-11 min-w-11 hover:text-ink transition-colors`}>
       {inner}
     </Link>
   );

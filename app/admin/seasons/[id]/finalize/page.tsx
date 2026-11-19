@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { seasonSlug } from "@/lib/seasons";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -107,6 +108,14 @@ export default async function FinalizeSeasonPage({ params }: { params: Promise<{
             Finalized {new Date(season.finalized_at).toLocaleString()}. Finalizing again replaces
             the saved totals and awards.
           </p>
+        )}
+        {season.finalized_at && (
+          <Link
+            href={`/seasons/${seasonSlug(season.name)}/recap`}
+            className="mt-2 inline-flex items-center min-h-11 text-[14px] font-semibold text-ice hover:text-ink transition-colors"
+          >
+            Season recap <span aria-hidden className="ml-1">→</span>
+          </Link>
         )}
       </div>
 

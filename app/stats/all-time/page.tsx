@@ -138,12 +138,12 @@ export default async function AllTimeStatsPage() {
 
       <section className="rise delay-1">
         <SectionHeader eyebrow="Skaters" title="Career skater stats" />
-        <SkaterTable rows={[...skaters.values()]} />
+        <SkaterTable rows={[...skaters.values()]} pageSize={25} />
       </section>
 
       <section className="rise delay-2">
         <SectionHeader eyebrow="Between the pipes" title="Career goalie stats" />
-        <GoalieTable rows={[...goalies.values()]} />
+        <GoalieTable rows={[...goalies.values()]} pageSize={25} />
       </section>
 
       <p className="rise delay-2 text-[14px] leading-5 text-ink-faint max-w-[75ch]">

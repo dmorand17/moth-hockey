@@ -1,48 +1,63 @@
 import Link from "next/link";
-import { AWARD_PALETTE, DEFAULT_AWARD_STYLE, HEADLINE_AWARDS } from "@/lib/awards";
+import type { ReactNode } from "react";
+import { ScrollFade } from "./ScrollFade";
+import { AWARD_PALETTE, DEFAULT_AWARD_STYLE, HEADLINE_AWARDS, type AwardWinnerGroup } from "@/lib/awards";
 
-export type AwardWinnerGroup = {
-  type: string;
-  label: string;
-  winners: { id: string; name: string }[];
-};
+export type { AwardWinnerGroup };
 
-export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
+// "grid": 2 columns (beside the stats leaders on desktop); "row": a
+// horizontal snap strip of fixed-width cards (phones).
+export function AwardWinners({ awards, layout = "grid" }: { awards: AwardWinnerGroup[]; layout?: "grid" | "row" }) {
   if (awards.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+    <Wrap layout={layout}>
       {awards.map(({ type, label, winners }) => {
         const style = AWARD_PALETTE[type] ?? DEFAULT_AWARD_STYLE;
         const headline = HEADLINE_AWARDS.has(type);
         return (
           <div
             key={type}
-            className="panel-bare p-3 sm:p-4 flex flex-col gap-1.5"
-            style={{ borderColor: headline ? style.border : undefined }}
+            className={`panel-bare p-3 sm:p-4 flex items-start gap-3 ${layout === "row" ? "w-[220px] shrink-0" : ""}`}
+            style={{ borderColor: style.border }}
           >
-            <div
-              className="text-[12px] font-bold tracking-[0.06em] uppercase flex items-center gap-1.5 leading-4"
-              style={{ color: style.fg }}
+            <span
+              aria-hidden
+              className={`h-9 w-9 shrink-0 rounded-md border flex items-center justify-center text-[16px] text-gold ${
+                headline ? "bg-gold/10 border-gold/40" : "bg-board-3 border-rule"
+              }`}
             >
-              <span aria-hidden>{style.star}</span>
-              <span>{label}</span>
+              {style.star}
+            </span>
+            <div className="min-w-0">
+              <div className="eyebrow" style={{ color: style.fg }}>
+                {label}
+              </div>
+              <ul className="mt-0.5 flex flex-col">
+                {winners.map((w) => (
+                  <li key={w.id}>
+                    <Link
+                      href={`/players/${w.id}`}
+                      className="text-[16px] font-semibold leading-6 text-ink hover:text-ice transition-colors inline-flex items-center min-h-[44px]"
+                    >
+                      {w.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="flex flex-col gap-0.5">
-              {winners.map((w) => (
-                <li key={w.id}>
-                  <Link
-                    href={`/players/${w.id}`}
-                    className="text-[15px] text-ink hover:text-ice transition-colors inline-flex items-center min-h-[32px]"
-                  >
-                    {w.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
         );
       })}
-    </div>
+    </Wrap>
+  );
+}
+
+function Wrap({ layout, children }: { layout: "grid" | "row"; children: ReactNode }) {
+  if (layout === "grid") return <div className="grid grid-cols-2 gap-2 sm:gap-3">{children}</div>;
+  return (
+    <ScrollFade className="-mx-4 sm:mx-0">
+      <div className="flex gap-3 px-4 sm:px-0 pb-1">{children}</div>
+    </ScrollFade>
   );
 }

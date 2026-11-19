@@ -169,6 +169,6 @@ Project docs live in [`docs/`](docs/README.md):
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) — stack, directory layout, data flow, Supabase client split, auth & roles.
 - [DATABASE.md](docs/DATABASE.md) — schema, enums, RLS, helper functions, and triggers.
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md) — dev workflow, the Supabase migrations loop, and conventions.
-- [LOCAL-TESTING.md](docs/LOCAL-TESTING.md) — run locally and sign in as the seeded test users.
+- [LOCAL-TESTING.md](docs/LOCAL-TESTING.md) — run locally, sign in as the seeded test users, and preview the mobile layout.
 - [initial-build/PLAN.md](docs/initial-build/PLAN.md) — the master build plan and living source of truth.
 - [adr/](docs/adr/README.md) — Architecture Decision Records.

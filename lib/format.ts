@@ -27,6 +27,11 @@ export function formatDate(iso: string): string {
   });
 }
 
+// "Apr 12" — for narrow columns where the weekday doesn't fit.
+export function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",

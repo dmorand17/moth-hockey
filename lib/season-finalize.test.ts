@@ -170,3 +170,22 @@ describe("proposeAwards", () => {
     expect(awards2.vezina).toEqual(["b-g"]);
   });
 });
+
+describe("computeSeasonTotals kind option", () => {
+  const games = [
+    game("r1", "red", "blue", 1, 0),
+    game("p1", "red", "blue", 2, 0, { kind: "playoff", playoff_round: "final" }),
+  ];
+  const events = [goal("r1", "red", "r-f"), goal("p1", "red", "r-f"), goal("p1", "red", "r-f")];
+  const apps = [...appear("r1", ["r-f"], "red"), ...appear("p1", ["r-f"], "red")];
+
+  test("counts only final playoff games with kind playoff", () => {
+    const t = computeSeasonTotals(games, roster, apps, events, { kind: "playoff" });
+    expect(t.find((x) => x.player_id === "r-f")).toMatchObject({ games_played: 1, goals: 2 });
+  });
+
+  test("defaults to the regular season", () => {
+    const t = computeSeasonTotals(games, roster, apps, events);
+    expect(t.find((x) => x.player_id === "r-f")).toMatchObject({ games_played: 1, goals: 1 });
+  });
+});

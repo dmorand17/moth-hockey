@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { SectionHeader } from "./SectionHeader";
 import { SeasonSelect } from "./SeasonSelect";
-import { AwardWinners, type AwardWinnerGroup } from "./AwardWinners";
 import { Disclosure } from "./Disclosure";
+import { ScrollFade } from "./ScrollFade";
 import {
   SkaterTable,
   GoalieTable,
@@ -63,9 +63,8 @@ type Props = {
   seasons: SeasonOption[];
   selectedSeasonId: string;
   teams: Team[];
-  awardWinners: AwardWinnerGroup[];
-  // Awards aren't decided yet (current, in-progress season with no awards on file).
-  awardsPending: boolean;
+  /** The selected season's recap (null for an upcoming season). */
+  recap: StatsRecapLink | null;
   // Live (current-season) inputs — stats derive from game events.
   games?: GameMeta[];
   roster?: RosterEntry[];
@@ -83,8 +82,7 @@ export function StatsExplorer({
   seasons,
   selectedSeasonId,
   teams,
-  awardWinners,
-  awardsPending,
+  recap,
   games = [],
   roster = [],
   appearances = [],
@@ -241,6 +239,14 @@ export function StatsExplorer({
           action={
             <>
               <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
+              {recap && (
+                <Link
+                  href={recap.href}
+                  className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 whitespace-nowrap"
+                >
+                  Recap <span aria-hidden className="ml-1">→</span>
+                </Link>
+              )}
               <Link
                 href="/stats/all-time"
                 className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 whitespace-nowrap"
@@ -255,20 +261,8 @@ export function StatsExplorer({
           <LeaderTile label="Assists" leader={leaders.assists} stat={leaders.assists?.assists ?? 0} />
           <LeaderTile label="Points" leader={leaders.points} stat={leaders.points?.points ?? 0} />
         </div>
+        {recap && <RecapCard recap={recap} />}
       </div>
-
-      {awardWinners.length > 0 ? (
-        <section className="rise delay-1">
-          <SectionHeader eyebrow="The hardware" title="Award winners" />
-          <AwardWinners awards={awardWinners} />
-        </section>
-      ) : (
-        awardsPending && (
-          <p className="rise delay-1 text-[14px] text-ink-faint">
-            <span className="font-semibold text-ink-dim">Awards</span> are announced at the end of the season.
-          </p>
-        )
-      )}
 
       <FilterBar
         teams={teams}
@@ -348,8 +342,10 @@ function FilterBar({
   };
 
   return (
-    <div role="toolbar" aria-label="Filter stats" className="rise delay-1 panel-bare px-3 py-3 sm:px-4">
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+    <div role="toolbar" aria-label="Filter stats" className="rise delay-1 panel-bare py-3">
+      <ScrollFade className="px-3 sm:px-4">
+      {/* Phones: one swipeable row; wraps from sm. */}
+      <div className="flex flex-nowrap sm:flex-wrap items-center gap-x-5 gap-y-3 w-max sm:w-auto">
         <FilterField label="Position">
           <SegmentedFilter<PositionFilter>
             value={position}
@@ -398,6 +394,7 @@ function FilterBar({
           Reset
         </button>
       </div>
+      </ScrollFade>
     </div>
   );
 }
@@ -405,7 +402,7 @@ function FilterBar({
 function FilterField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="inline-flex items-center gap-2" role="group" aria-label={label}>
-      <span className="eyebrow w-[4.5rem] sm:w-auto">{label}</span>
+      <span className="eyebrow">{label}</span>
       {children}
     </div>
   );
@@ -420,9 +417,9 @@ function LeaderTile({ label, leader, stat }: { label: string; leader: Skater | n
           <div className="digit text-[32px] sm:text-[44px] leading-none text-gold">{stat}</div>
           <Link
             href={`/players/${leader.id}`}
-            className="mt-1 text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors line-clamp-2 break-words"
+            className="flex items-center min-h-[44px] text-[14px] sm:text-[16px] font-semibold leading-5 text-ink hover:text-ice transition-colors"
           >
-            {leader.name}
+            <span className="line-clamp-2 break-words">{leader.name}</span>
           </Link>
           {leader.team && (
             <div className="flex items-start gap-1.5 min-w-0">
@@ -459,7 +456,7 @@ function SegmentedFilter<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`px-3 text-[14px] font-semibold transition-colors min-h-[44px] ${
+            className={`px-3 min-w-[44px] text-[14px] font-semibold transition-colors min-h-[44px] ${
               active ? "bg-ice text-board" : "text-ink-dim hover:text-ink hover:bg-board-3"
             } ${i > 0 ? "border-l border-rule-strong" : ""}`}
             aria-pressed={active}
@@ -469,5 +466,38 @@ function SegmentedFilter<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+export type StatsRecapLink = {
+  href: string;
+  seasonName: string;
+  champion: { name: string; color: string } | null;
+  inProgress: boolean;
+};
+
+// Slim link to the season recap, where award winners now live.
+function RecapCard({ recap }: { recap: StatsRecapLink }) {
+  return (
+    <Link
+      href={recap.href}
+      className="panel mt-3 flex items-center gap-3 p-4 hover:bg-board-hover hover:border-rule-strong transition-colors"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="eyebrow block">Season recap</span>
+        <span className="mt-0.5 block text-[15px] font-semibold text-ink">{recap.seasonName}</span>
+        {recap.champion ? (
+          <span className="flex items-center gap-1.5 text-[14px] text-ink-dim">
+            <span aria-hidden className="swatch h-2 w-2 rounded-full" style={{ background: recap.champion.color }} />
+            Champions: {recap.champion.name}
+          </span>
+        ) : (
+          <span className="block text-[14px] text-ink-dim">
+            {recap.inProgress ? "In progress — current leaders" : "Awards, standings and highlights"}
+          </span>
+        )}
+      </span>
+      <span aria-hidden className="text-[18px] text-ink-faint">→</span>
+    </Link>
   );
 }

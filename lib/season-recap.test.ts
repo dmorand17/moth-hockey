@@ -4,6 +4,7 @@ import {
   describeMoment,
   goalieMinGames,
   jumpLinks,
+  visibleRows,
   notableMoments,
   playoffPath,
   seasonNumbers,
@@ -202,5 +203,18 @@ describe("jumpLinks", () => {
   });
   test("photos sit between playoffs and the board", () => {
     expect(jumpLinks({ summary: false, awards: false, season: false, playoffs: true, media: true, board: true }).map((l) => l.id)).toEqual(["playoffs", "media", "board"]);
+  });
+});
+
+describe("visibleRows", () => {
+  const rows = [1, 2, 3, 4, 5, 6, 7];
+  test("collapsed shows 5 and counts the rest", () => {
+    expect(visibleRows(rows, false)).toEqual({ shown: [1, 2, 3, 4, 5], hidden: 2 });
+  });
+  test("expanded shows all", () => {
+    expect(visibleRows(rows, true)).toEqual({ shown: rows, hidden: 0 });
+  });
+  test("short lists show in full", () => {
+    expect(visibleRows([1, 2, 3], false)).toEqual({ shown: [1, 2, 3], hidden: 0 });
   });
 });

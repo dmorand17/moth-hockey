@@ -1,14 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { lightboxGesture, stepIndex, swipeDir } from "@/lib/media";
+import { useRef, useState, type ReactNode } from "react";
+import { altFor, Lightbox } from "@/components/recap/Lightbox";
 import type { SeasonMedia } from "@/lib/queries";
 
-const altFor = (m: SeasonMedia, seasonName: string) => m.caption || `Photo from ${seasonName}`;
-
-// Photo/video tiles plus a full-screen lightbox (native <dialog>): swipe on
-// touch, ←/→ and Escape on keyboard, focus back on the tile when it closes.
+// Square photo/video tiles that open the Lightbox (admin manager view).
 // `tileExtra` renders under a tile (the admin controls).
 export function MediaGrid({
   items,
@@ -20,28 +17,17 @@ export function MediaGrid({
   tileExtra?: (m: SeasonMedia, i: number) => ReactNode;
 }) {
   const [index, setIndex] = useState<number | null>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
   const tiles = useRef<(HTMLButtonElement | null)[]>([]);
   const opener = useRef<number | null>(null);
-  const start = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const d = dialog.current;
-    if (index !== null && d && !d.open) d.showModal();
-  }, [index]);
 
   const open = (i: number) => {
     opener.current = i;
     setIndex(i);
   };
-  const step = (dir: -1 | 1) => setIndex((i) => (i === null ? i : stepIndex(i, dir, items.length)));
   const onClose = () => {
     setIndex(null);
     if (opener.current !== null) tiles.current[opener.current]?.focus();
   };
-
-  const current = index !== null ? items[index] : null;
-  const nav = "absolute top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-black/60 text-white text-[22px] flex items-center justify-center hover:bg-black/80";
 
   return (
     <>
@@ -79,63 +65,7 @@ export function MediaGrid({
         ))}
       </ul>
 
-      <dialog
-        ref={dialog}
-        onClose={onClose}
-        aria-label={current ? altFor(current, seasonName) : "Media viewer"}
-        onKeyDown={(e) => {
-          if (!lightboxGesture({ kind: "key", onVideo: e.target instanceof HTMLVideoElement })) return;
-          if (e.key === "ArrowRight") step(1);
-          if (e.key === "ArrowLeft") step(-1);
-        }}
-        onPointerDown={(e) => {
-          const ok = lightboxGesture({ kind: "swipe", pointerType: e.pointerType, onVideo: e.target instanceof HTMLVideoElement });
-          start.current = ok ? { x: e.clientX, y: e.clientY } : null;
-        }}
-        onPointerUp={(e) => {
-          if (!start.current) return;
-          const dir = swipeDir(e.clientX - start.current.x, e.clientY - start.current.y);
-          start.current = null;
-          if (dir) step(dir);
-        }}
-        className="m-0 p-0 w-screen h-dvh max-w-none max-h-none bg-black text-white backdrop:bg-black open:flex flex-col"
-      >
-        {current && (
-          <>
-            <div className="flex items-center justify-between px-3 pt-[max(env(safe-area-inset-top),8px)]">
-              <span className="text-[14px] tnum text-white/80">
-                {index! + 1} / {items.length}
-              </span>
-              <button
-                type="button"
-                onClick={() => dialog.current?.close()}
-                aria-label="Close"
-                className="h-11 w-11 rounded-full text-[24px] flex items-center justify-center hover:bg-white/10"
-              >
-                ×
-              </button>
-            </div>
-            <div className="relative flex-1 min-h-0 touch-pan-y">
-              {current.contentType.startsWith("video/") ? (
-                <video key={current.id} src={current.url} controls autoPlay playsInline className="absolute inset-0 h-full w-full object-contain" />
-              ) : (
-                <Image key={current.id} src={current.url} alt={altFor(current, seasonName)} fill sizes="100vw" className="object-contain" />
-              )}
-              {items.length > 1 && (
-                <>
-                  <button type="button" onClick={() => step(-1)} aria-label="Previous" className={`${nav} left-2`}>
-                    ‹
-                  </button>
-                  <button type="button" onClick={() => step(1)} aria-label="Next" className={`${nav} right-2`}>
-                    ›
-                  </button>
-                </>
-              )}
-            </div>
-            {current.caption && <p className="px-4 py-3 pb-[max(env(safe-area-inset-bottom),12px)] text-[15px] text-center">{current.caption}</p>}
-          </>
-        )}
-      </dialog>
+      <Lightbox items={items} index={index} seasonName={seasonName} onIndex={setIndex} onClose={onClose} />
     </>
   );
 }

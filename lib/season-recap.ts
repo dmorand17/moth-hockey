@@ -255,3 +255,9 @@ const JUMP_LINKS = [
 export function jumpLinks(has: Record<(typeof JUMP_LINKS)[number][0], boolean>): { id: string; label: string }[] {
   return JUMP_LINKS.filter(([id]) => has[id]).map(([id, label]) => ({ id, label }));
 }
+
+// A long list's first `limit` rows, plus how many a "Show all" would add.
+export function visibleRows<T>(rows: T[], expanded: boolean, limit = 5): { shown: T[]; hidden: number } {
+  if (expanded || rows.length <= limit) return { shown: rows, hidden: 0 };
+  return { shown: rows.slice(0, limit), hidden: rows.length - limit };
+}

@@ -187,6 +187,9 @@ Without it the recap uploader is disabled; the gallery still renders rows that e
 The signup-email (`NEW_USER_WEBHOOK_SECRET`, `ADMIN_NOTIFY_EMAIL`, `SMTP_*`) and
 "Scripts" variables in `.env.example` aren't needed for local development.
 
+The signup-email (`NEW_USER_WEBHOOK_SECRET`, `ADMIN_NOTIFY_EMAIL`, `SMTP_*`) and
+"Scripts" variables in `.env.example` aren't needed for local development.
+
 The publishable/anon key is safe to expose. Never commit the secret/service-role key.
 
 ## Troubleshooting

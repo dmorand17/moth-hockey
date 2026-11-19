@@ -54,8 +54,8 @@ If your branch adds a Supabase migration:
    Supabase project:
 
    ```bash
-   supabase link --project-ref <staging-ref>   # one-time per machine
-   supabase db push --remote
+   ./scripts/supabase-push.sh staging --dry-run   # check what will apply
+   ./scripts/supabase-push.sh staging
    ```
 
 4. Vercel does **not** run migrations — you must push them manually to each
@@ -85,8 +85,8 @@ After merging the `staging → main` PR:
 1. **Apply migrations to prod** (if the PR body lists any):
 
    ```bash
-   supabase link --project-ref <prod-ref>
-   supabase db push --remote
+   ./scripts/supabase-push.sh prod --dry-run
+   ./scripts/supabase-push.sh prod
    ```
 
    Verify in the Supabase dashboard that the migration shows as applied.
@@ -145,7 +145,7 @@ Pass the version as the first argument to override the suggestion:
 | Task | Command |
 |---|---|
 | Cut a feature branch | `git checkout staging && git pull && git checkout -b feat/name` |
-| Push migrations to staging | `supabase link --project-ref <staging-ref> && supabase db push --remote` |
+| Push migrations to staging | `./scripts/supabase-push.sh staging` |
 | Create staging → main PR | `.claude/skills/staging-to-prod/scripts/create-pr.sh` |
-| Push migrations to prod | `supabase link --project-ref <prod-ref> && supabase db push --remote` |
+| Push migrations to prod | `./scripts/supabase-push.sh prod` |
 | Tag + create GitHub release | `.claude/skills/create-release/scripts/create-release.sh` |

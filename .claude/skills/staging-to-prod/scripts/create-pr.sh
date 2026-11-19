@@ -60,11 +60,11 @@ the prod project (see \`docs/initial-build/DEPLOY.md\`) when releasing:
 
 ${mig_list}
 \`\`\`bash
-bunx supabase db push --remote   # with the prod project linked
+./scripts/supabase-push.sh prod
 \`\`\`
 
 "
-  mig_checklist="- [ ] Apply the migrations above (\`supabase db push --remote\` to prod)
+  mig_checklist="- [ ] Apply the migrations above (\`./scripts/supabase-push.sh prod\`)
 "
 fi
 

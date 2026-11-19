@@ -16,8 +16,10 @@ Uses **bun**, so run the CLI via `bunx supabase …` (or a global
 | Production | `main` | `moth-hockey-prod` | `fpvqzzkauhifixnzppwh` |
 | Staging | `staging` | staging project | `ecvktaljsvrecozmfayj` |
 
-> Always confirm which project you're linked to before any `db push`/`db reset`
-> against a remote — see [Linking](#linking-to-a-cloud-project). Refs can also be
+> Push migrations with `scripts/supabase-push.sh`, which links the right project
+> for you — see [Pushing migrations](#pushing-migrations-to-a-cloud-project). For
+> any other remote command (e.g. `db reset`), confirm which project you're linked
+> to first — see [Linking](#linking-to-a-cloud-project). Refs can also be
 > read from the dashboard URL: `app.supabase.com/project/<ref>`.
 
 ## Local stack
@@ -76,44 +78,33 @@ Use the ref from the [Projects](#projects) table. Linking is per-machine and
 persists in `supabase/.temp/`. **Re-link before pushing** if you're unsure which
 project is active — it's easy to be linked to prod when you meant staging.
 
-Or link non-interactively from a per-environment file — refs are baked in and
-prod requires confirmation. Copy `.env.staging.example` / `.env.production.example`,
-fill in the token + DB password, then:
-
-```bash
-./scripts/supabase-link.sh staging
-./scripts/supabase-link.sh prod        # prompts to confirm (--yes to skip in CI)
-```
-
-If `SUPABASE_ACCESS_TOKEN` isn't already exported, the
-script loads `.env.staging` / `.env.production` itself — inside the script only,
-so the secrets don't linger in your shell. CI can export the variables instead.
-
-The script reads `SUPABASE_ACCESS_TOKEN` and (optionally) `SUPABASE_PROJECT_REF`
-from the loaded env, and cross-checks `SUPABASE_ENV` against the target to catch
-a wrong sourced file. Linking needs no DB password; `db push` reads
-`SUPABASE_DB_PASSWORD` from the environment (see below).
-
 ## Pushing migrations to a cloud project
 
-`db push` applies any local migrations not yet recorded on the linked remote,
-in order. **Confirm the linked project first.**
+Use `scripts/supabase-push.sh`. It links the target's baked-in ref, checks the
+link took, then runs `db push --remote`, which applies any local migrations not
+yet recorded on that project, in order. Linking on every run means a push can't
+land on whichever project happened to be linked before.
+
+Copy `.env.staging.example` / `.env.production.example` to `.env.staging` /
+`.env.production` and fill in the token and DB password, then:
 
 ```bash
-bunx supabase link --project-ref <staging-or-prod-ref>   # be deliberate
-bunx supabase migration list --remote                    # see what's pending
-bunx supabase db push --remote                           # apply pending migrations
+./scripts/supabase-push.sh staging --dry-run   # list pending migrations
+./scripts/supabase-push.sh staging             # apply them
+./scripts/supabase-push.sh prod                # prompts to confirm (--yes to skip in CI)
 ```
 
-CLI v3 targets the local stack unless you pass `--remote`. `db push` needs the
-database password, and the token needs **Database Pooling Config: Read** so
-`link` can set up the IPv4 pooler; without it the CLI tries IPv6 and fails with
-`DbConfigIpv6Error` on most home networks. To use the one in `.env.staging` /
-`.env.production` without exporting it into your shell, run it in a subshell:
+If `SUPABASE_ACCESS_TOKEN` or `SUPABASE_DB_PASSWORD` isn't already exported, the
+script loads `.env.staging` / `.env.production` itself, inside the script only,
+so the secrets don't linger in your shell. CI can export the variables instead.
+It also reads `SUPABASE_PROJECT_REF` (optional) and cross-checks `SUPABASE_ENV`
+against the target to catch a wrong sourced file.
 
-```bash
-( set -a; source .env.staging; set +a; bunx supabase db push --remote --dry-run )
-```
+The token needs **Read** on Project Settings, API Keys, API Key Secrets and
+**Database Pooling Config**. Without the pooling permission, `link` can't set up
+the IPv4 pooler; the CLI then tries IPv6 and fails with `DbConfigIpv6Error` on
+most home networks. CLI v3 targets the local stack unless you pass `--remote`,
+which the script does for you.
 
 - **Do NOT run `supabase/seed.sql` against a cloud DB** — it's local test
   fixtures (and its header block grants privileges only needed locally). Cloud

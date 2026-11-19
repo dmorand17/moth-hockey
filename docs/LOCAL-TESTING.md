@@ -166,7 +166,7 @@ The dev server must be able to reach the local DB (`supabase start`).
 
 ## Environment variables
 
-Copy `.env.local.example` to `.env.local` and fill from `supabase status`:
+Copy `.env.example` to `.env.local` and fill from `supabase status`:
 
 | Variable                             | Local value                                         |
 | ------------------------------------ | --------------------------------------------------- |
@@ -178,6 +178,9 @@ Copy `.env.local.example` to `.env.local` and fill from `supabase status`:
 | `WRITE_UP_MODEL`                     | Optional; primary write-up model                    |
 | `WRITE_UP_FALLBACK_MODEL`            | Optional; fallback write-up model                   |
 | `CRON_SECRET`                        | Any string; `Authorization: Bearer` for the cron    |
+
+The signup-email (`NEW_USER_WEBHOOK_SECRET`, `ADMIN_NOTIFY_EMAIL`, `SMTP_*`) and
+"Scripts" variables in `.env.example` aren't needed for local development.
 
 The publishable/anon key is safe to expose. Never commit the secret/service-role key.
 

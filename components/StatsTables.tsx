@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, type ReactNode } from "react";
+import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
 import { TeamTag } from "./TeamBadge";
 
@@ -185,9 +186,7 @@ function StatTable<T extends Row>({
           })}
       </div>
 
-      <div className={`panel ${moreCols ? "table-scroll" : "overflow-clip"}`}>
-        <table className={`board-table stats-table ${moreCols ? "" : "sticky-head"}`}>
-          <caption className="sr-only">{caption}. Column headers sort the table.</caption>
+      <DataTable caption={`${caption}. Column headers sort the table.`} scroll={moreCols} dense={false}>
           <thead>
             <tr>
               <th scope="col" className="text-left w-10 pl-3 sm:pl-4">#</th>
@@ -260,8 +259,7 @@ function StatTable<T extends Row>({
               })
             )}
           </tbody>
-        </table>
-      </div>
+      </DataTable>
       {hasSecondary && (
         <button
           type="button"

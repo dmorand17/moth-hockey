@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
 import { GameList, GameRow } from "@/components/GameRow";
 import { TeamBadge } from "@/components/TeamBadge";
@@ -67,9 +68,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         <div className="space-y-8 md:space-y-10 min-w-0">
           <section className="rise delay-1">
             <SectionHeader eyebrow="League table" title="Standings" linkHref="/standings" linkLabel="Full standings" />
-            <div className="panel overflow-clip">
-              <table className="board-table striped dense">
-                <caption className="sr-only">{season.name} standings</caption>
+            <DataTable caption={`${season.name} standings`}>
                 <thead>
                   <tr>
                     <th scope="col" className="text-left w-10 pl-4">#</th>
@@ -107,8 +106,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+            </DataTable>
           </section>
 
           <section className="rise delay-2">

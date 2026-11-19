@@ -353,11 +353,9 @@ table.board-table.sticky-head thead th {
   top: var(--header-h);
   z-index: 2;
 }
-table.board-table.stats-table tbody tr:nth-child(even) td,
 table.board-table.striped tbody tr:nth-child(even) td {
   background: var(--zebra);
 }
-table.board-table.stats-table tbody tr:hover td,
 table.board-table.striped tbody tr:hover td {
   background: var(--board-hover);
 }

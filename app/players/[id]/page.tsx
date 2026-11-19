@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DataTable } from "@/components/DataTable";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TeamBadge } from "@/components/TeamBadge";
@@ -522,10 +523,7 @@ export default async function PlayerPage({
           </EmptyState>
         ) : (
           <>
-            <div className="panel overflow-clip">
-              <div className="table-scroll">
-                <table className="board-table striped">
-                  <caption className="sr-only">Career stats by season</caption>
+            <DataTable caption="Career stats by season" scroll dense={false}>
                   <thead>
                     <tr>
                       <th scope="col" className="text-left pl-4">Season</th>
@@ -586,9 +584,7 @@ export default async function PlayerPage({
                       <td aria-hidden className="p-0! border-t border-rule-strong bg-board-3" />
                     </tr>
                   </tfoot>
-                </table>
-              </div>
-            </div>
+            </DataTable>
             <Disclosure label="Legend" className="mt-2">
               {isGoalie
                 ? "W-L-OTL is tracked for live seasons only (— for imported seasons). GA includes penalty-shot goals. PSF = penalty shots faced; PSV = penalty shots saved."

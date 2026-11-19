@@ -1,4 +1,5 @@
 import { TeamBadge } from "@/components/TeamBadge";
+import { DataTable } from "@/components/DataTable";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SeasonSelect } from "@/components/SeasonSelect";
 import {
@@ -120,9 +121,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
       <div className="space-y-6 md:space-y-8">
         {header}
 
-        <div className="rise delay-1 panel overflow-clip">
-          <table className="board-table striped dense">
-            <caption className="sr-only">{season.name} standings by goal differential</caption>
+        <DataTable caption={`${season.name} standings by goal differential`} className="rise delay-1">
             <thead>
               <tr>
                 <th scope="col" className="text-left w-10 pl-4">#</th>
@@ -150,8 +149,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+        </DataTable>
 
         <Disclosure label="How standings work" className="rise delay-2">
           <ul className="space-y-1.5 list-disc pl-5">
@@ -172,10 +170,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
     <div className="space-y-6 md:space-y-8">
       {header}
 
-      <div className="rise delay-1 panel overflow-clip">
-        <div className="table-scroll">
-          <table className="board-table striped dense">
-            <caption className="sr-only">{season.name} standings</caption>
+      <DataTable caption={`${season.name} standings`} className="rise delay-1">
             <thead>
               <tr>
                 <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
@@ -215,9 +210,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      </div>
+      </DataTable>
 
       <Disclosure label="How standings work" className="rise delay-2">
         <ul className="space-y-1.5 list-disc pl-5">

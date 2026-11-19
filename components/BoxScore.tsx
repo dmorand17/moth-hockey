@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
 import { TeamBadge } from "@/components/TeamBadge";
 import { ResultChip } from "@/components/Chips";
@@ -36,9 +37,7 @@ function TeamTable({ team, box }: { team: TeamRef; box: TeamBox }) {
         <TeamBadge name={team.name} slug={team.slug} color={team.color} size="md" />
       </div>
 
-      <div className="table-scroll">
-        <table className="board-table striped dense">
-          <caption className="sr-only">{team.name} skaters</caption>
+      <DataTable caption={`${team.name} skaters`} scroll framed={false}>
           <thead>
             <tr>
               <th scope="col" className="text-left pl-3 sm:pl-4">Skater</th>
@@ -82,13 +81,10 @@ function TeamTable({ team, box }: { team: TeamRef; box: TeamBox }) {
               ))}
             </tr>
           </tfoot>
-        </table>
-      </div>
+      </DataTable>
 
       {box.goalies.length > 0 && (
-        <div className="table-scroll border-t border-rule-strong">
-          <table className="board-table dense">
-            <caption className="sr-only">{team.name} goalies</caption>
+        <DataTable caption={`${team.name} goalies`} scroll framed={false} className="border-t border-rule-strong">
             <thead>
               <tr>
                 <th scope="col" className="text-left pl-3 sm:pl-4">Goalie</th>
@@ -111,8 +107,7 @@ function TeamTable({ team, box }: { team: TeamRef; box: TeamBox }) {
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+        </DataTable>
       )}
     </div>
   );

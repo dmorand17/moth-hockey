@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DataTable } from "@/components/DataTable";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { GameList, GameRow } from "@/components/GameRow";
@@ -162,9 +163,7 @@ export default async function TeamPage({
         {(roster ?? []).length === 0 ? (
           <EmptyState title="No roster set for this season yet." />
         ) : (
-          <div className="panel overflow-clip">
-            <table className="board-table dense">
-              <caption className="sr-only">{team.name} roster</caption>
+          <DataTable caption={`${team.name} roster`}>
               <thead>
                 <tr>
                   {showJersey && (
@@ -192,8 +191,7 @@ export default async function TeamPage({
                   />
                 ),
               )}
-            </table>
-          </div>
+          </DataTable>
         )}
         {/* TODO(data): per-player GP/G/A/PTS on the roster needs a season stats
             query for this team (stats are derived from game events today). */}

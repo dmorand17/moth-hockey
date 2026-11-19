@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
 import { TeamBadge, TeamTag } from "@/components/TeamBadge";
 import { ResultChip } from "@/components/Chips";
@@ -68,9 +69,7 @@ export function GameLogSection({
 
   return (
     <div>
-      <div className="panel overflow-clip">
-        <table className="board-table striped dense sticky-head">
-          <caption className="sr-only">Game log, most recent first</caption>
+      <DataTable caption="Game log, most recent first">
           <thead>
             <tr>
               <th scope="col" className="text-left pl-3 sm:pl-4">Date</th>
@@ -151,8 +150,7 @@ export function GameLogSection({
               );
             })}
           </tbody>
-        </table>
-      </div>
+      </DataTable>
 
       {hasMore && (
         <button

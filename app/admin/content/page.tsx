@@ -76,7 +76,7 @@ export default async function AdminContentPage() {
                 <span className="text-ink-faint text-[10px] transition-transform duration-150 group-open:rotate-90 inline-block">
                   ▶
                 </span>
-                <span className="font-display text-[13px] tracking-[0.14em] text-ice">
+                <span className="font-semibold text-[13px] tracking-[0.06em] text-ice">
                   + NEW {section.label.toUpperCase()} ENTRY
                 </span>
               </summary>
@@ -126,7 +126,7 @@ export default async function AdminContentPage() {
                       className={`mt-1 ${inputCls} font-mono text-[13px] leading-relaxed`}
                     />
                   </label>
-                  <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
+                  <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors">
                     CREATE
                   </SubmitButton>
                 </ActionForm>
@@ -152,7 +152,7 @@ export default async function AdminContentPage() {
                       <span className="font-mono text-[11px] text-ink-faint shrink-0 w-8 text-right">
                         {entry.sort_order}
                       </span>
-                      <span className="font-display text-[14px] tracking-[0.04em] text-ink flex-1 min-w-[160px]">
+                      <span className="font-semibold text-[14px] tracking-[0.04em] text-ink flex-1 min-w-[160px]">
                         {entry.title.toUpperCase()}
                       </span>
                       <span className="font-mono text-[11px] text-ink-faint">
@@ -208,7 +208,7 @@ export default async function AdminContentPage() {
                           />
                         </label>
                         <div className="flex items-center gap-3">
-                          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
+                          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors">
                             SAVE
                           </SubmitButton>
                         </div>
@@ -224,7 +224,7 @@ export default async function AdminContentPage() {
                           name="section"
                           value={entry.section}
                         />
-                        <SubmitButton className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors">
+                        <SubmitButton className="text-goal/60 hover:text-goal font-semibold tracking-[0.1em] text-[12px] transition-colors">
                           DELETE ENTRY
                         </SubmitButton>
                       </ActionForm>

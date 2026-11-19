@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { maskClockInput } from "./format";
+import { maskClockInput, teamAbbr } from "./format";
 
 describe("maskClockInput", () => {
   test("shifts digits in from the right with a colon always present", () => {
@@ -21,5 +21,19 @@ describe("maskClockInput", () => {
   test("empty when there are no digits", () => {
     expect(maskClockInput("")).toBe("");
     expect(maskClockInput("0:00")).toBe("");
+  });
+});
+
+describe("teamAbbr", () => {
+  test("multi-word names use initials", () => {
+    expect(teamAbbr("Frost Giants")).toBe("FG");
+    expect(teamAbbr("Mighty Ducks of Anaheim")).toBe("MDO");
+  });
+  test("single-word names use the first three letters", () => {
+    expect(teamAbbr("Red")).toBe("RED");
+    expect(teamAbbr("Yellow")).toBe("YEL");
+  });
+  test("trims extra whitespace", () => {
+    expect(teamAbbr("  Ice   Holes ")).toBe("IH");
   });
 });

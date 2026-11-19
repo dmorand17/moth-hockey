@@ -218,7 +218,7 @@ export function RosterCheckIn({
           type="button"
           disabled={!canStart}
           onClick={onSubmit}
-          className={`w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] border transition-colors ${
+          className={`w-full min-h-[52px] font-semibold text-[18px] tracking-[0.06em] rounded-[2px] border transition-colors ${
             canStart
               ? "bg-goal text-board border-goal hover:bg-goal-glow"
               : "bg-board-3 text-ink-faint border-rule cursor-not-allowed"
@@ -278,7 +278,7 @@ function TeamRoster({
             style={{ backgroundColor: team.color }}
             aria-hidden
           />
-          <span className="font-display text-[18px] tracking-[0.06em] truncate">
+          <span className="font-semibold text-[18px] tracking-[0.06em] truncate">
             {team.name}
           </span>
           <span className="eyebrow text-[10px] text-ink-faint">{sideLabel}</span>

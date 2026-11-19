@@ -7,18 +7,11 @@ const LABEL: Record<"qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final", str
   qf4: "QF4",
   sf1: "SF1",
   sf2: "SF2",
-  final: "F",
+  final: "Championship",
 };
 
-export function PlayoffChip({
-  round,
-  size = "md",
-}: {
-  round: Round;
-  size?: "sm" | "md";
-}) {
-  const cls =
-    size === "sm" ? "text-[9px] px-1 py-0" : "text-[10px] px-1.5 py-0.5";
-  const label = round ? LABEL[round] : "PLAYOFF";
-  return <span className={`chip chip-playoff ${cls}`}>{label}</span>;
+// `size` is kept for call-site compatibility; chips share one 12px size.
+export function PlayoffChip({ round }: { round: Round; size?: "sm" | "md" }) {
+  const label = round ? LABEL[round] : "Playoff";
+  return <span className="chip chip-playoff">{label}</span>;
 }

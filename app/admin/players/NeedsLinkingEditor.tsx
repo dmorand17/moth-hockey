@@ -74,7 +74,7 @@ export function NeedsLinkingEditor({
           type="button"
           onClick={saveAll}
           disabled={changes.length === 0 || pending}
-          className="shrink-0 min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="shrink-0 min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {pending ? "SAVING…" : `SAVE ALL${changes.length ? ` (${changes.length})` : ""}`}
         </button>

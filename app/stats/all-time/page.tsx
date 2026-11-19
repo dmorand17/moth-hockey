@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSeasonFinalizeInputs } from "@/lib/queries";
 import { computeSeasonTotals } from "@/lib/season-finalize";
@@ -24,11 +25,10 @@ type Row = {
   ot_losses: number | null;
 };
 
-const SPINE_CLS = "border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5 rounded-r-lg";
-const spine = (color: string) => ({
-  borderColor: color,
-  background: `linear-gradient(90deg, color-mix(in srgb, ${color} 9%, transparent), transparent 34%)`,
-});
+export const metadata: Metadata = {
+  title: "All-time stats",
+  description: "Career skater and goalie totals across every M.O.T.H season.",
+};
 
 // Career totals across every season: saved season totals (imported or
 // finalized), plus the current season's live totals until it's finalized.
@@ -117,36 +117,36 @@ export default async function AllTimeStatsPage() {
   }
 
   return (
-    <div className="space-y-5 sm:space-y-8">
-      <div className="rise flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <SectionHeader
-            eyebrow="The Record Book"
-            title="All-Time Stats"
-            subtitle={`Career totals · ${seasonsPlayed.size} season${seasonsPlayed.size === 1 ? "" : "s"}`}
-            size="lg"
-            as="h1"
-          />
-        </div>
-        <Link
-          href="/stats"
-          className="mt-1 shrink-0 eyebrow inline-flex items-center min-h-11 px-3 rounded-[2px] border border-rule-strong bg-board-3 text-ice hover:border-ice/60 transition-colors"
-        >
-          ← Season stats
-        </Link>
+    <div className="space-y-8 md:space-y-12">
+      <div className="rise">
+        <SectionHeader
+          eyebrow="The record book"
+          title="All-time stats"
+          subtitle={`Career totals · ${seasonsPlayed.size} season${seasonsPlayed.size === 1 ? "" : "s"}`}
+          size="lg"
+          as="h1"
+          action={
+            <Link
+              href="/stats"
+              className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11"
+            >
+              <span aria-hidden className="mr-1">←</span> Season stats
+            </Link>
+          }
+        />
       </div>
 
-      <section className={`rise delay-1 ${SPINE_CLS}`} style={spine("var(--ice)")}>
-        <SectionHeader eyebrow="Skaters" title="Career Skater Stats" accent="ice" />
+      <section className="rise delay-1">
+        <SectionHeader eyebrow="Skaters" title="Career skater stats" />
         <SkaterTable rows={[...skaters.values()]} />
       </section>
 
-      <section className={`rise delay-2 ${SPINE_CLS}`} style={spine("var(--goal)")}>
-        <SectionHeader eyebrow="Between The Pipes" title="Career Goalie Stats" accent="goal" />
+      <section className="rise delay-2">
+        <SectionHeader eyebrow="Between the pipes" title="Career goalie stats" />
         <GoalieTable rows={[...goalies.values()]} />
       </section>
 
-      <p className="rise delay-2 eyebrow normal-case tracking-[0.06em] text-ink-faint">
+      <p className="rise delay-2 text-[14px] leading-5 text-ink-faint max-w-[75ch]">
         Regular season only. Team shows each player&apos;s most recent team. W-L-OTL counts only
         seasons with game results (not imported seasons). Includes the current season&apos;s games
         played so far.

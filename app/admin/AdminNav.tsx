@@ -40,7 +40,7 @@ export function AdminNav() {
         className="flex items-center gap-2.5 min-h-11 px-3 rounded border border-rule hover:border-ice bg-board-2 text-ink transition-colors"
       >
         <span className="text-[16px] leading-none">☰</span>
-        <span className="font-display text-[14px] tracking-[0.14em] uppercase">
+        <span className="font-semibold text-[14px] tracking-[0.06em] uppercase">
           {current.label}
         </span>
         <span
@@ -75,7 +75,7 @@ export function AdminNav() {
                   role="menuitem"
                   onClick={() => setOpen(false)}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center w-full px-4 min-h-11 font-display text-[14px] tracking-[0.14em] uppercase transition-colors border-l-2 ${
+                  className={`flex items-center w-full px-4 min-h-11 font-semibold text-[14px] tracking-[0.06em] uppercase transition-colors border-l-2 ${
                     active
                       ? "text-ink bg-ice/10 border-ice"
                       : "text-ink-dim hover:text-ink hover:bg-board-3 border-transparent"

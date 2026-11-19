@@ -1,8 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SectionHeader } from "@/components/SectionHeader";
 import { PlayoffChip } from "@/components/PlayoffChip";
-import { TeamBadge } from "@/components/TeamBadge";
+import { TeamBadge, TeamTag } from "@/components/TeamBadge";
+import { StatusChip } from "@/components/Chips";
 import { CheckInToggle } from "@/components/CheckInToggle";
 import { AvailabilityManager, type ManagedPlayer } from "@/components/AvailabilityManager";
 import { SubsList, SubsManager, type GameSub } from "@/components/SubsManager";
@@ -13,7 +15,8 @@ import { GenerateWriteUpButton, WriteUpAdminControls } from "@/components/WriteU
 import { loadPreviewSource, type Db } from "@/lib/write-ups/data";
 import type { PreviewSource } from "@/lib/write-ups/prompt";
 import { BoxScore } from "@/components/BoxScore";
-import { CollapsibleSection } from "@/components/CollapsibleSection";
+import { GameTabs } from "@/components/GameTabs";
+import { EmptyState } from "@/components/EmptyState";
 import { buildBoxScore, resolvePosition, type LineupPlayer, type Position, type TeamBox } from "@/lib/box-score";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getBoardViewer, getSessionIfRole } from "@/lib/auth";
@@ -43,6 +46,29 @@ type EventRow = {
   assist2: PlayerRef | null;
   shooter: PlayerRef | null;
 };
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("games")
+    .select("status, home_score, away_score, home_team:home_team_id(name), away_team:away_team_id(name)")
+    .eq("id", id)
+    .maybeSingle();
+  const g = data as unknown as {
+    status: string;
+    home_score: number;
+    away_score: number;
+    home_team: { name: string } | null;
+    away_team: { name: string } | null;
+  } | null;
+  if (!g) return { title: "Game" };
+  const away = g.away_team?.name ?? "TBD";
+  const home = g.home_team?.name ?? "TBD";
+  const title =
+    g.status === "final" ? `${away} ${g.away_score}, ${home} ${g.home_score}` : `${away} at ${home}`;
+  return { title, description: `Scoreboard, box score and play-by-play: ${away} at ${home}.` };
+}
 
 export default async function GamePage({
   params,
@@ -339,21 +365,19 @@ export default async function GamePage({
   // most before puck drop) and near the end, collapsed, for live/final games.
   // Discussion always sits directly under Availability.
   const discussionSection = (
-    <section className="rise delay-1 space-y-4">
+    <section className="space-y-4">
       <SectionHeader eyebrow="Locker Room" title="Discussion" />
       <PostThread threads={gamePosts} viewer={boardViewer} gameId={game.id} empty="No posts about this game yet." />
     </section>
   );
 
   const availabilitySection = availability && (
-    <CollapsibleSection
-      eyebrow="Roster"
-      title="Availability"
-      subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
-      defaultOpen={false}
-      closedHint
-      className="rise delay-1 space-y-4"
-    >
+    <section className="space-y-4">
+      <SectionHeader
+        eyebrow="Roster"
+        title="Availability"
+        subtitle={isScheduled ? "Who's in for this game" : "Who was in for this game"}
+      />
       {isScheduled && availability.viewerCanCheckIn && (
         <div className="panel p-4 space-y-3">
           <p className="text-[14px] text-ink">
@@ -406,239 +430,185 @@ export default async function GamePage({
           />
         )}
       </div>
-    </CollapsibleSection>
+    </section>
   );
 
   return (
-    <div className="space-y-5 sm:space-y-8">
-      <Link href="/schedule" className="rise eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11 -mx-2 px-2">
-        ← Schedule
+    <div className="space-y-6 md:space-y-8">
+      <Link
+        href="/schedule"
+        className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11 -mb-4 md:-mb-6"
+      >
+        <span aria-hidden className="mr-1">←</span> Schedule
       </Link>
 
       {/* SCOREBOARD */}
-      <section className="rise scoreboard p-4 sm:p-5 md:p-6 relative overflow-hidden">
-        <div className="absolute inset-0 stripes opacity-40 pointer-events-none" />
-        <div className="relative">
-          <h1 className="sr-only">
-            {awayTeam?.name ?? "TBD"} vs {homeTeam?.name ?? "TBD"}
-          </h1>
-          {/* Status row */}
-          <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
-            <div className="eyebrow flex items-center gap-2 flex-wrap">
-              <span>{formatDate(game.scheduled_at)}</span>
-              <span className="text-rule-strong">·</span>
-              <span>{formatTime(game.scheduled_at)}</span>
-              {displayLocation && (
-                <>
-                  <span className="text-rule-strong">·</span>
-                  <span>{displayLocation}</span>
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {game.kind === "playoff" && (
-                <PlayoffChip round={game.playoff_round} />
-              )}
-              {isLive ? (
-                <span className="chip chip-live">
-                  <span className="live-dot" /> LIVE · {formatPeriod(game.period)} · {formatClock(game.clock_seconds)}
-                </span>
-              ) : isFinal ? (
-                <span className="chip chip-final">
-                  FINAL{game.decided_in && game.decided_in !== "regulation" ? `/${game.decided_in.toUpperCase()}` : ""}
-                </span>
-              ) : (
-                <span className="chip">UPCOMING</span>
-              )}
-            </div>
+      <section className="rise scoreboard overflow-clip">
+        <h1 className="sr-only">
+          {awayView.name} at {homeView.name}
+          {isFinal ? `, final ${game.away_score}–${game.home_score}` : ""}
+        </h1>
+        <div className="px-4 md:px-6 py-2.5 border-b border-rule flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <p className="text-[14px] text-ink-dim">
+            {formatDate(game.scheduled_at)} · {formatTime(game.scheduled_at)}
+            {displayLocation && <> · {displayLocation}</>}
+          </p>
+          <div className="flex items-center gap-2">
+            {game.kind === "playoff" && <PlayoffChip round={game.playoff_round} />}
+            <StatusChip
+              status={game.status}
+              decidedIn={game.decided_in}
+              liveDetail={isLive ? `${formatPeriod(game.period)} · ${formatClock(game.clock_seconds)}` : undefined}
+            />
           </div>
-
-          {/* Teams + scores — vertical stack on mobile, three-column on md+ */}
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-5 md:gap-8">
-            <TeamColumn team={awayView} score={game.away_score} won={awayWon} dimmed={isFinal && !awayWon} align="left" />
-            <div className="flex md:flex-col items-center justify-center md:justify-start gap-3 md:gap-0">
-              <div className="h-px flex-1 md:hidden bg-rule-strong" />
-              <div className="font-display text-[18px] md:text-[24px] tracking-[0.18em] text-ink-faint">VS</div>
-              <div className="h-px flex-1 md:hidden bg-rule-strong" />
-              <div className="mt-2 hidden md:block h-px w-12 bg-rule-strong" />
-            </div>
-            <TeamColumn team={homeView} score={game.home_score} won={homeWon} dimmed={isFinal && !homeWon} align="right" />
-          </div>
-
-          {game.decided_in === "shootout" && (
-            <div className="mt-8 pt-6 border-t border-rule grid grid-cols-3 items-center gap-4 text-center">
-              <div className="text-left">
-                <div className="eyebrow">Shootout</div>
-                <div className="digit text-2xl mt-1">{game.shootout_away_goals}</div>
-              </div>
-              <div className="eyebrow">final tally</div>
-              <div className="text-right">
-                <div className="eyebrow">Shootout</div>
-                <div className="digit text-2xl mt-1">{game.shootout_home_goals}</div>
-              </div>
-            </div>
-          )}
         </div>
+
+        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-6">
+          <TeamColumn team={awayView} label="Away" score={game.away_score} showScore={!isScheduled} won={awayWon} dimmed={isFinal && !awayWon} align="left" />
+          <div aria-hidden className="hidden md:block font-display text-[24px] text-ink-faint">
+            {isScheduled ? "at" : "–"}
+          </div>
+          <TeamColumn team={homeView} label="Home" score={game.home_score} showScore={!isScheduled} won={homeWon} dimmed={isFinal && !homeWon} align="right" />
+        </div>
+
+        {game.decided_in === "shootout" && (
+          <div className="px-4 md:px-6 py-3 border-t border-rule flex items-center justify-between gap-4 text-[14px]">
+            <span className="text-ink-dim">
+              Shootout <span className="digit text-ink ml-1">{game.shootout_away_goals}</span>
+            </span>
+            <span className="eyebrow">Final tally</span>
+            <span className="text-ink-dim">
+              <span className="digit text-ink mr-1">{game.shootout_home_goals}</span> Shootout
+            </span>
+          </div>
+        )}
       </section>
 
-      {/* AVAILABILITY (scheduled games: right under the scoreboard) */}
-      {isScheduled && availabilitySection}
-      {isScheduled && discussionSection}
-
-      {/* WRITE-UP (right after scoreboard for visibility) */}
-      {isScheduled && previewWriteUp && (
-        <section className="rise">
-          <WriteUpCard
-            writeUp={previewWriteUp}
-            footer={
-              previewSource?.projection && (
-                <OddsBoard projection={previewSource.projection} awayName={previewSource.away.name} homeName={previewSource.home.name} />
-              )
-            }
-            admin={adminSlot(previewWriteUp)}
-          />
-        </section>
-      )}
-      {isFinal && recapWriteUp && (
-        <section className="rise">
-          <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />
-        </section>
-      )}
-      {viewerIsAdmin && isScheduled && !previewWriteUp && (
-        <section className="rise">
-          <GenerateWriteUpButton gameId={id} kind="preview" />
-        </section>
-      )}
-      {viewerIsAdmin && isFinal && !recapWriteUp && (
-        <section className="rise">
-          <GenerateWriteUpButton gameId={id} kind="recap" />
-        </section>
-      )}
-
-      {/* BOX SCORE (live and final games) */}
-      {(isLive || isFinal) && box && (
-        <CollapsibleSection eyebrow="Box score" title="Player stats" defaultOpen className="rise delay-1 space-y-4">
-          {hasLineup ? (
-            <BoxScore box={box} home={homeView} away={awayView} />
-          ) : (
-            <p className="text-[14px] text-ink-dim">No lineup recorded for this game.</p>
-          )}
-        </CollapsibleSection>
-      )}
-
-      {/* MATCHUP (scheduled games) */}
-      {previewSource && (
-        <section className="rise delay-1 space-y-4">
-          <SectionHeader eyebrow="Preview" title="Matchup" />
-          <MatchupPanel source={previewSource} />
-        </section>
-      )}
-
-      {/* EVENTS LOG */}
-      <CollapsibleSection eyebrow="Play-by-play" title="Scoring & Penalties" defaultOpen className="rise delay-1">
+      <GameTabs
+        label="Game details"
+        tabs={[
+          {
+            id: "recap",
+            label: isScheduled ? "Preview" : "Recap",
+            content: (
+              <>
+                {isScheduled && previewWriteUp && (
+                  <WriteUpCard
+                    writeUp={previewWriteUp}
+                    footer={
+                      previewSource?.projection && (
+                        <OddsBoard projection={previewSource.projection} awayName={previewSource.away.name} homeName={previewSource.home.name} />
+                      )
+                    }
+                    admin={adminSlot(previewWriteUp)}
+                  />
+                )}
+                {isFinal && recapWriteUp && <WriteUpCard writeUp={recapWriteUp} admin={adminSlot(recapWriteUp)} />}
+                {viewerIsAdmin && isScheduled && !previewWriteUp && <GenerateWriteUpButton gameId={id} kind="preview" />}
+                {viewerIsAdmin && isFinal && !recapWriteUp && <GenerateWriteUpButton gameId={id} kind="recap" />}
+                {!(isScheduled ? previewWriteUp : isFinal ? recapWriteUp : null) && (
+                  <EmptyState title={isScheduled ? "No preview yet." : isLive ? "Game in progress." : "No recap for this game yet."}>
+                    {isScheduled ? "Check the matchup below." : "The box score and play-by-play have the details."}
+                  </EmptyState>
+                )}
+                {previewSource && (
+                  <section className="space-y-4">
+                    <SectionHeader eyebrow="Preview" title="Matchup" />
+                    <MatchupPanel source={previewSource} />
+                  </section>
+                )}
+                {isScheduled && availabilitySection}
+              </>
+            ),
+          },
+          {
+            id: "box-score",
+            label: "Box Score",
+            content: (
+              <>
+                {(isLive || isFinal) && box && hasLineup ? (
+                  <BoxScore box={box} home={homeView} away={awayView} />
+                ) : (
+                  <EmptyState title={isScheduled ? "The box score appears once the game starts." : "No lineup recorded for this game."} />
+                )}
+                {!isScheduled && availabilitySection}
+              </>
+            ),
+          },
+          {
+            id: "play-by-play",
+            label: "Play-by-Play",
+            content: (
+              <>
         {events.length === 0 ? (
-          <p className="eyebrow">No events recorded.</p>
+          <p className="text-[14px] text-ink-faint">No events recorded.</p>
         ) : (
-          <ol className="space-y-1.5">
-            {events.map((e, idx) => {
-              const team = e.team_id === homeView.id ? homeView : awayView;
-              const isGoal = e.type === "goal";
-              return (
-                <li
-                  key={e.id}
-                  className={`panel p-3 grid grid-cols-[auto_1fr] md:grid-cols-[auto_72px_1fr_auto] gap-x-4 gap-y-1 items-start border-l-[3px] md:border-l-2`}
-                  style={{ borderLeftColor: team.color, borderLeftStyle: "solid" }}
-                >
-                  {/* Index */}
-                  <div className="digit text-ink-faint text-sm">
-                    {String(idx + 1).padStart(2, "0")}
-                  </div>
-                  {/* Clock */}
-                  <div className="hidden md:flex flex-col items-center">
-                    <span className="eyebrow text-[9px]">{formatPeriod(e.period)}</span>
-                    <span className="digit text-lg text-ink mt-0.5">
-                      {formatClock(e.clock_seconds)}
-                    </span>
-                  </div>
-                  {/* Body */}
-                  <div className="col-span-1 md:col-span-1">
-                    <div className="flex items-baseline gap-2 flex-wrap mb-0.5">
-                      <span
-                        className={`font-display text-[13px] tracking-[0.16em] ${
-                          isGoal ? "text-goal" : "text-ice"
-                        }`}
-                      >
-                        {isGoal ? "GOAL" : "PENALTY"}
-                      </span>
-                      <span className="md:hidden eyebrow text-[10px]">
-                        {formatPeriod(e.period)} · {formatClock(e.clock_seconds)}
-                        <span style={{ color: team.color }}> · {team.name}</span>
-                      </span>
-                    </div>
-                    {isGoal && e.scorer && (
-                      <div className="text-[15px]">
-                        <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
-                          {e.scorer.first_name} {e.scorer.last_name}
-                        </Link>
-                        {(e.assist1 || e.assist2) && (
-                          <span className="text-[13px] text-ink-dim">
-                            {" · "}
-                            <span className="eyebrow text-[9px]">A</span>{" "}
-                            {[e.assist1, e.assist2]
-                              .filter(Boolean)
-                              .map((a) => `${a!.first_name} ${a!.last_name}`)
-                              .join(", ")}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {!isGoal && e.scorer && (
-                      <>
-                        <div className="text-[15px]">
-                          <Link href={`/players/${e.scorer.id}`} className="font-medium hover:text-ice transition-colors">
-                            {e.scorer.first_name} {e.scorer.last_name}
-                          </Link>
-                          <span className="text-ink-dim"> · {e.penalty_type}</span>
-                        </div>
-                        {e.shooter && (
-                          <div className="mt-2 text-[13px] flex items-center gap-2 flex-wrap">
-                            <span className="eyebrow text-[10px]">PS</span>
-                            <Link href={`/players/${e.shooter.id}`} className="hover:text-ink transition-colors text-ink-dim">
-                              {e.shooter.first_name} {e.shooter.last_name}
-                            </Link>
-                            <span
-                              className={`font-display tracking-[0.16em] text-[12px] ${
-                                e.penalty_shot_result === "goal" ? "text-goal" : "text-ice"
-                              }`}
-                            >
-                              · {e.penalty_shot_result === "goal" ? "GOAL" : "SAVED"}
+          <ol className="panel overflow-clip">
+            {groupByPeriod(events).map(({ period, items }) => (
+              <li key={period}>
+                <h3 className="px-4 py-1.5 bg-board-3 border-b border-rule eyebrow">{periodName(period)}</h3>
+                <ol className="divide-y divide-rule">
+                  {items.map((e) => {
+                    const team = e.team_id === homeView.id ? homeView : awayView;
+                    const isGoal = e.type === "goal";
+                    return (
+                      <li key={e.id} className="grid grid-cols-[3rem_1fr_auto] items-baseline gap-x-3 px-4 py-2">
+                        <span className="digit text-[15px] text-ink-dim">{formatClock(e.clock_seconds)}</span>
+                        <div className="min-w-0">
+                          <p className="text-[16px] leading-6">
+                            <span className={`mr-2 text-[12px] font-bold uppercase tracking-[0.06em] ${isGoal ? "text-goal" : "text-ink-dim"}`}>
+                              {isGoal ? "Goal" : "Penalty"}
                             </span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {/* Team marker */}
-                  <div className="hidden md:flex items-center gap-2 text-right justify-self-end">
-                    <span className="eyebrow">{team.name}</span>
-                    <span
-                      aria-hidden
-                      className="w-1 h-5 rounded-[1px]"
-                      style={{ background: team.color, boxShadow: `0 0 8px ${team.color}55` }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
+                            {e.scorer && (
+                              <Link href={`/players/${e.scorer.id}`} className="font-semibold text-ink hover:text-ice transition-colors">
+                                {e.scorer.first_name} {e.scorer.last_name}
+                              </Link>
+                            )}
+                            {!isGoal && e.penalty_type && <span className="text-[14px] text-ink-dim"> · {e.penalty_type}</span>}
+                          </p>
+                          {isGoal && (e.assist1 || e.assist2) && (
+                            <p className="text-[14px] leading-5 text-ink-faint">
+                              Assists:{" "}
+                              {[e.assist1, e.assist2]
+                                .filter(Boolean)
+                                .map((a) => `${a!.first_name} ${a!.last_name}`)
+                                .join(", ")}
+                            </p>
+                          )}
+                          {!isGoal && e.shooter && (
+                            <p className="text-[14px] leading-5 text-ink-faint">
+                              Penalty shot:{" "}
+                              <Link href={`/players/${e.shooter.id}`} className="text-ink-dim hover:text-ice transition-colors">
+                                {e.shooter.first_name} {e.shooter.last_name}
+                              </Link>{" "}
+                              —{" "}
+                              <span className={`font-semibold ${e.penalty_shot_result === "goal" ? "text-goal" : "text-ink-dim"}`}>
+                                {e.penalty_shot_result === "goal" ? "Goal" : "Saved"}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                        <span className="sm:hidden">
+                          <TeamTag name={team.name} color={team.color} />
+                        </span>
+                        <span className="hidden sm:inline-flex items-center gap-1.5 text-[13px] text-ink-faint">
+                          <span aria-hidden className="swatch h-2 w-2 rounded-full" style={{ background: team.color }} />
+                          {team.name}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </li>
+            ))}
           </ol>
         )}
-      </CollapsibleSection>
-
-      {/* AVAILABILITY (live/final games: near the end, collapsed by default) */}
-      {!isScheduled && availabilitySection}
-
-      {/* DISCUSSION (live/final games: under availability) */}
-      {!isScheduled && discussionSection}
+              </>
+            ),
+          },
+          { id: "discussion", label: "Discussion", content: discussionSection },
+        ]}
+      />
     </div>
   );
 }
@@ -667,13 +637,13 @@ function TeamAvailabilityCard({
     >
       <div className="flex items-center justify-between gap-2">
         <TeamBadge name={team.name} slug={team.slug} color={team.color} size="sm" />
-        <span className="eyebrow text-ink-faint">
+        <span className="text-[13px] text-ink-faint">
           {avail.in.length} in · {avail.out.length} out
         </span>
       </div>
-      <AvailGroup label="In" color="text-goal" players={avail.in} />
-      <AvailGroup label="Out" color="text-ice" players={avail.out} />
-      <AvailGroup label="No response" color="text-ink-faint" players={avail.none} />
+      <AvailGroup label="In" color="text-win!" players={avail.in} />
+      <AvailGroup label="Out" color="text-loss!" players={avail.out} />
+      <AvailGroup label="No response" color="text-ink-faint!" players={avail.none} />
       <SubsList subs={subs} />
       {avail.in.length + avail.out.length + avail.none.length === 0 && (
         <p className="text-ink-faint text-[13px]">No roster set for this season.</p>
@@ -700,7 +670,7 @@ function AvailGroup({
       <ul className="mt-1 space-y-0.5">
         {players.map((p) => (
           <li key={p.id} className="text-[14px] text-ink-dim">
-            <Link href={`/players/${p.id}`} className="hover:text-ink transition-colors">
+            <Link href={`/players/${p.id}`} className="inline-flex items-center min-h-[32px] hover:text-ink transition-colors">
               {p.name}
               {p.jersey != null ? ` · #${p.jersey}` : ""}
             </Link>
@@ -713,50 +683,70 @@ function AvailGroup({
 
 function TeamColumn({
   team,
+  label,
   score,
+  showScore,
   won,
   dimmed,
   align,
 }: {
   team: { name: string; slug: string; color: string };
+  label: string;
   score: number;
+  showScore: boolean;
   won: boolean;
   dimmed: boolean;
   align: "left" | "right";
 }) {
-  // Mobile: badge | score on one row. md+: stacked column with align controlling
-  // text alignment so home is right-aligned, away is left-aligned.
-  const colAlign =
-    align === "right"
-      ? "md:flex-col md:items-end md:text-right"
-      : "md:flex-col md:items-start md:text-left";
-  const eyebrowAlign = align === "right" ? "md:text-right" : "md:text-left";
+  // Mobile: one row per team (name left, score right). md+: away mirrors home
+  // so both scores sit next to the center divider.
+  const mirror = align === "right" ? "md:flex-row-reverse md:text-right" : "";
   return (
-    <div className={`flex items-center justify-between gap-4 ${colAlign}`}>
-      <Link href={`/teams/${team.slug}`} className="group min-w-0 flex-1 md:flex-initial">
-        <div className={`eyebrow ${eyebrowAlign}`}>
-          {align === "left" ? "Away" : "Home"}
+    <div className={`flex items-center gap-4 ${mirror}`}>
+      <span aria-hidden className="swatch w-1 self-stretch rounded-[1px] shrink-0" style={{ background: team.color }} />
+      <div className="min-w-0 flex-1">
+        <div className={`flex items-center gap-2 ${align === "right" ? "md:justify-end" : ""}`}>
+          <span className="eyebrow">{label}</span>
+          {won && <span className="chip chip-win">Win</span>}
         </div>
-        <div
-          className={`mt-2 font-display text-[22px] sm:text-[26px] md:text-[34px] leading-[0.95] tracking-[0.04em] ${
+        <Link
+          href={`/teams/${team.slug}`}
+          className={`block font-display text-[28px] leading-8 md:text-[36px] md:leading-10 tracking-[0.02em] hover:text-ice transition-colors ${
             dimmed ? "text-ink-dim" : "text-ink"
-          } group-hover:text-ice transition-colors`}
+          }`}
         >
-          {team.name.toUpperCase()}
-        </div>
-        <div
-          className={`mt-2 h-1 w-12 ${align === "right" ? "md:ml-auto" : ""}`}
-          style={{ background: team.color, boxShadow: `0 0 12px ${team.color}77` }}
-        />
-      </Link>
-      <div
-        className={`digit text-[40px] md:text-[64px] leading-none md:mt-2 shrink-0 ${
-          won ? "text-ink" : dimmed ? "text-ink-faint" : "text-ink"
-        }`}
-        style={won ? { textShadow: `0 0 24px ${team.color}66` } : undefined}
-      >
-        {score}
+          {team.name}
+        </Link>
       </div>
+      {showScore && (
+        <span className={`digit text-[44px] md:text-[64px] leading-none shrink-0 ${dimmed ? "text-ink-faint" : "text-ink"}`}>
+          {score}
+        </span>
+      )}
     </div>
   );
+}
+
+const PERIOD_NAME: Record<string, string> = {
+  P1: "1st period",
+  P2: "2nd period",
+  P3: "3rd period",
+  OT: "Overtime",
+  SO: "Shootout",
+};
+
+function periodName(period: number): string {
+  const short = formatPeriod(period);
+  return PERIOD_NAME[short] ?? short;
+}
+
+// Consecutive events grouped by period, preserving order.
+function groupByPeriod(events: EventRow[]): { period: number; items: EventRow[] }[] {
+  const groups: { period: number; items: EventRow[] }[] = [];
+  for (const e of events) {
+    const last = groups[groups.length - 1];
+    if (last && last.period === e.period) last.items.push(e);
+    else groups.push({ period: e.period, items: [e] });
+  }
+  return groups;
 }

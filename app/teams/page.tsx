@@ -3,6 +3,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SectionHeader } from "@/components/SectionHeader";
 import { getCurrentSeason, getStandings } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
+import { teamAbbr } from "@/lib/format";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Teams",
+  description: "Every team in the league with its record and points.",
+};
 
 export default async function TeamsPage() {
   const season = await getCurrentSeason();
@@ -18,91 +25,74 @@ export default async function TeamsPage() {
   ]);
 
   const recordByTeamId = new Map(
-    standings.map((r) => [r.team_id, { w: r.w, l: r.l, otl: r.otl, pts: r.pts }]),
+    standings.map((r, i) => [r.team_id, { w: r.w, l: r.l, otl: r.otl, pts: r.pts, rank: i + 1 }]),
   );
+  const list = teams ?? [];
 
   return (
-    <div className="space-y-4 sm:space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <div className="rise">
         <SectionHeader
-          eyebrow="The Roster"
+          eyebrow={season.name}
           title="Teams"
-          subtitle={`${season.name} · ${(teams ?? []).length} teams in the league`}
+          subtitle={`${list.length} teams in the league`}
           size="lg"
           as="h1"
         />
       </div>
 
-      <div className="rise delay-1 grid gap-3 md:grid-cols-2">
-        {(teams ?? []).map((t, i) => {
+      <ul className="rise delay-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        {list.map((t, i) => {
           const rec = recordByTeamId.get(t.id);
           return (
-            <Link
-              key={t.id}
-              href={`/teams/${t.slug}`}
-              className="panel p-4 sm:p-5 group relative overflow-hidden hover:border-rule-strong transition-colors"
-            >
-              <div
-                className="absolute -right-12 -top-12 w-40 h-40 rounded-full opacity-20 blur-2xl pointer-events-none"
-                style={{ background: t.color }}
-              />
-              <div className="relative">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="relative h-14 w-14 shrink-0">
-                      <div
-                        className="absolute inset-0 rounded-sm border"
-                        style={{ background: t.color, borderColor: t.color }}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center font-display text-board text-[22px] tracking-tight">
-                        {t.name
-                          .split(" ")
-                          .map((w) => w[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="eyebrow">Team {String(i + 1).padStart(2, "0")}</div>
-                      <h3 className="font-display text-[26px] tracking-[0.03em] leading-none mt-1">
-                        {t.name.toUpperCase()}
-                      </h3>
-                    </div>
-                  </div>
-                  {rec && (
-                    <div className="text-right shrink-0">
-                      <div className="digit text-2xl text-ink">{rec.pts}</div>
-                      <div className="eyebrow">PTS</div>
-                    </div>
+            <li key={t.id} className={spanClass(i, list.length)}>
+              <Link
+                href={`/teams/${t.slug}`}
+                className="panel h-full p-4 md:p-5 flex items-center gap-4 hover:bg-board-hover hover:border-rule-strong transition-colors group"
+              >
+                <span
+                  aria-hidden
+                  className="swatch h-12 w-12 shrink-0 rounded-md flex items-center justify-center font-display text-[22px] text-board"
+                  style={{ background: t.color }}
+                >
+                  {teamAbbr(t.name).slice(0, 2)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-[18px] font-bold leading-6 text-ink group-hover:text-ice transition-colors">
+                    {t.name}
+                  </h2>
+                  {rec ? (
+                    <p className="text-[14px] text-ink-faint tnum">
+                      <span className="text-ink-dim">
+                        {rec.w}-{rec.l}-{rec.otl}
+                      </span>{" "}
+                      W-L-OTL · <span className={rec.rank === 1 ? "text-gold font-semibold" : ""}>#{rec.rank}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[14px] text-ink-faint">No games yet</p>
                   )}
                 </div>
                 {rec && (
-                  <div className="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-rule flex items-center justify-between text-[13px]">
-                    <div className="flex gap-4">
-                      <Stat label="W" value={rec.w} accent="text-ink" />
-                      <Stat label="L" value={rec.l} />
-                      <Stat label="OTL" value={rec.otl} />
-                    </div>
-                    <span className="eyebrow group-hover:text-ink transition-colors">
-                      Roster →
-                    </span>
+                  <div className="text-right shrink-0">
+                    <div className="digit text-[28px] leading-none text-ink">{rec.pts}</div>
+                    <div className="mt-1 text-[12px] font-semibold text-ink-faint">PTS</div>
                   </div>
                 )}
-              </div>
-            </Link>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }
 
-function Stat({ label, value, accent = "text-ink-dim" }: { label: string; value: number; accent?: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span className={`digit ${accent}`}>{value}</span>
-      <span className="eyebrow text-[10px]">{label}</span>
-    </div>
-  );
+// 6-column grid on lg: 3 per row, with a short last row stretched so there's
+// no empty hole (5 teams → 3 + 2). On sm (2 columns) an odd last card spans both.
+function spanClass(i: number, n: number): string {
+  const lastRow = n % 3;
+  const inLastRow = lastRow !== 0 && i >= n - lastRow;
+  const lg = inLastRow ? (lastRow === 2 ? "lg:col-span-3" : "lg:col-span-6") : "lg:col-span-2";
+  const sm = n % 2 === 1 && i === n - 1 ? "sm:col-span-2" : "";
+  return `${lg} ${sm}`;
 }

@@ -1,4 +1,5 @@
 import { TeamBadge } from "@/components/TeamBadge";
+import { DataTable } from "@/components/DataTable";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SeasonSelect } from "@/components/SeasonSelect";
 import {
@@ -11,6 +12,35 @@ import {
   type TieKey,
 } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
+import { Disclosure } from "@/components/Disclosure";
+import { EmptyState } from "@/components/EmptyState";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Standings",
+  description: "League table: wins, losses, overtime losses, goal differential and points.",
+};
+
+function Diff({ value }: { value: number }) {
+  const tone = value > 0 ? "text-win" : value < 0 ? "text-loss" : "text-ink-faint";
+  return <span className={tone}>{value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0"}</span>;
+}
+
+function Rank({ i }: { i: number }) {
+  return (
+    <span className={`tnum ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>
+      {i + 1}
+      {i === 0 && <span className="sr-only"> (first place)</span>}
+    </span>
+  );
+}
+
+const Champion = () => (
+  <span title="Champion" className="text-gold">
+    <span aria-hidden>🏆</span>
+    <span className="sr-only">Champion</span>
+  </span>
+);
 
 type SearchParams = Promise<{ season?: string }>;
 
@@ -54,14 +84,13 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
 
   const header = (
     <div className="rise">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <SectionHeader eyebrow="The Table" title="Standings" subtitle={season.name} size="lg" as="h1" />
-        </div>
-        <div className="mt-1 shrink-0">
-          <SeasonSelect seasons={seasons} selectedId={season.id} />
-        </div>
-      </div>
+      <SectionHeader
+        eyebrow={season.name}
+        title="Standings"
+        size="lg"
+        as="h1"
+        action={<SeasonSelect seasons={seasons} selectedId={season.id} />}
+      />
     </div>
   );
 
@@ -75,74 +104,62 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
 
     if (rows.length === 0) {
       return (
-        <div className="space-y-4 sm:space-y-8">
+        <div className="space-y-6 md:space-y-8">
           {header}
-          <div className="rise delay-1 panel-bare p-5 sm:p-6">
-            <div className="eyebrow mb-2 text-goal">Historical season</div>
-            <p className="text-[13.5px] text-ink-dim">
-              No team standings on file for {season.name}. Individual player totals are still
-              available on the <span className="text-ink">Stats</span> page.
-            </p>
+          <div className="rise delay-1">
+            <EmptyState
+              title={`No team standings on file for ${season.name}.`}
+              linkHref={`/stats?season=${season.id}`}
+              linkLabel="Player totals on the Stats page"
+            />
           </div>
         </div>
       );
     }
 
     return (
-      <div className="space-y-4 sm:space-y-8">
+      <div className="space-y-6 md:space-y-8">
         {header}
 
-        <div className="rise delay-1 panel overflow-x-auto">
-          <table className="board-table striped min-w-[440px]">
+        <DataTable caption={`${season.name} standings by goal differential`} className="rise delay-1">
             <thead>
               <tr>
-                <th className="text-left w-12 pl-5">#</th>
-                <th className="text-left">Team</th>
-                <th className="text-right">GP</th>
-                <th className="text-right">GF</th>
-                <th className="text-right">GA</th>
-                <th className="text-right pr-5">DIFF</th>
+                <th scope="col" className="text-left w-10 pl-4">#</th>
+                <th scope="col" className="text-left">Team</th>
+                <th scope="col" className="text-right sm:w-14">GP</th>
+                <th scope="col" className="text-right sm:w-14">GF</th>
+                <th scope="col" className="text-right sm:w-14">GA</th>
+                <th scope="col" className="text-right sm:w-14 pr-4">DIFF</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.team_id}>
-                  <td className="pl-5 digit text-ink-faint">{String(i + 1).padStart(2, "0")}</td>
-                  <td>
+                  <td className="pl-4"><Rank i={i} /></td>
+                  <td className="max-w-0 w-full">
                     <div className="flex items-center gap-1.5">
-                      <TeamBadge name={row.name} slug={row.slug} color={row.color} />
-                      {row.is_champion && <span title="Champion">🏆</span>}
+                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="min-w-0" />
+                      {row.is_champion && <Champion />}
                     </div>
                   </td>
                   <td className="text-right tnum text-ink-dim">{row.gp}</td>
-                  <td className="text-right tnum text-ink">{row.gf}</td>
+                  <td className="text-right tnum text-ink-dim">{row.gf}</td>
                   <td className="text-right tnum text-ink-dim">{row.ga}</td>
-                  <td
-                    className={`text-right pr-5 tnum digit text-xl ${
-                      row.diff > 0 ? "text-ice" : row.diff < 0 ? "text-goal" : "text-ink-dim"
-                    }`}
-                  >
-                    {row.diff > 0 ? "+" : ""}
-                    {row.diff}
-                  </td>
+                  <td className="text-right pr-4 tnum font-bold"><Diff value={row.diff} /></td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+        </DataTable>
 
-        <div className="rise delay-2 panel-bare p-4 sm:p-5">
-          <div className="eyebrow mb-3 text-goal">Historical season</div>
-          <ul className="space-y-1.5 text-[13.5px] text-ink-dim">
+        <Disclosure label="How standings work" className="rise delay-2">
+          <ul className="space-y-1.5 list-disc pl-5">
             <li>
-              Game-by-game records (W/L/OTL) aren&apos;t tracked for past seasons. Teams are ranked by{" "}
-              <span className="text-ink">goal differential</span> from aggregated player stats.
+              Game-by-game records (W/L/OTL) aren&apos;t tracked for past seasons. Teams are ranked by goal
+              differential from aggregated player stats.
             </li>
-            <li>
-              <span className="text-ink">🏆</span> marks the season champion.
-            </li>
+            <li>🏆 marks the season champion.</li>
           </ul>
-        </div>
+        </Disclosure>
       </div>
     );
   }
@@ -150,79 +167,68 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
   const championId = await getChampionTeamId(season.id);
 
   return (
-    <div className="space-y-4 sm:space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {header}
 
-      <div className="rise delay-1 panel overflow-x-auto">
-        <table className="board-table striped min-w-[640px]">
-          <thead>
-            <tr>
-              <th className="text-left w-12 pl-5">#</th>
-              <th className="text-left">Team</th>
-              <th className="text-right">GP</th>
-              <th className="text-right">W</th>
-              <th className="text-right">L</th>
-              <th className="text-right">OTL</th>
-              <th className="text-right">GF</th>
-              <th className="text-right">GA</th>
-              <th className="text-right">DIFF</th>
-              <th className="text-right pr-5">PTS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((row, i) => (
-              <tr key={row.team_id}>
-                <td className="pl-5 digit text-ink-faint">
-                  {String(i + 1).padStart(2, "0")}
-                </td>
-                <td>
-                  <div className="flex items-center gap-1.5">
-                    <TeamBadge name={row.name} slug={row.slug} color={row.color} />
-                    {row.team_id === championId && <span title="Champion">🏆</span>}
-                  </div>
-                </td>
-                <td className="text-right tnum text-ink-dim">{row.gp}</td>
-                <td className="text-right tnum text-ink">{row.w}</td>
-                <td className="text-right tnum text-ink-dim">{row.l}</td>
-                <td className="text-right tnum text-ink-dim">{row.otl}</td>
-                <td className="text-right tnum text-ink-dim">{row.gf}</td>
-                <td className="text-right tnum text-ink-dim">{row.ga}</td>
-                <td
-                  className={`text-right tnum ${
-                    row.diff > 0 ? "text-ice" : row.diff < 0 ? "text-goal" : "text-ink-dim"
-                  }`}
-                >
-                  {row.diff > 0 ? "+" : ""}
-                  {row.diff}
-                </td>
-                <td className="text-right pr-5 digit text-xl text-ink">{row.pts}</td>
+      <DataTable caption={`${season.name} standings`} className="rise delay-1">
+            <thead>
+              <tr>
+                <th scope="col" className="text-left w-8 pl-3 sm:pl-4">#</th>
+                <th scope="col" className="text-left">Team</th>
+                <th scope="col" className="text-right sm:w-14">GP</th>
+                <th scope="col" className="text-right sm:w-14 sm:hidden">W-L-OTL</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">W</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">L</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">OTL</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
+                <th scope="col" className="text-right sm:w-14">DIFF</th>
+                <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">PTS</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {standings.map((row, i) => (
+                <tr key={row.team_id}>
+                  <td className="pl-3 sm:pl-4"><Rank i={i} /></td>
+                  <td className="max-w-0 w-full">
+                    <div className="flex items-center gap-1.5">
+                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="min-w-0" />
+                      {row.team_id === championId && <Champion />}
+                    </div>
+                  </td>
+                  <td className="text-right tnum text-ink-dim">{row.gp}</td>
+                  <td className="text-right tnum text-ink-dim whitespace-nowrap sm:hidden">
+                    {row.w}-{row.l}-{row.otl}
+                  </td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.w}</td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.l}</td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.otl}</td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.gf}</td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.ga}</td>
+                  <td className="text-right tnum font-semibold"><Diff value={row.diff} /></td>
+                  <td className="text-right pr-3 sm:pr-4 tnum text-[17px] font-bold text-ink">{row.pts}</td>
+                </tr>
+              ))}
+            </tbody>
+      </DataTable>
 
-      <div className="rise delay-2 panel-bare p-4 sm:p-5">
-        <div className="eyebrow mb-3 text-goal">House rules</div>
-        <ul className="space-y-1.5 text-[13.5px] text-ink-dim">
+      <Disclosure label="How standings work" className="rise delay-2">
+        <ul className="space-y-1.5 list-disc pl-5">
           <li>
             {points.map((p, i) => (
               <span key={p.label}>
                 {i > 0 && " · "}
-                <span className="text-ink">{p.label}</span> {p.value}
+                <span className="text-ink-dim">{p.label}</span> {p.value}
               </span>
             ))}
           </li>
           <li>
-            <span className="text-ink">Tiebreakers:</span> {tieChain}
+            <span className="text-ink-dim">Tiebreakers:</span> {tieChain}
           </li>
-          {championId && (
-            <li>
-              <span className="text-ink">🏆</span> marks the playoff champion.
-            </li>
-          )}
+          <li>DIFF = goal differential (GF − GA). Gold rank marks first place.</li>
+          {championId && <li>🏆 marks the playoff champion.</li>}
         </ul>
-      </div>
+      </Disclosure>
     </div>
   );
 }

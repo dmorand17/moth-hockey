@@ -5,7 +5,7 @@ import { getBoardViewer } from "@/lib/auth";
 import { getBoardPosts, getBoardSeasons } from "@/lib/queries";
 import { boardSeasonWindow, parseCursor } from "@/lib/board";
 
-const navLink = "eyebrow hover:text-ink transition-colors inline-flex items-center min-h-11";
+const navLink = "text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11";
 
 function boardHref(params: { season?: string; before?: string }) {
   const q = new URLSearchParams();
@@ -19,11 +19,9 @@ function boardHref(params: { season?: string; before?: string }) {
 // the current season by default, earlier seasons as a read-only archive.
 // `before` / `boardSeason` are the raw URL params; links jump back to #board.
 export async function HomeBoard({
-  eyebrow,
   before,
   boardSeason,
 }: {
-  eyebrow?: string;
   before?: string;
   boardSeason?: string;
 }) {
@@ -37,19 +35,10 @@ export async function HomeBoard({
   const seasonParam = archived ? scope.season.id : undefined;
 
   return (
-    <section
-      id="board"
-      className="rise delay-1 scroll-mt-4 rounded-r-lg border-l-[3px] pl-4 sm:pl-6 py-4 sm:py-5 space-y-4"
-      style={{
-        borderColor: "var(--goal)",
-        background:
-          "linear-gradient(90deg, color-mix(in srgb, var(--goal) 9%, transparent), transparent 34%)",
-      }}
-    >
+    <section id="board" className="rise delay-3 space-y-4">
       <SectionHeader
-        eyebrow={eyebrow}
+        eyebrow={scope ? (archived ? `${scope.season.name} · Archive` : scope.season.name) : "Message board"}
         title="Locker Room"
-        subtitle={scope ? (archived ? `${scope.season.name} · Archive` : scope.season.name) : undefined}
         linkHref={archived ? "/#board" : undefined}
         linkLabel={archived ? "Current season" : undefined}
       />

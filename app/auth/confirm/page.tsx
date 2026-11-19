@@ -32,7 +32,7 @@ export default async function ConfirmPage({ searchParams }: { searchParams: Sear
 
         <button
           type="submit"
-          className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-display tracking-[0.14em] text-[15px] rounded transition-colors"
+          className="w-full min-h-11 bg-goal hover:bg-goal-glow text-board font-semibold tracking-[0.06em] text-[15px] rounded transition-colors"
         >
           SIGN IN
         </button>

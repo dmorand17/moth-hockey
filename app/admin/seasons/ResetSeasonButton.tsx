@@ -31,7 +31,7 @@ export function ResetSeasonButton({
       }}
     >
       <input type="hidden" name="id" value={seasonId} />
-      <SubmitButton className="text-goal/60 hover:text-goal font-display tracking-[0.1em] text-[12px] transition-colors">
+      <SubmitButton className="text-goal/60 hover:text-goal font-semibold tracking-[0.1em] text-[12px] transition-colors">
         RESET SEASON
       </SubmitButton>
     </ActionForm>

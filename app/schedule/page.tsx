@@ -1,27 +1,21 @@
-import { GameRow } from "@/components/GameRow";
+import type { Metadata } from "next";
 import { SectionHeader } from "@/components/SectionHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { ScheduleView, type ScheduleGame, type ScheduleWeek } from "@/components/ScheduleView";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { localDateKey, byeTeamNamesByDate } from "@/lib/season-schedule";
 
-type TeamRef = { name: string; slug: string; color: string };
-type ScheduleGame = {
-  id: string;
-  scheduled_at: string;
-  status: "scheduled" | "live" | "final";
-  kind: "regular" | "playoff";
-  playoff_round: "qf1" | "qf2" | "qf3" | "qf4" | "sf1" | "sf2" | "final" | null;
-  home_score: number;
-  away_score: number;
-  decided_in: "regulation" | "ot" | "shootout" | null;
-  home_team_id: string | null;
-  away_team_id: string | null;
-  home_team: TeamRef | null;
-  away_team: TeamRef | null;
+export const metadata: Metadata = {
+  title: "Schedule",
+  description: "Every game night this season: results, upcoming games and bye weeks.",
 };
 
-export default async function SchedulePage() {
+type GameRowData = ScheduleGame & { home_team_id: string | null; away_team_id: string | null };
+
+export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ team?: string }> }) {
+  const { team: teamParam } = await searchParams;
   const season = await getCurrentSeason();
   if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
@@ -41,7 +35,7 @@ export default async function SchedulePage() {
       .eq("season_id", season.id)
       .order("skip_date"),
   ]);
-  const games = (gamesRaw ?? []) as unknown as ScheduleGame[];
+  const games = (gamesRaw ?? []) as unknown as GameRowData[];
 
   // Bye team(s) per regular-season game night.
   const byesByDate = byeTeamNamesByDate(
@@ -56,7 +50,7 @@ export default async function SchedulePage() {
   );
 
   // Group games by game night (local date = one week of play).
-  const gamesByDate = new Map<string, ScheduleGame[]>();
+  const gamesByDate = new Map<string, GameRowData[]>();
   for (const g of games) {
     const k = localDateKey(g.scheduled_at);
     const arr = gamesByDate.get(k);
@@ -72,76 +66,36 @@ export default async function SchedulePage() {
     new Set([...gamesByDate.keys(), ...skipByDate.keys()]),
   ).sort();
 
-  const weekLabel = (isoDate: string) => {
-    const [y, m, d] = isoDate.split("-").map(Number);
-    return new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-  };
+  const weeks: ScheduleWeek[] = weekDates.map((date) => ({
+    date,
+    games: gamesByDate.get(date) ?? [],
+    byes: byesByDate[date] ?? [],
+    skipReason: skipByDate.get(date),
+  }));
+
+  // Filter chips: every team that appears on the schedule, alphabetical.
+  const teamMap = new Map<string, { name: string; slug: string; color: string }>();
+  for (const g of games) {
+    for (const t of [g.home_team, g.away_team]) if (t) teamMap.set(t.slug, t);
+  }
+  const teamList = [...teamMap.values()].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div className="space-y-4 sm:space-y-8">
+    <div className="space-y-6">
       <div className="rise">
-        <SectionHeader
-          eyebrow="The Calendar"
-          title="Schedule"
-          subtitle={season.name}
-          size="lg"
-          as="h1"
-        />
+        <SectionHeader eyebrow={season.name} title="Schedule" size="lg" as="h1" />
       </div>
 
       {weekDates.length === 0 ? (
-        <p className="text-ink-dim text-sm panel-bare p-4">
-          No games scheduled yet.
-        </p>
+        <EmptyState title="No games scheduled yet." />
       ) : (
-        weekDates.map((date, i) => {
-          const weekGames = gamesByDate.get(date) ?? [];
-          const byes = byesByDate[date] ?? [];
-          const skipReason = skipByDate.get(date);
-          return (
-            <section key={date} className={`rise delay-${Math.min(i + 1, 4)}`}>
-              <div className="flex items-center gap-3 mb-3">
-                <span className="eyebrow text-goal">{weekLabel(date)}</span>
-                <span className="flex-1 h-px bg-rule" />
-                {byes.length > 0 && (
-                  <span className="eyebrow text-ink-faint">
-                    Bye: {byes.join(", ")}
-                  </span>
-                )}
-              </div>
-
-              {skipReason && (
-                <p className="mb-3 text-[13px] text-goal/80 panel-bare px-4 py-2.5">
-                  <span className="eyebrow">Postponed</span> — {skipReason}
-                </p>
-              )}
-
-              {weekGames.length > 0 && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {weekGames.map((g) => (
-                    <GameRow
-                      key={g.id}
-                      id={g.id}
-                      scheduled_at={g.scheduled_at}
-                      status={g.status}
-                      home_team={g.home_team}
-                      away_team={g.away_team}
-                      home_score={g.home_score}
-                      away_score={g.away_score}
-                      decided_in={g.decided_in}
-                      kind={g.kind}
-                      playoff_round={g.playoff_round}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })
+        // Keyed on the param so back/forward (a new ?team) remounts with it.
+        <ScheduleView
+          key={teamParam ?? "all"}
+          weeks={weeks}
+          teams={teamList}
+          initialTeam={teamParam && teamMap.has(teamParam) ? teamParam : "all"}
+        />
       )}
     </div>
   );

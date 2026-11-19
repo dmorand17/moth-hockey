@@ -302,7 +302,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
+          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-ink border-rule-strong rounded-[2px] hover:border-ink-faint disabled:opacity-50"
         >
           Start Next Period →
         </button>
@@ -311,7 +311,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
+          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-ink border-rule-strong rounded-[2px] hover:border-ink-faint disabled:opacity-50"
         >
           End regulation → Overtime
         </button>
@@ -320,7 +320,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "finalize" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
+          className="w-full min-h-[44px] font-semibold text-[14px] tracking-[0.06em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
         >
           FINALIZE GAME
         </button>
@@ -329,7 +329,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "advance" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-display text-[13px] tracking-[0.14em] border bg-board-3 text-amber-400 border-amber-400/40 rounded-[2px] hover:border-amber-400 disabled:opacity-50"
+          className="w-full min-h-[44px] font-semibold text-[13px] tracking-[0.06em] border bg-board-3 text-ink border-rule-strong rounded-[2px] hover:border-ink-faint disabled:opacity-50"
         >
           OT tied → Shootout
         </button>
@@ -338,7 +338,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "finalize" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
+          className="w-full min-h-[44px] font-semibold text-[14px] tracking-[0.06em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
         >
           FINALIZE · OT WIN
         </button>
@@ -347,7 +347,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           type="button"
           onClick={() => setSheet({ kind: "finalize" })}
           disabled={pending}
-          className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
+          className="w-full min-h-[44px] font-semibold text-[14px] tracking-[0.06em] border bg-board-3 text-ice border-ice/40 rounded-[2px] hover:border-ice"
         >
           FINALIZE · SHOOTOUT WIN
         </button>
@@ -436,7 +436,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
           <button
             type="button"
             onClick={() => setSheet({ kind: "editEvent", event: sheet.event })}
-            className="w-full min-h-[52px] font-display text-[16px] tracking-[0.12em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice"
+            className="w-full min-h-[52px] font-semibold text-[16px] tracking-[0.06em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice"
           >
             EDIT
           </button>
@@ -447,7 +447,7 @@ export function LiveScoring({ game, homeRoster, awayRoster, events }: Props) {
               setSheet(null);
               onUndoSpecific(id);
             }}
-            className="w-full min-h-[52px] font-display text-[16px] tracking-[0.12em] rounded-[2px] border bg-board-3 text-goal border-goal/40 hover:border-goal"
+            className="w-full min-h-[52px] font-semibold text-[16px] tracking-[0.06em] rounded-[2px] border bg-board-3 text-goal border-goal/40 hover:border-goal"
           >
             DELETE
           </button>
@@ -493,44 +493,7 @@ function ScoreBar({
 }) {
   return (
     <div className="sticky top-0 z-20 -mx-4 sm:mx-0">
-      <div
-        className="scoreboard relative overflow-hidden p-3 space-y-2"
-        style={{
-          // Outer ring + drop shadow lifts the panel off the page
-          boxShadow:
-            "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,227,240,0.08)",
-        }}
-      >
-        {/* Per-team color washes from each side, fading to the centre */}
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `
-              radial-gradient(120% 80% at 0% 50%, ${game.awayTeam.color}26 0%, transparent 55%),
-              radial-gradient(120% 80% at 100% 50%, ${game.homeTeam.color}26 0%, transparent 55%),
-              radial-gradient(140% 60% at 50% -20%, rgba(255,255,255,0.06) 0%, transparent 70%)
-            `,
-          }}
-        />
-        {/* Top + bottom edge highlights */}
-        <div
-          aria-hidden
-          className="absolute top-0 left-0 right-0 h-px pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent, rgba(124,227,240,0.45), transparent)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent, rgba(255,56,56,0.35), transparent)",
-          }}
-        />
-        <div className="absolute inset-0 stripes opacity-30 pointer-events-none" />
+      <div className="scoreboard relative overflow-hidden p-3 space-y-2">
         <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <TeamScore team={game.awayTeam} score={game.awayScore} align="left" />
           <div className="flex flex-col items-center min-w-[120px] gap-1.5">
@@ -549,9 +512,6 @@ function ScoreBar({
               className={`digit text-[38px] leading-none tabular-nums transition-opacity hover:opacity-80 ${
                 running ? "text-ink" : "text-ink-dim"
               }`}
-              style={{
-                textShadow: running ? "0 0 14px rgba(255, 56, 56, 0.4)" : undefined,
-              }}
             >
               {formatClock(displayClock)}
             </button>
@@ -565,7 +525,7 @@ function ScoreBar({
           type="button"
           onClick={onToggleRun}
           disabled={game.period >= 5}
-          className={`relative w-full min-h-[48px] font-display text-[15px] tracking-[0.2em] border rounded-[2px] transition-colors disabled:opacity-40 ${
+          className={`relative w-full min-h-[48px] font-semibold text-[15px] tracking-[0.2em] border rounded-[2px] transition-colors disabled:opacity-40 ${
             running
               ? "bg-goal/20 text-goal border-goal/60 hover:bg-goal/30"
               : "bg-board-3 text-ice border-ice/45 hover:border-ice hover:bg-ice/10"
@@ -596,21 +556,17 @@ function TeamScore({
         <span
           aria-hidden
           className="inline-block w-1.5 h-5 rounded-[1px] shrink-0"
-          style={{ backgroundColor: team.color, boxShadow: `0 0 10px ${team.color}88` }}
+          style={{ backgroundColor: team.color }}
         />
         <span
-          className="font-display text-[13px] tracking-[0.1em] truncate max-w-[100px] sm:max-w-[160px] uppercase"
-          style={{ color: team.color }}
+          className="font-semibold text-[13px] tracking-[0.06em] text-ink truncate max-w-[100px] sm:max-w-[160px] uppercase"
         >
           {team.name}
         </span>
       </div>
       <span
         className="digit text-[44px] leading-none tabular-nums mt-1"
-        style={{
-          color: "var(--ink)",
-          textShadow: `0 0 12px ${team.color}55`,
-        }}
+        style={{ color: "var(--ink)" }}
       >
         {score}
       </span>
@@ -641,7 +597,6 @@ function TeamActionColumn({
           background: team.color,
           color: onColor,
           borderColor: team.color,
-          boxShadow: `0 0 18px ${team.color}44`,
         }}
       >
         GOAL
@@ -650,8 +605,8 @@ function TeamActionColumn({
         type="button"
         onClick={onPenalty}
         disabled={disabled}
-        className="w-full min-h-[44px] font-display text-[14px] tracking-[0.16em] rounded-[2px] border bg-board/40 active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ color: team.color, borderColor: `${team.color}66` }}
+        className="w-full min-h-[44px] font-semibold text-[14px] tracking-[0.06em] rounded-[2px] border bg-board/40 active:scale-[0.99] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ color: "var(--ink)", borderColor: `${team.color}66` }}
       >
         PENALTY
       </button>
@@ -659,19 +614,19 @@ function TeamActionColumn({
   );
 }
 
-// Shared chrome for the two per-team action columns: a tinted body and a solid
-// team-color header, so each side reads as that team's block at a glance.
+// Shared chrome for the two per-team action columns: a flat body and a solid
+// team-color header band, so each side reads as that team's block at a glance.
 function TeamPanel({ team, children }: { team: Team; children: React.ReactNode }) {
   return (
     <div
       className="rounded-[3px] border overflow-hidden"
       style={{
         borderColor: `${team.color}59`,
-        background: `linear-gradient(180deg, ${team.color}2e 0%, ${team.color}0f 100%)`,
+        background: "var(--board-2)",
       }}
     >
       <div
-        className="px-2 py-1 font-display text-[12px] tracking-[0.14em] uppercase text-center truncate"
+        className="px-2 py-1 font-semibold text-[12px] tracking-[0.06em] uppercase text-center truncate"
         style={{ background: team.color, color: readableOn(team.color) }}
       >
         {team.name}
@@ -698,7 +653,7 @@ function ShootoutTallyColumn({
         <span className="eyebrow text-[10px] text-ink-faint">SO TALLY</span>
         <span
           className="digit text-[44px] leading-none tabular-nums"
-          style={{ color: team.color, textShadow: `0 0 12px ${team.color}55` }}
+          style={{ color: "var(--ink)" }}
         >
           {tally}
         </span>
@@ -707,7 +662,7 @@ function ShootoutTallyColumn({
             type="button"
             onClick={() => onAdjust(-1)}
             disabled={disabled || tally === 0}
-            className="min-h-[44px] font-display text-[18px] rounded-[2px] border border-rule text-ink-dim hover:border-rule-strong hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed"
+            className="min-h-[44px] font-semibold text-[18px] rounded-[2px] border border-rule text-ink-dim hover:border-rule-strong hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label={`${team.name} shootout minus one`}
           >
             −
@@ -716,7 +671,7 @@ function ShootoutTallyColumn({
             type="button"
             onClick={() => onAdjust(1)}
             disabled={disabled}
-            className="min-h-[44px] font-display text-[18px] rounded-[2px] border bg-board-2 text-ink border-ice/40 hover:border-ice disabled:opacity-50"
+            className="min-h-[44px] font-semibold text-[18px] rounded-[2px] border bg-board-2 text-ink border-ice/40 hover:border-ice disabled:opacity-50"
             aria-label={`${team.name} shootout plus one`}
           >
             +
@@ -776,7 +731,7 @@ function EventsList({
               >
                 <div className="flex flex-col items-start min-w-[52px] shrink-0">
                   <span
-                    className={`font-display text-[13px] tracking-[0.16em] leading-none ${
+                    className={`font-semibold text-[13px] tracking-[0.06em] leading-none ${
                       isGoal ? "text-goal" : "text-ice"
                     }`}
                   >
@@ -810,7 +765,7 @@ function EventsList({
                           <span className="eyebrow text-[9px] mr-1">PS</span>
                           {e.shooter_name}{" "}
                           <span
-                            className={`font-display tracking-[0.12em] ${
+                            className={`font-semibold tracking-[0.06em] ${
                               e.penalty_shot_result === "goal" ? "text-goal" : "text-ice"
                             }`}
                           >
@@ -932,7 +887,7 @@ function ClockSheet({
   };
 
   const nudgeCls =
-    "min-h-[48px] font-display text-[15px] tracking-[0.08em] rounded-[2px] border border-rule bg-board-3 text-ink-dim hover:border-ice hover:text-ice disabled:opacity-30";
+    "min-h-[48px] font-semibold text-[15px] tracking-[0.08em] rounded-[2px] border border-rule bg-board-3 text-ink-dim hover:border-ice hover:text-ice disabled:opacity-30";
 
   return (
     <Sheet title="Adjust clock" onCancel={onCancel}>
@@ -989,7 +944,7 @@ function ClockSheet({
           }
           onApply(finalValue);
         }}
-        className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice"
+        className="w-full min-h-[52px] font-semibold text-[18px] tracking-[0.06em] rounded-[2px] border bg-board-3 text-ice border-ice/40 hover:border-ice"
       >
         APPLY
       </button>
@@ -1014,7 +969,7 @@ function Sheet({
     <div className="fixed inset-0 z-30 flex flex-col justify-end bg-board/80 backdrop-blur-sm">
       <div className="bg-board-2 border-t border-rule-strong rounded-t-lg max-h-[92vh] flex flex-col">
         <header className="p-3 flex items-center justify-between border-b border-rule shrink-0">
-          <h3 className="font-display text-[18px] tracking-[0.1em]">{title}</h3>
+          <h3 className="font-semibold text-[18px] tracking-[0.1em]">{title}</h3>
           <button
             type="button"
             onClick={onCancel}
@@ -1130,7 +1085,7 @@ function GoalSheet({
                 clockSeconds: game.clockSeconds,
               })
             }
-            className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] bg-goal text-board border border-goal hover:bg-goal-glow"
+            className="w-full min-h-[52px] font-semibold text-[18px] tracking-[0.06em] rounded-[2px] bg-goal text-board border border-goal hover:bg-goal-glow"
           >
             CONFIRM GOAL{a1 ? "" : " · NO ASSISTS"}
           </button>
@@ -1255,7 +1210,7 @@ function PenaltySheet({
               type="button"
               onClick={() => setShotResult("goal")}
               aria-pressed={shotResult === "goal"}
-              className={`min-h-[52px] font-display text-[16px] tracking-[0.14em] rounded-[2px] border ${
+              className={`min-h-[52px] font-semibold text-[16px] tracking-[0.06em] rounded-[2px] border ${
                 shotResult === "goal"
                   ? "bg-goal text-board border-goal"
                   : "border-rule text-ink-dim"
@@ -1267,7 +1222,7 @@ function PenaltySheet({
               type="button"
               onClick={() => setShotResult("saved")}
               aria-pressed={shotResult === "saved"}
-              className={`min-h-[52px] font-display text-[16px] tracking-[0.14em] rounded-[2px] border ${
+              className={`min-h-[52px] font-semibold text-[16px] tracking-[0.06em] rounded-[2px] border ${
                 shotResult === "saved"
                   ? "bg-ice text-board border-ice"
                   : "border-rule text-ink-dim"
@@ -1291,7 +1246,7 @@ function PenaltySheet({
                 clockSeconds: game.clockSeconds,
               })
             }
-            className={`w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] border ${
+            className={`w-full min-h-[52px] font-semibold text-[18px] tracking-[0.06em] rounded-[2px] border ${
               canSubmit
                 ? "bg-ice text-board border-ice"
                 : "bg-board-3 text-ink-faint border-rule cursor-not-allowed"
@@ -1338,7 +1293,7 @@ function AdvanceSheet({
       <button
         type="button"
         onClick={onConfirm}
-        className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] bg-board-3 text-ink border border-rule-strong hover:border-ice"
+        className="w-full min-h-[52px] font-semibold text-[18px] tracking-[0.06em] rounded-[2px] bg-board-3 text-ink border border-rule-strong hover:border-ice"
       >
         Confirm
       </button>
@@ -1386,7 +1341,7 @@ function FinalizeSheet({
         <div className="grid grid-cols-3 items-center gap-2">
           <div className="flex flex-col items-start min-w-0">
             <span
-              className="font-display text-[12px] tracking-[0.1em] uppercase truncate"
+              className="font-semibold text-[12px] tracking-[0.1em] uppercase truncate"
               style={{ color: game.awayTeam.color }}
             >
               {game.awayTeam.name}
@@ -1403,7 +1358,7 @@ function FinalizeSheet({
           </div>
           <div className="flex flex-col items-end min-w-0">
             <span
-              className="font-display text-[12px] tracking-[0.1em] uppercase truncate"
+              className="font-semibold text-[12px] tracking-[0.1em] uppercase truncate"
               style={{ color: game.homeTeam.color }}
             >
               {game.homeTeam.name}
@@ -1425,7 +1380,7 @@ function FinalizeSheet({
       <button
         type="button"
         onClick={onConfirm}
-        className="w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] bg-ice text-board border border-ice hover:opacity-90"
+        className="w-full min-h-[52px] font-semibold text-[18px] tracking-[0.06em] rounded-[2px] bg-ice text-board border border-ice hover:opacity-90"
       >
         CONFIRM FINALIZE
       </button>
@@ -1634,7 +1589,7 @@ function EditEventSheet({
                 setField(null);
               }}
               aria-pressed={period === p}
-              className={`min-h-[48px] font-display text-[13px] tracking-[0.12em] border rounded-[2px] ${
+              className={`min-h-[48px] font-semibold text-[13px] tracking-[0.06em] border rounded-[2px] ${
                 period === p
                   ? "bg-board-3 border-ice text-ink"
                   : "border-rule text-ink-dim hover:border-rule-strong hover:text-ink"
@@ -1678,7 +1633,7 @@ function EditEventSheet({
             setClock(secs);
             setField(null);
           }}
-          className="w-full min-h-[48px] font-display text-[14px] tracking-[0.12em] rounded-[2px] bg-board-3 text-ink border border-rule-strong hover:border-ice"
+          className="w-full min-h-[48px] font-semibold text-[14px] tracking-[0.06em] rounded-[2px] bg-board-3 text-ink border border-rule-strong hover:border-ice"
         >
           Set time
         </button>
@@ -1719,7 +1674,7 @@ function EditEventSheet({
                 type="button"
                 onClick={() => setShotResult("goal")}
                 aria-pressed={shotResult === "goal"}
-                className={`min-h-[48px] font-display text-[14px] tracking-[0.14em] rounded-[2px] border ${
+                className={`min-h-[48px] font-semibold text-[14px] tracking-[0.06em] rounded-[2px] border ${
                   shotResult === "goal" ? "bg-goal text-board border-goal" : "border-rule text-ink-dim"
                 }`}
               >
@@ -1729,7 +1684,7 @@ function EditEventSheet({
                 type="button"
                 onClick={() => setShotResult("saved")}
                 aria-pressed={shotResult === "saved"}
-                className={`min-h-[48px] font-display text-[14px] tracking-[0.14em] rounded-[2px] border ${
+                className={`min-h-[48px] font-semibold text-[14px] tracking-[0.06em] rounded-[2px] border ${
                   shotResult === "saved" ? "bg-ice text-board border-ice" : "border-rule text-ink-dim"
                 }`}
               >
@@ -1745,7 +1700,7 @@ function EditEventSheet({
         type="button"
         disabled={!canSave}
         onClick={commit}
-        className={`w-full min-h-[52px] font-display text-[18px] tracking-[0.12em] rounded-[2px] border ${
+        className={`w-full min-h-[52px] font-semibold text-[18px] tracking-[0.06em] rounded-[2px] border ${
           canSave ? "bg-ice text-board border-ice" : "bg-board-3 text-ink-faint border-rule cursor-not-allowed"
         }`}
       >

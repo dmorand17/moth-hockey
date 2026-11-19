@@ -147,7 +147,7 @@ export default async function AdminPlayersPage() {
                 className="mt-1 w-full bg-board-3 border border-rule rounded px-3 py-2 min-h-11 text-ink focus:outline-none focus:border-ice"
               />
             </label>
-            <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors shrink-0">
+            <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors shrink-0">
               CREATE
             </SubmitButton>
           </div>
@@ -181,7 +181,7 @@ export default async function AdminPlayersPage() {
             One player per line — use <strong>First Last</strong> or{" "}
             <strong>Last, First</strong>. Names already in the list are skipped.
           </p>
-          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-display tracking-[0.14em] text-[13px] rounded transition-colors">
+          <SubmitButton className="min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors">
             IMPORT
           </SubmitButton>
           </ActionForm>

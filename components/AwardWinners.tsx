@@ -18,28 +18,34 @@ export function AwardWinners({ awards }: { awards: AwardWinnerGroup[] }) {
         return (
           <div
             key={type}
-            className="panel-bare p-3 sm:p-4 flex flex-col gap-1.5"
-            style={{ borderColor: headline ? style.border : undefined }}
+            className="panel-bare p-3 sm:p-4 flex items-start gap-3"
+            style={{ borderColor: style.border }}
           >
-            <div
-              className="text-[12px] font-bold tracking-[0.06em] uppercase flex items-center gap-1.5 leading-4"
-              style={{ color: style.fg }}
+            <span
+              aria-hidden
+              className={`h-9 w-9 shrink-0 rounded-md border flex items-center justify-center text-[16px] text-gold ${
+                headline ? "bg-gold/10 border-gold/40" : "bg-board-3 border-rule"
+              }`}
             >
-              <span aria-hidden>{style.star}</span>
-              <span>{label}</span>
+              {style.star}
+            </span>
+            <div className="min-w-0">
+              <div className="eyebrow" style={{ color: style.fg }}>
+                {label}
+              </div>
+              <ul className="mt-0.5 flex flex-col">
+                {winners.map((w) => (
+                  <li key={w.id}>
+                    <Link
+                      href={`/players/${w.id}`}
+                      className="text-[16px] font-semibold leading-6 text-ink hover:text-ice transition-colors inline-flex items-center min-h-[32px]"
+                    >
+                      {w.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="flex flex-col gap-0.5">
-              {winners.map((w) => (
-                <li key={w.id}>
-                  <Link
-                    href={`/players/${w.id}`}
-                    className="text-[15px] text-ink hover:text-ice transition-colors inline-flex items-center min-h-[32px]"
-                  >
-                    {w.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
         );
       })}

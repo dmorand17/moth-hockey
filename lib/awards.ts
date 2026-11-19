@@ -31,13 +31,12 @@ export type AwardStyle = {
   star: string;
 };
 
-// Awards are the one place gold appears besides leaders / first place. Every
-// award shares one flat style; the glyph tells them apart. Headline awards
-// (see HEADLINE_AWARDS) get a solid gold border.
+// Award styling: neutral cards with the glyph in gold. Headline awards
+// (see HEADLINE_AWARDS) also get a gold border and label so they stand out.
 const award = (star: string, headline = false): AwardStyle => ({
   bg: "var(--board-2)",
-  border: headline ? "var(--gold)" : "rgba(251, 191, 36, 0.35)",
-  fg: "var(--gold)",
+  border: headline ? "var(--gold)" : "var(--rule)",
+  fg: headline ? "var(--gold)" : "var(--ink-dim)",
   star,
 });
 

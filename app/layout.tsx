@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Toaster } from "sonner";
 import { NavLink } from "@/components/NavLink";
 import { AuthMenu } from "@/components/AuthMenu";
+import { BottomNav, MobileHeaderController } from "@/components/MobileChrome";
 import { getAuthSession } from "@/lib/auth";
 import { getCurrentSeason } from "@/lib/queries";
 import "./globals.css";
@@ -117,8 +118,8 @@ export default async function RootLayout({
         >
           Skip to content
         </a>
-        <header className="sticky top-0 z-20 border-b border-rule bg-board/85 backdrop-blur-md">
-          <div className="mx-auto max-w-6xl px-4 sm:px-5 py-2 md:py-3 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-20 border-b border-rule bg-board/85 backdrop-blur-md pt-[env(safe-area-inset-top)] md:pt-0">
+          <div className="mx-auto max-w-6xl px-4 sm:px-5 h-14 md:h-auto md:py-3 flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group tap min-w-0">
               <Image
                 src="/moth-logo.png"
@@ -126,7 +127,7 @@ export default async function RootLayout({
                 width={40}
                 height={40}
                 priority
-                className="h-9 w-9 sm:h-11 sm:w-11 shrink-0"
+                className="h-9 w-9 md:h-11 md:w-11 shrink-0"
               />
               <div className="leading-none min-w-0">
                 <div className="font-display text-[20px] sm:text-[26px] tracking-[0.06em] text-ink truncate">
@@ -152,19 +153,6 @@ export default async function RootLayout({
                 same row as the brand on every breakpoint. */}
             <AuthMenu links={authLinks} />
           </div>
-          {/* Mobile primary nav — auth lives in the brand row above.
-              The whole header is sticky, so this row pins along with the brand. */}
-          <nav aria-label="Primary" className="md:hidden flex border-t border-rule">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.href}
-                href={link.href}
-                label={link.label}
-                className="relative flex-1 inline-flex items-center justify-center min-h-[44px] px-1 text-[13px] font-semibold text-ink-dim hover:text-ink transition-colors whitespace-nowrap"
-                activeClassName="!text-ink after:content-[''] after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-ice"
-              />
-            ))}
-          </nav>
         </header>
 
         <main id="main" className="relative z-[1] flex-1 mx-auto w-full max-w-6xl px-4 sm:px-5 py-6 md:py-10">
@@ -196,6 +184,8 @@ export default async function RootLayout({
             </div>
           </div>
         </footer>
+        <MobileHeaderController />
+        <BottomNav authLinks={authLinks} />
         <Toaster richColors position="top-right" theme="dark" />
       </body>
     </html>

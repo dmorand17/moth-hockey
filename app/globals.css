@@ -22,8 +22,11 @@
   --loss: #f87171;
   --otl: #fbbf24;
 
-  /* Sticky site header height — sticky table heads and anchors sit below it. */
-  --header-h: 106px;
+  /* Sticky site header height — sticky table heads and anchors sit below it.
+     Phones: one 56px row + 1px border (+ notch). MobileHeaderController sets
+     it to 0px while the header is hidden on scroll. */
+  --header-h: calc(57px + env(safe-area-inset-top));
+  --bottom-nav-h: calc(57px + env(safe-area-inset-bottom)); /* 56px row + 1px border */
 }
 @media (min-width: 768px) {
   :root {
@@ -73,6 +76,30 @@ body {
   background: var(--board);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Phones: the header slides away on scroll down; the bottom tab bar is
+   fixed, so the page reserves room for it. */
+@media (max-width: 767px) {
+  body > header {
+    transition: transform 0.2s ease;
+  }
+  body > header[data-hidden="true"] {
+    transform: translateY(-100%);
+  }
+  .sticky,
+  table.board-table.sticky-head thead th {
+    transition: top 0.2s ease;
+  }
+  body {
+    padding-bottom: var(--bottom-nav-h);
+  }
+  body.chrome-off {
+    padding-bottom: 0;
+  }
+}
+body.chrome-off > [data-bottom-nav] {
+  display: none !important;
 }
 
 /* Anchored sections land below the sticky header. */

@@ -15,6 +15,7 @@ this doc reflects what the migrations actually create.
 | `0005_team_captains.sql` | `team_captains` + role-sync triggers |
 | `0006_seasons_period_length.sql` | `seasons.period_length_minutes` (default 17) |
 | `0027_posts.sql` | Message board: `posts`, `is_linked_player()`, threading, rate-limit and column-immutability triggers (#140) |
+| `0028_season_finalize.sql` | `seasons.finalized_at`; goalie `wins`/`losses`/`ot_losses` on `season_player_stats` |
 
 Enum changes are isolated in `0003` on purpose: Postgres won't let a new enum
 value be used in the same transaction that adds it.
@@ -39,7 +40,8 @@ value be used in the same transaction that adds it.
 ### Core
 
 - **`seasons`** — `season_type`+`year` unique; `is_current` (partial unique index
-  enforces at most one current); `period_length_minutes` (default 17).
+  enforces at most one current); `period_length_minutes` (default 17);
+  `finalized_at` (set by the admin Finalize action, cleared by Reset).
 - **`teams`** — per-season (`season_id`); `slug` + `name` unique within a season;
   `color`, `logo_url`. **League convention:** teams are named by **color**
   (Red, Blue, White, Black) and the same colors recur every season, but each
@@ -77,10 +79,15 @@ value be used in the same transaction that adds it.
 
 ### Stats, awards, content
 
-- **`season_player_stats`** — pre-aggregated totals for historical seasons with no
-  underlying events (CSV import target). PK `(season_id, player_id)`. Live seasons
-  derive stats from `game_events` instead; the player profile unions both.
-- **`player_awards`** — repeatable per player/season (`award_type` text).
+- **`season_player_stats`** — saved per-season totals: CSV imports for old seasons,
+  and regular-season rollups written by **Finalize season**
+  (`/admin/seasons/[id]/finalize`, logic in `lib/season-finalize.ts`). PK
+  `(season_id, player_id)`. Past-season pages and `/stats/all-time` read this
+  table; the current season derives stats from `game_events` until finalized.
+  Goalie `wins`/`losses`/`ot_losses` are null for imported seasons.
+- **`player_awards`** — repeatable per player/season (`award_type` text). Finalize
+  replaces the season's `champion`, `mvp`, `mvd`, `vezina`, `sniper`, `playmaker`
+  and `goon` rows; other types (e.g. imported `most_hat_tricks`) are left alone.
 - **`content_pages`** — `section`+`slug` unique; markdown `body_md`; powers `/about/*`.
 - **`posts`** — message board (#140). `game_id` null = site board, otherwise a
   game's discussion; `parent_id` null = top-level, otherwise a reply (one level

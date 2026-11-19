@@ -13,8 +13,8 @@ import { JumpBar } from "@/components/recap/JumpBar";
 import { ShareButton } from "@/components/recap/ShareButton";
 import { getBoardViewer } from "@/lib/auth";
 import { getSeasonRecap } from "@/lib/queries";
-import { computeSeasonTotals } from "@/lib/season-finalize";
-import { goalieMinGames, jumpLinks, notableMoments, playoffPath, seasonNumbers } from "@/lib/season-recap";
+import { computeRecap } from "@/lib/recap-summary/facts";
+import { jumpLinks } from "@/lib/season-recap";
 
 type Params = Promise<{ slug: string }>;
 
@@ -40,11 +40,10 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
   if (!r) notFound();
 
   const names: Names = { teams: r.teams, players: r.players };
-  const { games: fGames, roster, appearances, events } = r.inputs;
-  const regular = r.hasGames ? computeSeasonTotals(fGames, roster, appearances, events) : (r.storedTotals ?? []);
+  const c = computeRecap(r);
+  const { regular, playoffTotals, regNumbers, poNumbers, regMoments, poMoments, path } = c;
   const champion = r.championTeamId ? r.teams.get(r.championTeamId) : undefined;
   const championRow = r.standings?.find((s) => s.team_id === r.championTeamId);
-  const path = playoffPath(r.games);
   const final = path.find((g) => g.playoff_round === "final");
   const title = `${r.season.name} Season Recap`;
 
@@ -92,17 +91,11 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         <p className="panel-bare px-4 py-5 text-[16px] text-ink-dim">
           Recap available when the season ends. Here&apos;s how the leaders stand so far.
         </p>
-        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={goalieMinGames(r.games, "regular")} names={names} />
+        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
       </div>
     );
   }
 
-  const regNumbers = seasonNumbers(r.games, events, "regular");
-  const rosterTeam = new Map(roster.map((x) => [x.player_id, x.team_id]));
-  const regMoments = notableMoments(r.games, events, "regular", rosterTeam);
-  const playoffTotals = r.hasGames ? computeSeasonTotals(fGames, roster, appearances, events, { kind: "playoff" }) : [];
-  const poNumbers = seasonNumbers(r.games, events, "playoff");
-  const poMoments = notableMoments(r.games, events, "playoff", rosterTeam);
   const viewer = await getBoardViewer();
   const hasSeason = !!regNumbers || !!r.standings || !!r.historical || regular.length > 0;
   const links = jumpLinks({ summary: false, awards: r.awards.length > 0, season: hasSeason, playoffs: path.length > 0, board: true });
@@ -192,7 +185,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
           </section>
         )}
 
-        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={goalieMinGames(r.games, "regular")} names={names} />
+        <RecapLeaders eyebrow="Regular season" totals={regular} minGoalieGames={c.minGoalieGames} names={names} />
         <RecapMoments eyebrow="Regular season" moments={regMoments} games={r.games} names={names} />
       </div>
 

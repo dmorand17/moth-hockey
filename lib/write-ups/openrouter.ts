@@ -26,8 +26,8 @@ class ModelCallError extends Error {
 }
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "openai/gpt-6-luna";
-const DEFAULT_FALLBACK = "google/gemini-2.5-flash-lite";
+const DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash-1017";
+const DEFAULT_FALLBACK = "openai/gpt-6-luna";
 
 async function callOnce(apiKey: string, model: string, system: string, user: string, maxTokens: number, timeoutMs: number): Promise<ModelResult> {
   const body: Record<string, unknown> = {

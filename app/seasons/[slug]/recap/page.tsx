@@ -114,10 +114,10 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
         <section>
           <SectionHeader eyebrow="The hardware" title="Award winners" />
           <div className="lg:hidden">
-            <AwardWinners awards={r.awards} layout="row" />
+            <AwardWinners awards={r.awards} layout="row" totals={regular} />
           </div>
           <div className="hidden lg:block">
-            <AwardWinners awards={r.awards} layout="grid" />
+            <AwardWinners awards={r.awards} layout="grid" totals={regular} />
           </div>
         </section>
       )}

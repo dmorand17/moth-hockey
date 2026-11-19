@@ -1,7 +1,8 @@
 import Image from "next/image";
 import { DataTable } from "@/components/DataTable";
 import Link from "next/link";
-import { GameList, GameRow } from "@/components/GameRow";
+import { GameCard, GameList, GameRow } from "@/components/GameRow";
+import { ScrollFade } from "@/components/ScrollFade";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -66,6 +67,33 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         </div>
       </section>
 
+      {/* PHONES: scores strip first — latest results, then upcoming */}
+      {recent.length + upcoming.length > 0 && (
+        <section className="md:hidden rise delay-1">
+          <SectionHeader eyebrow="Latest & next" title="Scores" linkHref="/schedule" linkLabel="Schedule" />
+          <ScrollFade className="-mx-4">
+            <ul className="flex gap-3 px-4 pb-1">
+              {[...recent.map((g) => ({ ...g, status: "final" as const })), ...upcoming].map((g) => (
+                <li key={g.id}>
+                  <GameCard
+                    id={g.id}
+                    scheduled_at={g.scheduled_at}
+                    status={g.status}
+                    home_team={g.home_team}
+                    away_team={g.away_team}
+                    home_score={"home_score" in g ? g.home_score : undefined}
+                    away_score={"away_score" in g ? g.away_score : undefined}
+                    decided_in={"decided_in" in g ? g.decided_in : undefined}
+                    kind={g.kind}
+                    playoff_round={g.playoff_round}
+                  />
+                </li>
+              ))}
+            </ul>
+          </ScrollFade>
+        </section>
+      )}
+
       <div className="grid gap-8 lg:gap-10 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
         {/* MAIN COLUMN */}
         <div className="space-y-8 md:space-y-10 min-w-0">
@@ -112,7 +140,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             </DataTable>
           </section>
 
-          <section className="rise delay-2">
+          <section className="hidden md:block">
             <SectionHeader eyebrow="Latest" title="Recent results" linkHref="/schedule" linkLabel="Schedule" />
             {recent.length === 0 ? (
               <EmptyState compact title="No results yet — first puck drops soon." />
@@ -138,7 +166,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             )}
           </section>
 
-          <section className="rise delay-2">
+          <section className="hidden md:block">
             <SectionHeader eyebrow="Next up" title="Upcoming" />
             {upcoming.length === 0 ? (
               <EmptyState compact title="No upcoming games." linkHref="/schedule" linkLabel="Full schedule" />
@@ -166,33 +194,32 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         <aside className="space-y-8 md:space-y-10 min-w-0" aria-label="League leaders">
           <section className="rise delay-2">
             <SectionHeader eyebrow={season.name} title="League leaders" linkHref="/stats" linkLabel="All stats" />
-            <ul className="panel overflow-clip divide-y divide-rule">
+            {/* One 3-up row: a player who leads several categories reads once per tile, compactly. */}
+            <ul className="grid grid-cols-3 gap-2">
               {leaderRows.map(({ label, unit, key, player }) => (
                 <li key={label}>
                   {player ? (
                     <Link
                       href={`/players/${player.player_id}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-board-hover transition-colors"
+                      className="panel h-full p-3 flex flex-col gap-1 hover:bg-board-hover hover:border-rule-strong transition-colors"
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="eyebrow">{label}</div>
-                        <div className="text-[16px] font-semibold leading-6 text-ink">{player.name}</div>
-                        {player.team && (
-                          <div className="flex items-center gap-1.5 text-[13px] text-ink-faint">
-                            <span aria-hidden className="swatch h-2 w-2 rounded-full" style={{ background: player.team.color }} />
-                            {player.team.name}
-                          </div>
-                        )}
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="digit text-[28px] leading-none text-gold">{player[key]}</div>
-                        <div className="mt-1 text-[12px] font-semibold text-ink-faint">{unit}</div>
-                      </div>
+                      <span className="eyebrow">{label}</span>
+                      <span className="flex items-baseline gap-1">
+                        <span className="digit text-[26px] leading-none text-gold">{player[key]}</span>
+                        <span className="text-[12px] font-semibold text-ink-faint">{unit}</span>
+                      </span>
+                      <span className="text-[14px] font-semibold leading-5 text-ink line-clamp-2">{player.name}</span>
+                      {player.team && (
+                        <span className="flex items-start gap-1.5 text-[12px] leading-4 text-ink-faint min-w-0">
+                          <span aria-hidden className="swatch mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: player.team.color }} />
+                          <span>{player.team.name}</span>
+                        </span>
+                      )}
                     </Link>
                   ) : (
-                    <div className="px-4 py-3">
-                      <div className="eyebrow">{label}</div>
-                      <div className="text-[14px] text-ink-faint">No leader yet</div>
+                    <div className="panel h-full p-3">
+                      <span className="eyebrow">{label}</span>
+                      <p className="mt-1 text-[13px] text-ink-faint">No leader yet</p>
                     </div>
                   )}
                 </li>

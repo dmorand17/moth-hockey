@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
+import {
+  filterPlayers,
+  playerFiltersQuery,
+  type PlayerLinkFilter,
+} from "@/lib/players-export";
 import { updatePlayer, linkUserToPlayer, deletePlayer, mergePlayer } from "./actions";
 
 export type Team = { id: string; name: string; color: string };
@@ -45,7 +50,7 @@ const POSITION_LABEL: Record<string, string> = {
 const rowInputCls =
   "bg-board-3 border border-rule rounded px-2 py-1 text-[12px] text-ink focus:outline-none focus:border-ice";
 
-type LinkFilter = "all" | "linked" | "unlinked";
+type LinkFilter = PlayerLinkFilter;
 
 export function PlayerFilters({
   players,
@@ -108,19 +113,10 @@ export function PlayerFilters({
     });
   };
 
-  const q = search.trim().toLowerCase();
-  const filtered = players.filter((p) => {
-    if (q) {
-      const full = `${p.first_name} ${p.last_name}`.toLowerCase();
-      if (!full.includes(q)) return false;
-    }
-    if (teamFilter === "unrostered" && p.current_team) return false;
-    if (teamFilter && teamFilter !== "unrostered" && p.current_team?.id !== teamFilter)
-      return false;
-    if (linkFilter === "linked" && !p.account) return false;
-    if (linkFilter === "unlinked" && p.account) return false;
-    return true;
-  });
+  const filters = { search, team: teamFilter, link: linkFilter };
+  const filtered = filterPlayers(players, filters);
+  const exportQuery = playerFiltersQuery(filters);
+  const exportHref = `/admin/players/export${exportQuery ? `?${exportQuery}` : ""}`;
 
   const visible = expanded ? filtered : filtered.slice(0, PAGE_SIZE);
   const hasMore = filtered.length > PAGE_SIZE;
@@ -198,6 +194,15 @@ export function PlayerFilters({
             <option value="unlinked">Not linked</option>
           </select>
         </label>
+
+        {/* Server route re-checks the admin role and applies the same filters. */}
+        <a
+          href={exportHref}
+          download
+          className="inline-flex items-center min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors shrink-0"
+        >
+          EXPORT CSV
+        </a>
       </div>
 
       {/* Counts */}

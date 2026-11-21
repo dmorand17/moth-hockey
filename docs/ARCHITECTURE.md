@@ -24,6 +24,7 @@ app/                  App Router routes (see Routes below)
   auth/callback/route.ts  fallback: magic-link code → session exchange
   api/                route handlers: cron/write-ups (Vercel cron), hooks/new-user (DB webhook),
                       media/upload (admin-only Blob upload tokens)
+  admin/players/export/route.ts  admin-only CSV download of the players list
   seasons/[slug]/recap/  recap page + summary-actions.ts (AI report) + media-actions.ts (gallery)
 components/           shared components (mostly client/presentational)
   recap/              season recap sections: summary admin, jump bar, gallery + lightbox, uploader
@@ -143,6 +144,7 @@ Route handlers:
 | Route | Auth |
 | --- | --- |
 | `/api/media/upload` | admin session (issues Vercel Blob client-upload tokens) |
+| `/admin/players/export` | admin session, else 403 (CSV of the current season's players, honoring the screen's `q` / `team` / `link` filters) |
 | `/api/cron/write-ups` | `Authorization: Bearer $CRON_SECRET` (Vercel cron, `vercel.json`) |
 | `/api/hooks/new-user` | `x-webhook-secret: $NEW_USER_WEBHOOK_SECRET` (Supabase DB webhook) |
 

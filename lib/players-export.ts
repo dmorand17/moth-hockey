@@ -1,6 +1,6 @@
 // Pure helpers behind the admin players screen's filters and its CSV export.
 // Shared by the client filter UI and the export route so the downloaded file
-// always matches what the admin sees.
+// always matches what the admin sees, including which columns they picked.
 
 export type PlayerLinkFilter = "all" | "linked" | "unlinked";
 
@@ -59,6 +59,40 @@ export function playerFiltersQuery({ search, team, link }: PlayerFilterState): s
 
 type CsvValue = string | number | null | undefined;
 
+export const PLAYER_CSV_COLUMNS = [
+  { id: "season", header: "Season" },
+  { id: "last_name", header: "Last name" },
+  { id: "first_name", header: "First name" },
+  { id: "team", header: "Team" },
+  { id: "jersey", header: "Jersey" },
+  { id: "position", header: "Position" },
+  { id: "account", header: "Account" },
+  { id: "email", header: "Email" },
+  { id: "role", header: "Role" },
+] as const;
+
+export type PlayerCsvColumnId = (typeof PLAYER_CSV_COLUMNS)[number]["id"];
+
+/** Names only — used when the export URL omits `columns` or sends a bad value. */
+export const DEFAULT_PLAYER_CSV_COLUMNS = ["last_name", "first_name"] as const satisfies readonly PlayerCsvColumnId[];
+
+const PLAYER_CSV_COLUMN_IDS = new Set<string>(PLAYER_CSV_COLUMNS.map((c) => c.id));
+
+/**
+ * Allowlisted column ids from `?columns=last_name,first_name`.
+ * Missing, empty, or any unknown id falls back to the name-only default.
+ * Valid ids are returned once, in the column list's order.
+ */
+export function parsePlayerColumns(raw: string | null): PlayerCsvColumnId[] {
+  if (raw == null || raw.trim() === "") return [...DEFAULT_PLAYER_CSV_COLUMNS];
+  const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 0 || parts.some((part) => !PLAYER_CSV_COLUMN_IDS.has(part))) {
+    return [...DEFAULT_PLAYER_CSV_COLUMNS];
+  }
+  const selected = new Set(parts);
+  return PLAYER_CSV_COLUMNS.map((column) => column.id).filter((id) => selected.has(id));
+}
+
 // Quotes per RFC 4180 and neutralises spreadsheet formula injection: a text
 // cell starting with = + - @ (or tab / CR) is prefixed with ' so Excel and
 // Sheets show it as text instead of evaluating it.
@@ -79,32 +113,51 @@ const POSITION_LABEL: Record<string, string> = {
   goalie: "Goalie",
 };
 
-export const PLAYER_CSV_HEADER = [
-  "Season",
-  "Last name",
-  "First name",
-  "Team",
-  "Jersey",
-  "Position",
-  "Account",
-  "Email",
-  "Role",
-];
+export const PLAYER_CSV_HEADER = PLAYER_CSV_COLUMNS.map((column) => column.header);
 
-export function playersCsv(players: FilterablePlayer[], seasonName: string): string {
+function columnValue(
+  player: FilterablePlayer,
+  seasonName: string,
+  column: PlayerCsvColumnId,
+): CsvValue {
+  switch (column) {
+    case "season":
+      return seasonName;
+    case "last_name":
+      return player.last_name;
+    case "first_name":
+      return player.first_name;
+    case "team":
+      return player.current_team?.name ?? "Unrostered";
+    case "jersey":
+      return player.jersey_number;
+    case "position":
+      return player.position ? POSITION_LABEL[player.position] : null;
+    case "account":
+      return player.account ? "Linked" : "Not linked";
+    case "email":
+      return player.account?.email || null;
+    case "role":
+      return player.account?.role ?? null;
+  }
+}
+
+function columnHeader(id: PlayerCsvColumnId): string {
+  for (const column of PLAYER_CSV_COLUMNS) {
+    if (column.id === id) return column.header;
+  }
+  return id;
+}
+
+export function playersCsv(
+  players: FilterablePlayer[],
+  seasonName: string,
+  columns: readonly PlayerCsvColumnId[] = DEFAULT_PLAYER_CSV_COLUMNS,
+): string {
+  const ids = columns.length > 0 ? columns : DEFAULT_PLAYER_CSV_COLUMNS;
   return toCsv([
-    PLAYER_CSV_HEADER,
-    ...players.map((p) => [
-      seasonName,
-      p.last_name,
-      p.first_name,
-      p.current_team?.name ?? "Unrostered",
-      p.jersey_number,
-      p.position ? POSITION_LABEL[p.position] : null,
-      p.account ? "Linked" : "Not linked",
-      p.account?.email || null,
-      p.account?.role ?? null,
-    ]),
+    ids.map(columnHeader),
+    ...players.map((player) => ids.map((id) => columnValue(player, seasonName, id))),
   ]);
 }
 

@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
+  DEFAULT_PLAYER_CSV_COLUMNS,
+  PLAYER_CSV_COLUMNS,
   filterPlayers,
   playerFiltersQuery,
+  type PlayerCsvColumnId,
   type PlayerLinkFilter,
 } from "@/lib/players-export";
 import { updatePlayer, linkUserToPlayer, deletePlayer, mergePlayer } from "./actions";
@@ -63,6 +66,12 @@ export function PlayerFilters({
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
   const [linkFilter, setLinkFilter] = useState<LinkFilter>("all");
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<PlayerCsvColumnId[]>([
+    ...DEFAULT_PLAYER_CSV_COLUMNS,
+  ]);
+  const columnsRef = useRef<HTMLDivElement>(null);
+  const columnsPanelId = useId();
   const [expanded, setExpanded] = useState(false);
   const [actionPending, startAction] = useTransition();
   const [playerErrors, setPlayerErrors] = useState<Map<string, string>>(new Map());
@@ -113,10 +122,38 @@ export function PlayerFilters({
     });
   };
 
+  useEffect(() => {
+    if (!columnsOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (columnsRef.current && !columnsRef.current.contains(e.target as Node)) {
+        setColumnsOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setColumnsOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [columnsOpen]);
+
+  const toggleColumn = (id: PlayerCsvColumnId) => {
+    setSelectedColumns((current) => {
+      const on = current.includes(id);
+      if (on && current.length === 1) return current;
+      const next = new Set(on ? current.filter((column) => column !== id) : [...current, id]);
+      return PLAYER_CSV_COLUMNS.map((column) => column.id).filter((columnId) => next.has(columnId));
+    });
+  };
+
   const filters = { search, team: teamFilter, link: linkFilter };
   const filtered = filterPlayers(players, filters);
-  const exportQuery = playerFiltersQuery(filters);
-  const exportHref = `/admin/players/export${exportQuery ? `?${exportQuery}` : ""}`;
+  const exportParams = new URLSearchParams(playerFiltersQuery(filters));
+  exportParams.set("columns", selectedColumns.join(","));
+  const exportHref = `/admin/players/export?${exportParams.toString()}`;
 
   const visible = expanded ? filtered : filtered.slice(0, PAGE_SIZE);
   const hasMore = filtered.length > PAGE_SIZE;
@@ -196,13 +233,60 @@ export function PlayerFilters({
         </label>
 
         {/* Server route re-checks the admin role and applies the same filters. */}
-        <a
-          href={exportHref}
-          download
-          className="inline-flex items-center min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors shrink-0"
-        >
-          EXPORT CSV
-        </a>
+        <div ref={columnsRef} className="relative flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            aria-expanded={columnsOpen}
+            aria-controls={columnsPanelId}
+            aria-haspopup="dialog"
+            onClick={() => setColumnsOpen((open) => !open)}
+            className="inline-flex items-center gap-2 min-h-11 px-3 bg-board-2 hover:border-ice border border-rule text-ink font-semibold tracking-[0.06em] text-[13px] rounded transition-colors"
+          >
+            COLUMNS
+            <span
+              className={`text-ink-faint text-[10px] transition-transform duration-150 ${
+                columnsOpen ? "rotate-180" : ""
+              }`}
+            >
+              ▾
+            </span>
+          </button>
+          {columnsOpen && (
+            <div
+              id={columnsPanelId}
+              role="dialog"
+              aria-label="Export columns"
+              className="absolute left-0 top-full z-20 mt-1 w-56 rounded border border-rule bg-board-2 py-1 shadow-lg sm:left-auto sm:right-0"
+            >
+              {PLAYER_CSV_COLUMNS.map((column) => {
+                const checked = selectedColumns.includes(column.id);
+                const onlySelected = checked && selectedColumns.length === 1;
+                return (
+                  <label
+                    key={column.id}
+                    className="flex items-center gap-3 min-h-11 px-3 text-[14px] text-ink cursor-pointer hover:bg-board-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={onlySelected}
+                      onChange={() => toggleColumn(column.id)}
+                      className="h-4 w-4 accent-ice"
+                    />
+                    {column.header}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <a
+            href={exportHref}
+            download
+            className="inline-flex items-center min-h-11 px-4 bg-ice/10 hover:bg-ice/20 border border-ice/40 text-ice font-semibold tracking-[0.06em] text-[13px] rounded transition-colors"
+          >
+            EXPORT CSV
+          </a>
+        </div>
       </div>
 
       {/* Counts */}

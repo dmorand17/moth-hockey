@@ -2,12 +2,15 @@ import { describe, expect, test } from "bun:test";
 import {
   csvCell,
   filterPlayers,
+  parsePlayerColumns,
   parsePlayerFilters,
   playerFiltersQuery,
   playersCsv,
   playersCsvFilename,
   toCsv,
+  PLAYER_CSV_COLUMNS,
   type FilterablePlayer,
+  type PlayerCsvColumnId,
 } from "./players-export";
 
 const red = { id: "t-red", name: "Red Wings" };
@@ -72,13 +75,50 @@ describe("filter query round-trip", () => {
   });
 });
 
+const allColumns: PlayerCsvColumnId[] = PLAYER_CSV_COLUMNS.map((column) => column.id);
+
 describe("playersCsv", () => {
   test("writes a header and one row per player", () => {
-    expect(playersCsv(players, "Fall 2026")).toBe(
+    expect(playersCsv(players, "Fall 2026", allColumns)).toBe(
       "Season,Last name,First name,Team,Jersey,Position,Account,Email,Role\r\n" +
         "Fall 2026,Gretzky,Wayne,Red Wings,99,Forward,Linked,wayne@example.com,admin\r\n" +
         "Fall 2026,Roy,Patrick,Unrostered,,,Not linked,,\r\n",
     );
+  });
+
+  test("defaults to last name and first name", () => {
+    expect(playersCsv(players, "Fall 2026")).toBe(
+      "Last name,First name\r\nGretzky,Wayne\r\nRoy,Patrick\r\n",
+    );
+  });
+
+  test("writes a custom subset and still escapes formulas", () => {
+    expect(playersCsv(players, "Fall 2026", ["team", "jersey"])).toBe(
+      "Team,Jersey\r\nRed Wings,99\r\nUnrostered,\r\n",
+    );
+    const evil: FilterablePlayer[] = [
+      { ...players[0], last_name: "=cmd", first_name: "+1" },
+    ];
+    expect(playersCsv(evil, "Fall 2026")).toBe("Last name,First name\r\n'=cmd,'+1\r\n");
+  });
+});
+
+describe("parsePlayerColumns", () => {
+  test("defaults when the param is missing or empty", () => {
+    expect(parsePlayerColumns(null)).toEqual(["last_name", "first_name"]);
+    expect(parsePlayerColumns("")).toEqual(["last_name", "first_name"]);
+    expect(parsePlayerColumns("  ")).toEqual(["last_name", "first_name"]);
+  });
+
+  test("keeps an allowlisted subset in column order", () => {
+    expect(parsePlayerColumns("jersey,team")).toEqual(["team", "jersey"]);
+    expect(parsePlayerColumns(" last_name , email ")).toEqual(["last_name", "email"]);
+  });
+
+  test("falls back to names when any value is not allowlisted", () => {
+    expect(parsePlayerColumns("bogus")).toEqual(["last_name", "first_name"]);
+    expect(parsePlayerColumns("last_name,nope")).toEqual(["last_name", "first_name"]);
+    expect(parsePlayerColumns("LAST_NAME")).toEqual(["last_name", "first_name"]);
   });
 });
 

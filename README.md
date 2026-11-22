@@ -67,6 +67,7 @@ stored as aggregates.
 | Feature                | What it does                                                                  |
 | ---------------------- | ----------------------------------------------------------------------------- |
 | **League data CRUD**   | Create and edit teams, players, rosters, and the schedule.                    |
+| **Export players**     | Download the filtered players list as a CSV (`moth-players-YYYY-MM-DD.csv`). Pick columns first; names only unless others are selected. |
 | **Season management**  | Round-robin generation, season activation, and playoff seeding.               |
 | **Finalize a season**  | Lock in season totals and awards once the playoffs end; the season recap links from here. |
 | **Content & awards**   | Edit the markdown content pages and assign per-season player awards.          |

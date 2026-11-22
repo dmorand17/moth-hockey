@@ -92,7 +92,7 @@ git push origin "${tag}"
 
 # Create the GitHub release.
 gh release create "${tag}" \
-  --title "Release ${tag}" \
+  --title "${tag}" \
   --notes "${release_notes}" \
   --target "${BASE}"
 

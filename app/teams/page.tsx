@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SectionHeader } from "@/components/SectionHeader";
-import { getSeasons, getSelectedSeason, getStandings } from "@/lib/queries";
-import { SeasonSelect } from "@/components/SeasonSelect";
+import { getSelectedSeason, getStandings } from "@/lib/queries";
 import { seasonQuery } from "@/lib/seasons";
 import { NoSeason } from "@/components/NoSeason";
 import { teamAbbr } from "@/lib/format";
@@ -18,14 +17,13 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
   const season = await getSelectedSeason(seasonParam);
   if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
-  const [{ data: teams }, standings, seasons] = await Promise.all([
+  const [{ data: teams }, standings] = await Promise.all([
     supabase
       .from("teams")
       .select("id, name, slug, color")
       .eq("season_id", season.id)
       .order("name"),
     getStandings(season.id),
-    getSeasons(),
   ]);
 
   const recordByTeamId = new Map(
@@ -40,7 +38,6 @@ export default async function TeamsPage({ searchParams }: { searchParams: Promis
           eyebrow={season.name}
           title="Teams"
           subtitle={`${list.length} teams in the league`}
-          action={seasons.length > 1 ? <SeasonSelect seasons={seasons} selectedId={season.id} /> : undefined}
           size="lg"
           as="h1"
         />

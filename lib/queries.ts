@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "./supabase/server";
 import { aggregateScoringLeaders, type LeaderGoalEvent, type LeaderRosterEntry, type ScoringLeader } from "./leaders";
 import { boardSeasonWindow, buildThreads, pickTeams, type AuthorRow, type BoardSeason, type PostRow, type RosterRow, type Thread } from "./board";
@@ -79,9 +80,20 @@ export async function getCurrentSeason() {
   return data;
 }
 
-// The season a page should show: the one named by ?season=<id>, else the
-// current season. An unknown or malformed id falls back to current.
-export async function getSelectedSeason(seasonId: string | undefined) {
+// Cookie holding the season picked in the site header (see
+// components/HeaderSeasonPicker.tsx). Unset means the current season.
+export const SEASON_COOKIE = "season";
+
+// Season id a page should show: ?season=<id> (shared links) wins, then the
+// header picker's cookie. Undefined means the current season.
+export async function selectedSeasonId(param: string | undefined): Promise<string | undefined> {
+  return param ?? (await cookies()).get(SEASON_COOKIE)?.value;
+}
+
+// The season a page should show (see selectedSeasonId), else the current
+// season. An unknown or malformed id falls back to current.
+export async function getSelectedSeason(param: string | undefined) {
+  const seasonId = await selectedSeasonId(param);
   if (seasonId) {
     const supabase = await createSupabaseServerClient();
     const { data } = await supabase.from("seasons").select("*").eq("id", seasonId).maybeSingle();

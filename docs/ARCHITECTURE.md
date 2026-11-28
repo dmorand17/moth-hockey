@@ -130,6 +130,12 @@ Public (anonymous read): `/`, `/teams`, `/teams/[slug]`, `/players/[id]`,
 `/recap` (redirects to the latest season recap), `/seasons/[slug]/recap` (plus
 its `opengraph-image` share card), `/about`, `/about/[section]`.
 
+Season selection: Home, `/teams`, `/teams/[slug]`, `/standings`, `/schedule` and
+`/stats` show the season from `selectedSeasonId()` in `lib/queries.ts`:
+`?season=<id>` first, then the `season` session cookie set by the header picker
+(`components/HeaderSeasonPicker.tsx` → `app/season-actions.ts`), else the
+current season.
+
 Auth flows: `/login`, `/signup`, `/account`, `/auth/confirm`, `/auth/callback`.
 
 Role-gated (enforced by `requireRole` + RLS):

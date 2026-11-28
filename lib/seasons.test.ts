@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { recapState, recapTarget, seasonQuery, seasonSlug, type RecapSeason } from "./seasons";
+import { recapState, recapTarget, seasonQuery, seasonSlug, shortSeasonName, type RecapSeason } from "./seasons";
 
 const s = (name: string, start_date: string, extra: Partial<RecapSeason> = {}): RecapSeason => ({
   id: name,
@@ -16,6 +16,15 @@ describe("seasonQuery", () => {
   });
   test("names a past season by id", () => {
     expect(seasonQuery({ id: "abc", is_current: false })).toBe("?season=abc");
+  });
+});
+
+describe("shortSeasonName", () => {
+  test("abbreviates the season and year", () => {
+    expect(shortSeasonName("Spring 2025")).toBe("Spr '25");
+  });
+  test("handles a season that spans two years", () => {
+    expect(shortSeasonName("Winter 2025-26")).toBe("Win '25-26");
   });
 });
 

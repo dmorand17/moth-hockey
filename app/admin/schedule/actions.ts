@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { buildScheduledAt } from "@/lib/schedule-config";
+import { startOfLeagueDay } from "@/lib/timezone";
 import { ok, fail, type ActionResult } from "@/lib/action-result";
 
 type Status = "scheduled" | "live" | "final";
@@ -121,9 +122,8 @@ export async function skipWeek(formData: FormData): Promise<ActionResult> {
   const reason = String(formData.get("reason") ?? "").trim();
   if (!skipDate || !reason) return fail("Check all required fields (home team ≠ away team, valid date).");
 
-  // Local start-of-day for the picked date, as an ISO instant for comparison.
-  const [y, m, d] = skipDate.split("-").map(Number);
-  const fromIso = new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0).toISOString();
+  // League-local start-of-day for the picked date, as an ISO instant for comparison.
+  const fromIso = startOfLeagueDay(skipDate);
 
   // Guard against double-submit: if this week is already recorded as skipped,
   // don't shift games again.

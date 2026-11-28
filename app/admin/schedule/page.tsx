@@ -2,7 +2,8 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
-import { COMMON_GAME_TIMES } from "@/lib/schedule-config";
+import { formatDate, formatTime } from "@/lib/format";
+import { leagueDateKey, leagueTimeOfDay } from "@/lib/timezone";
 import { createGame, updateGame, deleteGame, skipWeek, removeScheduleSkip } from "./actions";
 import { localDateKey, byeTeamNamesByDate } from "@/lib/season-schedule";
 import { TimeSelect } from "./TimeSelect";
@@ -40,39 +41,19 @@ const decidedLabel: Record<string, string> = {
   shootout: "Shootout",
 };
 
-/** "YYYY-MM-DD" in local time for a date input */
+/** "YYYY-MM-DD" in the league timezone for a date input */
 function toLocalDate(iso: string): string {
-  const d = new Date(iso);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 10);
+  return leagueDateKey(iso);
 }
 
-/** "HH:mm" in local time for a time select/input */
+/** "HH:mm" in the league timezone for a time select/input */
 function toLocalTime(iso: string): string {
-  const d = new Date(iso);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(11, 16);
-}
-
-/** "8:20 PM" style label for a stored timestamp */
-function formatLocalTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return leagueTimeOfDay(iso);
 }
 
 /** Format for display in the summary row */
 function formatGameDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return `${formatDate(iso)}, ${formatTime(iso)}`;
 }
 
 /** "Sunday, March 1" from a "YYYY-MM-DD" local date key */

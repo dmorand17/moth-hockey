@@ -9,7 +9,6 @@ import { SkaterTable, GoalieTable, type Skater, type Goalie } from "@/components
 type Row = {
   season_id: string;
   player_id: string;
-  team_id: string | null;
   position: "forward" | "defense" | "goalie";
   games_played: number;
   goals: number;
@@ -42,7 +41,7 @@ export default async function AllTimeStatsPage() {
     const { data, error } = await supabase
       .from("season_player_stats")
       .select(
-        "season_id, player_id, team_id, position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, wins, losses, ot_losses",
+        "season_id, player_id, position, games_played, goals, assists, penalties, penalty_shots_taken, penalty_shots_made, goals_against, penalty_shots_faced, penalty_shots_saved, wins, losses, ot_losses",
       )
       .order("season_id")
       .order("player_id")
@@ -63,16 +62,8 @@ export default async function AllTimeStatsPage() {
     rows.push(...live.map((t) => ({ season_id: current.id, ...t })));
   }
 
-  const [{ data: players }, { data: teams }] = await Promise.all([
-    supabase.from("players").select("id, first_name, last_name"),
-    supabase.from("teams").select("id, name, slug, color"),
-  ]);
+  const { data: players } = await supabase.from("players").select("id, first_name, last_name");
   const nameById = new Map((players ?? []).map((p) => [p.id, `${p.first_name} ${p.last_name}`]));
-  const teamById = new Map((teams ?? []).map((t) => [t.id, { name: t.name, slug: t.slug, color: t.color }]));
-  const seasonOrder = new Map((seasons ?? []).map((s, i) => [s.id, i]));
-
-  // Oldest → newest so the last row seen sets the player's most recent team.
-  rows.sort((a, b) => (seasonOrder.get(a.season_id) ?? 0) - (seasonOrder.get(b.season_id) ?? 0));
 
   const skaters = new Map<string, Skater>();
   const goalies = new Map<string, Goalie>();
@@ -82,13 +73,11 @@ export default async function AllTimeStatsPage() {
     seasonsPlayed.add(r.season_id);
     const name = nameById.get(r.player_id);
     if (!name) continue;
-    const team = r.team_id ? teamById.get(r.team_id) : undefined;
 
     if (r.position === "goalie") {
       const g = goalies.get(r.player_id) ?? {
         id: r.player_id, name, gp: 0, w: null, l: null, otl: null, ga: 0, ps_faced: 0, ps_saved: 0,
       };
-      g.team = team ?? g.team;
       g.gp += r.games_played;
       g.ga += r.goals_against ?? 0;
       g.ps_faced += r.penalty_shots_faced ?? 0;
@@ -104,7 +93,6 @@ export default async function AllTimeStatsPage() {
       const s = skaters.get(r.player_id) ?? {
         id: r.player_id, name, gp: 0, goals: 0, assists: 0, points: 0, penalties: 0, ps_taken: 0, ps_made: 0,
       };
-      s.team = team ?? s.team;
       s.gp += r.games_played;
       s.goals += r.goals;
       s.assists += r.assists;
@@ -147,7 +135,7 @@ export default async function AllTimeStatsPage() {
       </section>
 
       <p className="rise delay-2 text-[14px] leading-5 text-ink-faint max-w-[75ch]">
-        Regular season only. Team shows each player&apos;s most recent team. W-L-OTL counts only
+        Regular season only. W-L-OTL counts only
         seasons with game results (not imported seasons). Includes the current season&apos;s games
         played so far.
       </p>

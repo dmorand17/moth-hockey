@@ -80,7 +80,6 @@ export const viewport: Viewport = {
 
 const navLinks = [
   { href: "/standings", label: "Standings" },
-  { href: "/teams", label: "Teams" },
   { href: "/schedule", label: "Schedule" },
   { href: "/stats", label: "Stats" },
   { href: "/about", label: "About" },

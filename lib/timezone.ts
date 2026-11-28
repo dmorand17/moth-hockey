@@ -85,3 +85,13 @@ export function leagueWeekday(iso: string): number {
   const [y, m, d] = leagueDateKey(iso).split("-").map(Number);
   return new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0)).getUTCDay();
 }
+
+/**
+ * Move an instant by whole weeks, keeping its league-local wall-clock time
+ * (so a 8:20 PM game stays 8:20 PM across a DST change).
+ */
+export function shiftLeagueWeeks(iso: string, weeks: number): string {
+  const [y, m, d] = leagueDateKey(iso).split("-").map(Number);
+  const day = new Date(Date.UTC(y, (m ?? 1) - 1, (d ?? 1) + weeks * 7));
+  return buildScheduledAt(day.toISOString().slice(0, 10), leagueTimeOfDay(iso));
+}

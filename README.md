@@ -135,6 +135,8 @@ See [`docs/LOCAL-TESTING.md`](docs/LOCAL-TESTING.md) for full local dev and test
 - `bun run lint` — ESLint
 - `bun run test` — unit tests (`bun test` over the pure modules in `lib/`)
 
+A [`justfile`](justfile) wraps these plus the common Supabase commands — run `just` to list them.
+
 ## Git workflow
 
 `main` is the production line; `staging` is the pre-production line that the staging

@@ -25,6 +25,9 @@ bun run test     # bun test over lib/ (pure modules)
 bun run dev:lan  # dev server reachable from other devices on your Wi-Fi (scripts/dev-lan.sh)
 ```
 
+The [`justfile`](../justfile) wraps these and the Supabase commands below
+(`just dev`, `just check`, `just db-reset`, `just seed-sample 4`, …) — run `just` to list them.
+
 `package.json` lists `sharp` and `unrs-resolver` under `trustedDependencies` /
 `ignoreScripts` — preserve that when changing dependencies. Use `bun add` /
 `bun install`, not npm/yarn.

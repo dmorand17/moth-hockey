@@ -31,6 +31,7 @@ Uses **bun** (see `bun.lock`). Use `bun install` / `bun add` rather than npm or 
 - `bun start` — run the production build
 - `bun run lint` — ESLint (flat config in `eslint.config.mjs`, extends `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`)
 - `bun run test` — `bun test` over `lib/` (the pure, DB-free modules). UI and DB behavior are verified in the browser against the local stack.
+- `just` — lists the `justfile` recipes, which wrap the above plus local Supabase commands (`db-start`, `db-reset`, `db-types`, `seed-sample`, `db-push`, …).
 
 ## Git Workflow
 

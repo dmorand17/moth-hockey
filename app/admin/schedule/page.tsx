@@ -233,7 +233,7 @@ export default async function AdminSchedulePage() {
             </SubmitButton>
           </div>
           <p className="text-ink-faint text-[12px]">
-            Pushes every scheduled game on or after that date out by one week.
+            Pushes every scheduled game on or after that date out by one week (UNDO moves them back).
             Played (live/final) games are left in place.
           </p>
         </ActionForm>
@@ -250,7 +250,7 @@ export default async function AdminSchedulePage() {
                   <SubmitButton
                     className="px-2.5 py-1 min-h-8 text-goal border border-goal/40 hover:bg-goal/10 font-semibold tracking-[0.1em] text-[11px] rounded transition-colors"
                   >
-                    REMOVE
+                    UNDO
                   </SubmitButton>
                 </ActionForm>
               </li>

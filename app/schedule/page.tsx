@@ -3,7 +3,8 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { ScheduleView, type ScheduleGame, type ScheduleWeek } from "@/components/ScheduleView";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentSeason } from "@/lib/queries";
+import { getSeasons, getSelectedSeason } from "@/lib/queries";
+import { SeasonSelect } from "@/components/SeasonSelect";
 import { NoSeason } from "@/components/NoSeason";
 import { localDateKey, byeTeamNamesByDate } from "@/lib/season-schedule";
 
@@ -14,13 +15,17 @@ export const metadata: Metadata = {
 
 type GameRowData = ScheduleGame & { home_team_id: string | null; away_team_id: string | null };
 
-export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ team?: string }> }) {
-  const { team: teamParam } = await searchParams;
-  const season = await getCurrentSeason();
+export default async function SchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ team?: string; season?: string }>;
+}) {
+  const { team: teamParam, season: seasonParam } = await searchParams;
+  const season = await getSelectedSeason(seasonParam);
   if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: gamesRaw }, { data: teams }, { data: skips }] = await Promise.all([
+  const [{ data: gamesRaw }, { data: teams }, { data: skips }, seasons] = await Promise.all([
     supabase
       .from("games")
       .select(
@@ -34,6 +39,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       .select("skip_date, reason")
       .eq("season_id", season.id)
       .order("skip_date"),
+    getSeasons(),
   ]);
   const games = (gamesRaw ?? []) as unknown as GameRowData[];
 
@@ -83,7 +89,13 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <div className="rise">
-        <SectionHeader eyebrow={season.name} title="Schedule" size="lg" as="h1" />
+        <SectionHeader
+          eyebrow={season.name}
+          title="Schedule"
+          size="lg"
+          as="h1"
+          action={seasons.length > 1 ? <SeasonSelect seasons={seasons} selectedId={season.id} /> : undefined}
+        />
       </div>
 
       {weekDates.length === 0 ? (

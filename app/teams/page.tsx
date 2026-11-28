@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SectionHeader } from "@/components/SectionHeader";
-import { getCurrentSeason, getStandings } from "@/lib/queries";
+import { getSeasons, getSelectedSeason, getStandings } from "@/lib/queries";
+import { SeasonSelect } from "@/components/SeasonSelect";
+import { seasonQuery } from "@/lib/seasons";
 import { NoSeason } from "@/components/NoSeason";
 import { teamAbbr } from "@/lib/format";
 import type { Metadata } from "next";
@@ -11,17 +13,19 @@ export const metadata: Metadata = {
   description: "Every team in the league with its record and points.",
 };
 
-export default async function TeamsPage() {
-  const season = await getCurrentSeason();
+export default async function TeamsPage({ searchParams }: { searchParams: Promise<{ season?: string }> }) {
+  const { season: seasonParam } = await searchParams;
+  const season = await getSelectedSeason(seasonParam);
   if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
-  const [{ data: teams }, standings] = await Promise.all([
+  const [{ data: teams }, standings, seasons] = await Promise.all([
     supabase
       .from("teams")
       .select("id, name, slug, color")
       .eq("season_id", season.id)
       .order("name"),
     getStandings(season.id),
+    getSeasons(),
   ]);
 
   const recordByTeamId = new Map(
@@ -36,6 +40,7 @@ export default async function TeamsPage() {
           eyebrow={season.name}
           title="Teams"
           subtitle={`${list.length} teams in the league`}
+          action={seasons.length > 1 ? <SeasonSelect seasons={seasons} selectedId={season.id} /> : undefined}
           size="lg"
           as="h1"
         />
@@ -47,7 +52,7 @@ export default async function TeamsPage() {
           return (
             <li key={t.id}>
               <Link
-                href={`/teams/${t.slug}`}
+                href={`/teams/${t.slug}${seasonQuery(season)}`}
                 className="panel h-full p-4 md:p-5 flex items-center gap-4 hover:bg-board-hover hover:border-rule-strong transition-colors group"
               >
                 <span

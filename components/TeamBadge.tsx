@@ -11,6 +11,8 @@ type Props = {
   size?: "sm" | "md" | "lg";
   /** Let a long name wrap instead of truncating. */
   wrap?: boolean;
+  /** Link to the team as it was in this season (team slugs repeat across seasons). */
+  seasonId?: string;
 };
 
 export function TeamBadge({
@@ -22,6 +24,7 @@ export function TeamBadge({
   asChild = false,
   size = "md",
   wrap = false,
+  seasonId,
 }: Props) {
   const sizes = {
     sm: { bar: "w-1 h-4", text: "text-[14px]" },
@@ -45,7 +48,7 @@ export function TeamBadge({
 
   if (asChild) return <span className={layout}>{inner}</span>;
   return (
-    <Link href={`/teams/${slug}`} className={`${layout} min-h-11 min-w-11 hover:text-ink transition-colors`}>
+    <Link href={seasonId ? `/teams/${slug}?season=${seasonId}` : `/teams/${slug}`} className={`${layout} min-h-11 min-w-11 hover:text-ink transition-colors`}>
       {inner}
     </Link>
   );

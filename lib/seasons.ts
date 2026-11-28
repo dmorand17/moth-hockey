@@ -10,6 +10,12 @@ export type RecapSeason = {
 
 export type RecapState = "complete" | "in-progress" | "upcoming";
 
+// Query string that keeps a page on the chosen season: empty for the current
+// season (so its URLs stay clean), "?season=<id>" for any other.
+export function seasonQuery(season: { id: string; is_current: boolean }): string {
+  return season.is_current ? "" : `?season=${season.id}`;
+}
+
 // URL slug from the season name: "Winter 2025-26" → "winter-2025-26".
 export function seasonSlug(name: string): string {
   return name

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ScrollFade } from "./ScrollFade";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { GameList, GameRow } from "@/components/GameRow";
 
 type TeamRef = { name: string; slug: string; color: string };
@@ -52,10 +52,16 @@ export function ScheduleView({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [team, setTeamState] = useState<string>(initialTeam);
   const setTeam = (slug: string) => {
     setTeamState(slug);
-    router.replace(slug === "all" ? pathname : `${pathname}?team=${encodeURIComponent(slug)}`, { scroll: false });
+    // Keep other params (e.g. ?season=) when changing the team filter.
+    const params = new URLSearchParams(searchParams.toString());
+    if (slug === "all") params.delete("team");
+    else params.set("team", slug);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
   const teamName = teams.find((t) => t.slug === team)?.name;
 

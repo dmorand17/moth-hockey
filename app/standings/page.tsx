@@ -159,7 +159,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
                   <td className="pl-4"><Rank i={i} /></td>
                   <td className="max-w-0 w-full">
                     <div className="flex items-center gap-1.5">
-                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="min-w-0" wrap />
+                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="min-w-0" wrap seasonId={season.is_current ? undefined : season.id} />
                       {row.is_champion && <Champion />}
                     </div>
                   </td>
@@ -214,7 +214,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
                   <td className="pl-3 sm:pl-4"><Rank i={i} /></td>
                   <td className="max-w-0 w-full">
                     <div className="flex items-center gap-1.5">
-                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="min-w-0" wrap />
+                      <TeamBadge name={row.name} slug={row.slug} color={row.color} className="min-w-0" wrap seasonId={season.is_current ? undefined : season.id} />
                       {row.team_id === championId && <Champion />}
                     </div>
                   </td>

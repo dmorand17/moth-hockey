@@ -79,6 +79,17 @@ export async function getCurrentSeason() {
   return data;
 }
 
+// The season a page should show: the one named by ?season=<id>, else the
+// current season. An unknown or malformed id falls back to current.
+export async function getSelectedSeason(seasonId: string | undefined) {
+  if (seasonId) {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase.from("seasons").select("*").eq("id", seasonId).maybeSingle();
+    if (data) return data;
+  }
+  return getCurrentSeason();
+}
+
 export type SeasonOption = {
   id: string;
   name: string;
@@ -347,6 +358,27 @@ export async function getScoringLeaders(seasonId: string): Promise<ScoringLeader
     (events ?? []) as unknown as LeaderGoalEvent[],
     (rosters ?? []) as unknown as LeaderRosterEntry[],
   );
+}
+
+// Past-season scoring leaders from the saved season totals (imported seasons
+// have no game events, and finalized seasons store theirs here too).
+export async function getSavedScoringLeaders(seasonId: string): Promise<ScoringLeader[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("season_player_stats")
+    .select("goals, assists, player:player_id(id, first_name, last_name), team:team_id(name, slug, color)")
+    .eq("season_id", seasonId);
+  if (error) throw error;
+  return (data ?? [])
+    .filter((r) => r.player && r.goals + r.assists > 0)
+    .map((r) => ({
+      player_id: r.player!.id,
+      name: `${r.player!.first_name} ${r.player!.last_name}`,
+      goals: r.goals,
+      assists: r.assists,
+      points: r.goals + r.assists,
+      team: r.team,
+    }));
 }
 
 const POST_COLUMNS = "id, author_id, game_id, parent_id, body, created_at, edited_at";

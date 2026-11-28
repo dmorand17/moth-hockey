@@ -73,7 +73,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
           <div className="flex-1 p-4 md:p-5 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="eyebrow text-gold!">🏆 Champions</p>
-              <TeamBadge name={champion.name} slug={champion.slug} color={champion.color} size="lg" />
+              <TeamBadge name={champion.name} slug={champion.slug} color={champion.color} size="lg" seasonId={r.season.id} />
             </div>
             {championRow && (
               <p className="text-[14px] text-ink-faint">
@@ -179,7 +179,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
                     <tr key={row.team_id}>
                       <td className={`pl-3 sm:pl-4 ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>{i + 1}</td>
                       <td className="max-w-0 w-full">
-                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
+                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap seasonId={r.season.id} />
                       </td>
                       <td className="text-right text-ink-dim">{row.gp}</td>
                       <td className="text-right text-ink-dim whitespace-nowrap">{row.w}-{row.l}-{row.otl}</td>
@@ -206,7 +206,7 @@ export default async function SeasonRecapPage({ params }: { params: Params }) {
                     <tr key={row.team_id}>
                       <td className="pl-3 sm:pl-4 text-ink-faint">{i + 1}</td>
                       <td className="max-w-0 w-full">
-                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
+                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap seasonId={r.season.id} />
                       </td>
                       <td className="text-right text-ink-dim">{row.gf}</td>
                       <td className="text-right text-ink-dim">{row.ga}</td>

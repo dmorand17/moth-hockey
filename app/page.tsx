@@ -9,7 +9,6 @@ import { EmptyState } from "@/components/EmptyState";
 import {
   getChampionTeamId,
   getSavedScoringLeaders,
-  getSeasons,
   getSelectedSeason,
   getStandings,
   getUpcomingGames,
@@ -17,7 +16,6 @@ import {
   getScoringLeaders,
 } from "@/lib/queries";
 import { seasonQuery, seasonSlug } from "@/lib/seasons";
-import { SeasonSelect } from "@/components/SeasonSelect";
 import { NoSeason } from "@/components/NoSeason";
 import { getSessionIfRole } from "@/lib/auth";
 import { HomeBoard } from "@/components/HomeBoard";
@@ -40,8 +38,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   // games, leaders from the saved season totals, and links that stay on it.
   const isPast = !season.is_current;
   const q = seasonQuery(season);
-  const [seasons, standings, upcoming, recent, leaders, championId] = await Promise.all([
-    getSeasons(),
+  const [standings, upcoming, recent, leaders, championId] = await Promise.all([
     getStandings(season.id),
     isPast ? Promise.resolve([]) : getUpcomingGames(season.id, 3),
     getRecentResults(season.id, 3),
@@ -73,7 +70,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           className="block w-full h-auto rounded-lg border border-rule sm:w-[400px] md:w-[460px] lg:w-[560px] sm:shrink-0"
         />
         {/* Phones: title and games-played share one row to keep the hero short. */}
-        <div className="min-w-0 flex flex-wrap items-baseline justify-between gap-x-3 sm:block">
+        <div className="min-w-0 flex items-baseline justify-between gap-3 sm:block">
           <p className="eyebrow hidden sm:block">Mostly Over The Hill Hockey League</p>
           <h1 className="font-display text-[28px] leading-8 sm:text-[40px] sm:leading-[44px] md:text-[56px] md:leading-[64px] tracking-[0.02em]">
             <span className="sr-only">M.O.T.H Hockey — </span>
@@ -83,11 +80,6 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             {!isPast && <span className="hidden sm:inline">Season in progress · </span>}
             {totalGames} {totalGames === 1 ? "game" : "games"} played
           </p>
-          {seasons.length > 1 && (
-            <div className="basis-full mt-2 sm:mt-3">
-              <SeasonSelect seasons={seasons} selectedId={season.id} />
-            </div>
-          )}
         </div>
       </section>
 

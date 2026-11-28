@@ -7,7 +7,7 @@ import {
   type StatsRecapLink,
 } from "@/components/StatsExplorer";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getChampionTeamId, getRecapSeasons, getSeasons } from "@/lib/queries";
+import { getChampionTeamId, getRecapSeasons, getSeasons, selectedSeasonId } from "@/lib/queries";
 import { recapState, seasonSlug } from "@/lib/seasons";
 import { NoSeason } from "@/components/NoSeason";
 import type { Metadata } from "next";
@@ -23,10 +23,10 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
   const { season: seasonParam } = await searchParams;
   const supabase = await createSupabaseServerClient();
 
-  const seasons = await getSeasons();
+  const [seasons, seasonId] = await Promise.all([getSeasons(), selectedSeasonId(seasonParam)]);
   if (seasons.length === 0) return <NoSeason />;
   const season =
-    seasons.find((s) => s.id === seasonParam) ??
+    seasons.find((s) => s.id === seasonId) ??
     seasons.find((s) => s.is_current) ??
     seasons[0];
 
@@ -131,8 +131,6 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
       <div className="space-y-8 md:space-y-12">
         <StatsExplorer
           seasonName={season.name}
-          seasons={seasons}
-          selectedSeasonId={season.id}
           teams={teams}
           recap={recapFor(finalWinnerId ?? [...championTeamIds][0] ?? null)}
           precomputed={{ skaters, goalies }}
@@ -225,8 +223,6 @@ export default async function StatsPage({ searchParams }: { searchParams: Search
     <div className="space-y-8 md:space-y-12">
       <StatsExplorer
         seasonName={season.name}
-        seasons={seasons}
-        selectedSeasonId={season.id}
         teams={teams}
         recap={recapFor(finalWinnerId)}
         games={games}

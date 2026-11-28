@@ -7,7 +7,9 @@ import { NavLink } from "@/components/NavLink";
 import { AuthMenu } from "@/components/AuthMenu";
 import { BottomNav, MobileHeaderController } from "@/components/MobileChrome";
 import { getAuthSession } from "@/lib/auth";
-import { getCurrentSeason } from "@/lib/queries";
+import { cookies } from "next/headers";
+import { HeaderSeasonPicker } from "@/components/HeaderSeasonPicker";
+import { getCurrentSeason, getSeasons, SEASON_COOKIE } from "@/lib/queries";
 import "./globals.css";
 
 const bebas = Bebas_Neue({
@@ -87,9 +89,11 @@ const navLinks = [
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [session, currentSeason] = await Promise.all([
+  const [session, currentSeason, seasons, cookieJar] = await Promise.all([
     getAuthSession(),
     getCurrentSeason(),
+    getSeasons(),
+    cookies(),
   ]);
   const seasonLabel = currentSeason?.name ?? "Off Season";
   const authLinks: { href: string; label: string; match?: string }[] = session
@@ -134,7 +138,7 @@ export default async function RootLayout({
               />
               <div className="leading-none min-w-0">
                 <div className="font-display text-[20px] sm:text-[26px] tracking-[0.06em] text-ink truncate">
-                  M.O.T.H <span className="text-goal">HOCKEY</span>
+                  M.O.T.H <span className="text-goal md:max-lg:hidden">HOCKEY</span>
                 </div>
                 <div className="mt-1 text-[12px] leading-4 text-ink-faint whitespace-nowrap hidden lg:block">Mostly Over the Hill Hockey League</div>
               </div>
@@ -154,7 +158,12 @@ export default async function RootLayout({
 
             {/* Auth slot — a hamburger menu (Admin / Scorekeeper / Account),
                 same row as the brand on every breakpoint. */}
-            <AuthMenu links={authLinks} />
+            <div className="flex items-center gap-2 shrink-0">
+              {seasons.length > 1 && (
+                <HeaderSeasonPicker seasons={seasons} cookieSeasonId={cookieJar.get(SEASON_COOKIE)?.value} />
+              )}
+              <AuthMenu links={authLinks} />
+            </div>
           </div>
         </header>
 

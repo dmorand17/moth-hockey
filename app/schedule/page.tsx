@@ -3,8 +3,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { ScheduleView, type ScheduleGame, type ScheduleWeek } from "@/components/ScheduleView";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSeasons, getSelectedSeason } from "@/lib/queries";
-import { SeasonSelect } from "@/components/SeasonSelect";
+import { getSelectedSeason } from "@/lib/queries";
 import { NoSeason } from "@/components/NoSeason";
 import { localDateKey, byeTeamNamesByDate } from "@/lib/season-schedule";
 
@@ -25,7 +24,7 @@ export default async function SchedulePage({
   if (!season) return <NoSeason />;
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: gamesRaw }, { data: teams }, { data: skips }, seasons] = await Promise.all([
+  const [{ data: gamesRaw }, { data: teams }, { data: skips }] = await Promise.all([
     supabase
       .from("games")
       .select(
@@ -39,7 +38,6 @@ export default async function SchedulePage({
       .select("skip_date, reason")
       .eq("season_id", season.id)
       .order("skip_date"),
-    getSeasons(),
   ]);
   const games = (gamesRaw ?? []) as unknown as GameRowData[];
 
@@ -89,13 +87,7 @@ export default async function SchedulePage({
   return (
     <div className="space-y-6">
       <div className="rise">
-        <SectionHeader
-          eyebrow={season.name}
-          title="Schedule"
-          size="lg"
-          as="h1"
-          action={seasons.length > 1 ? <SeasonSelect seasons={seasons} selectedId={season.id} /> : undefined}
-        />
+        <SectionHeader eyebrow={season.name} title="Schedule" size="lg" as="h1" />
       </div>
 
       {weekDates.length === 0 ? (

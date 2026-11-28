@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { SectionHeader } from "./SectionHeader";
-import { SeasonSelect } from "./SeasonSelect";
 import { Disclosure } from "./Disclosure";
 import { ScrollFade } from "./ScrollFade";
 import {
@@ -23,8 +22,6 @@ type GameMeta = {
   away_score: number;
   decided_in: string | null;
 };
-
-type SeasonOption = { id: string; name: string };
 
 // Historical (aggregated) seasons arrive pre-aggregated rather than derived
 // from events; rows carry the extra fields needed for the position/team filters.
@@ -60,8 +57,6 @@ export type StatsAppearance = {
 
 type Props = {
   seasonName: string;
-  seasons: SeasonOption[];
-  selectedSeasonId: string;
   teams: Team[];
   /** The selected season's recap (null for an upcoming season). */
   recap: StatsRecapLink | null;
@@ -79,8 +74,6 @@ type KindFilter = "all" | "regular" | "playoff";
 
 export function StatsExplorer({
   seasonName,
-  seasons,
-  selectedSeasonId,
   teams,
   recap,
   games = [],
@@ -238,7 +231,6 @@ export function StatsExplorer({
           as="h1"
           action={
             <>
-              <SeasonSelect seasons={seasons} selectedId={selectedSeasonId} />
               {recap && (
                 <Link
                   href={recap.href}

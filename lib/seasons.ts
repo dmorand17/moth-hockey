@@ -16,6 +16,13 @@ export function seasonQuery(season: { id: string; is_current: boolean }): string
   return season.is_current ? "" : `?season=${season.id}`;
 }
 
+// Compact season label for tight spots (the header picker):
+// "Spring 2025" → "Spr '25", "Winter 2025-26" → "Win '25-26".
+export function shortSeasonName(name: string): string {
+  const [first, ...rest] = name.replace(/\b\d{2}(\d{2})\b/g, "'$1").split(" ");
+  return [first.slice(0, 3), ...rest].join(" ");
+}
+
 // URL slug from the season name: "Winter 2025-26" → "winter-2025-26".
 export function seasonSlug(name: string): string {
   return name

@@ -38,6 +38,7 @@ this doc reflects what the migrations actually create.
 | `0028_season_finalize.sql` | `seasons.finalized_at`; goalie `wins`/`losses`/`ot_losses` on `season_player_stats` |
 | `0029_season_recaps.sql` | `season_recaps` (published AI season summary) and admin-only `season_recap_drafts` |
 | `0030_season_media.sql` | `season_media` — recap photo/video/PDF gallery (files in Vercel Blob) |
+| `0031_standings_tiebreakers.sql` | Default `seasons.tiebreakers` is `{pim,ga,gf}`; backfills rows still on `{wins,diff,gf}` |
 
 Enum changes are isolated in `0003` on purpose: Postgres won't let a new enum
 value be used in the same transaction that adds it.
@@ -67,7 +68,7 @@ value be used in the same transaction that adds it.
 - **`seasons`** — `season_type`+`year` unique; `is_current` (partial unique index
   enforces at most one current); `end_date` (nullable); `period_length_minutes`
   (default 17); `point_system` (`'2-1-0'` | `'3-2-1'`, default `3-2-1`);
-  `tiebreakers` (`text[]`, default `{wins,diff,gf}`); `regular_weeks`;
+  `tiebreakers` (`text[]`, default `{pim,ga,gf}` — fewest PIM, fewest GA, most GF); `regular_weeks`;
   `default_location`; `finalized_at` (set by the admin Finalize action, cleared
   by Reset).
 - **`teams`** — per-season (`season_id`); `slug` + `name` unique within a season;

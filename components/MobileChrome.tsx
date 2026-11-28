@@ -106,7 +106,6 @@ export function BottomNav({ authLinks }: { authLinks: AuthLink[] }) {
   const pathname = usePathname();
   const dialog = useRef<HTMLDialogElement>(null);
   const moreLinks = [
-    { href: "/teams", label: "Teams" },
     { href: "/about", label: "About" },
     { href: "/recap", label: "Season recap" },
     ...authLinks,

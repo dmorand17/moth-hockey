@@ -148,6 +148,8 @@ function StatTable<T extends Row>({
 
   const isLeaderboard = sortKey !== "name" && sortKey !== "team";
   const hasSecondary = cols.some((c) => c.secondary);
+  // Career tables (all-time) carry no team; drop the column there.
+  const showTeam = rows.some((r) => r.team);
   // Secondary columns: hidden on mobile unless "More columns" is on.
   const secondaryVis = moreCols ? "" : "hidden sm:table-cell";
 
@@ -206,7 +208,7 @@ function StatTable<T extends Row>({
             <tr>
               <th scope="col" className="text-left w-10 pl-3 sm:pl-4">#</th>
               {th("name", noun === "goalies" ? "Goalie" : "Player", "name", "asc", "", "left")}
-              {th("team", "Team", "team", "asc", "hidden sm:table-cell w-20", "left")}
+              {showTeam && th("team", "Team", "team", "asc", "hidden sm:table-cell w-20", "left")}
               {cols.map((c) =>
                 th(c.key, c.label, c.title, c.defaultDir, `${c.secondary ? `${secondaryVis} col-dim` : ""} w-11 sm:w-14`, "right"),
               )}
@@ -215,7 +217,7 @@ function StatTable<T extends Row>({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={cols.length + 3} className="px-4 py-5 text-[14px] text-ink-faint">
+                <td colSpan={cols.length + (showTeam ? 3 : 2)} className="px-4 py-5 text-[14px] text-ink-faint">
                   {empty}
                 </td>
               </tr>
@@ -249,14 +251,16 @@ function StatTable<T extends Row>({
                         )}
                       </Link>
                     </td>
-                    <td className="hidden sm:table-cell">
-                      {r.team && (
-                        <span className="inline-flex items-center gap-1.5">
-                          <TeamTag name={r.team.name} color={r.team.color} />
-                          {r.isChampion && <Trophy />}
-                        </span>
-                      )}
-                    </td>
+                    {showTeam && (
+                      <td className="hidden sm:table-cell">
+                        {r.team && (
+                          <span className="inline-flex items-center gap-1.5">
+                            <TeamTag name={r.team.name} color={r.team.color} />
+                            {r.isChampion && <Trophy />}
+                          </span>
+                        )}
+                      </td>
+                    )}
                     {cols.map((c) => {
                       const v = r[c.key as keyof T] as number | null;
                       return (

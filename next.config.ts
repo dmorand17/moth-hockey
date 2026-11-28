@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
     // Recap media in the Vercel Blob store.
     remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
   },
+  async redirects() {
+    // The Teams list duplicated Standings; old links land there (query string,
+    // e.g. ?season=, is passed through). Team pages stay at /teams/[slug].
+    return [{ source: "/teams", destination: "/standings", permanent: true }];
+  },
 };
 
 export default nextConfig;

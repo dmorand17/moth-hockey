@@ -125,12 +125,12 @@ client (`createServerClient<Database>`, etc.).
 
 ## Routes
 
-Public (anonymous read): `/`, `/teams`, `/teams/[slug]`, `/players/[id]`,
+Public (anonymous read): `/`, `/teams/[slug]` (`/teams` redirects to `/standings`), `/players/[id]`,
 `/schedule`, `/games/[id]`, `/standings`, `/stats`, `/stats/all-time`,
 `/recap` (redirects to the latest season recap), `/seasons/[slug]/recap` (plus
 its `opengraph-image` share card), `/about`, `/about/[section]`.
 
-Season selection: Home, `/teams`, `/teams/[slug]`, `/standings`, `/schedule` and
+Season selection: Home, `/teams/[slug]`, `/standings`, `/schedule` and
 `/stats` show the season from `selectedSeasonId()` in `lib/queries.ts`:
 `?season=<id>` first, then the `season` session cookie set by the header picker
 (`components/HeaderSeasonPicker.tsx` → `app/season-actions.ts`), else the

@@ -28,7 +28,7 @@ stored as aggregates.
 | Feature             | What it does                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------ |
 | **Home**            | Current-season standings, league leaders, recent results, upcoming games, and the Locker Room board. |
-| **Standings**       | Per-season point system (3-2-1 or 2-1-0) with full tiebreakers (pts → wins → goal differential → goals for). |
+| **Standings**       | Per-season point system (3-2-1 or 2-1-0) with full tiebreakers (pts → fewest PIM → fewest goals against → most goals for, then team name). |
 | **Teams & rosters** | Per-team roster grouped by forwards / defense / goalies, plus team stats, schedule, and a captain badge. |
 | **Schedule**        | Full season schedule with a shareable team filter (`/schedule?team=<slug>`) and playoff round chips. |
 | **Game pages**      | Box score with goal and penalty-shot log (OT and shootout), a projected line and AI-written preview before the game, and an AI recap after it. |

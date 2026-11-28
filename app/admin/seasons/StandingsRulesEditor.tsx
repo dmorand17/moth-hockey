@@ -6,13 +6,14 @@ import { SubmitButton } from "@/components/SubmitButton";
 import type { ActionResult } from "@/lib/action-result";
 
 const TIE_LABELS: Record<string, string> = {
+  pim: "PIM (fewest)",
+  ga: "Goals against (fewest)",
+  gf: "Goals for",
   wins: "Wins",
   diff: "Goal differential",
-  gf: "Goals for",
-  ga: "Goals against (fewest)",
   h2h: "Head-to-head",
 };
-const ALL_KEYS = ["wins", "diff", "gf", "ga", "h2h"];
+const ALL_KEYS = ["pim", "ga", "gf", "wins", "diff", "h2h"];
 
 export function StandingsRulesEditor({
   action,

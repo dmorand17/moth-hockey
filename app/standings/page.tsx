@@ -21,7 +21,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Standings",
-  description: "League table: wins, losses, overtime losses, goal differential and points.",
+  description: "League table: wins, losses, overtime losses, PIM, goal differential and points.",
 };
 
 function Diff({ value }: { value: number }) {
@@ -49,10 +49,11 @@ type SearchParams = Promise<{ season?: string }>;
 
 // Lowercase labels for the House Rules chip (matches the page's inline style).
 const TIE_LABELS: Record<TieKey, string> = {
+  pim: "PIM",
+  ga: "goals against",
+  gf: "goals for",
   wins: "wins",
   diff: "goal differential",
-  gf: "goals for",
-  ga: "goals against",
   h2h: "head-to-head",
 };
 
@@ -202,6 +203,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
                 <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">OTL</th>
                 <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
                 <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
+                <th scope="col" className="text-right sm:w-14 hidden sm:table-cell" title="Penalty minutes (each regular-season penalty counts as 1)">PIM</th>
                 <th scope="col" className="text-right sm:w-14">DIFF</th>
                 <th scope="col" className="text-right sm:w-14 pr-3 sm:pr-4">PTS</th>
               </tr>
@@ -225,6 +227,7 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.otl}</td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.gf}</td>
                   <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.ga}</td>
+                  <td className="text-right tnum text-ink-dim hidden sm:table-cell">{row.pim}</td>
                   <td className="text-right tnum font-semibold"><Diff value={row.diff} /></td>
                   <td className="text-right pr-3 sm:pr-4 tnum text-[17px] font-bold text-ink">{row.pts}</td>
                 </tr>
@@ -244,6 +247,10 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
           </li>
           <li>
             <span className="text-ink-dim">Tiebreakers:</span> {tieChain}
+          </li>
+          <li>
+            PIM is the number of penalties a team took in regular-season games. This league uses
+            penalty shots, so each penalty counts as 1 PIM.
           </li>
           <li>DIFF = goal differential (GF − GA). Gold rank marks first place.</li>
           {championId && <li>🏆 marks the playoff champion.</li>}

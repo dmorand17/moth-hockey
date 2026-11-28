@@ -28,7 +28,7 @@ const teamName = (id: string) => names[id] ?? id;
 
 const row = (o: Partial<StandingsRow>): StandingsRow => ({
   team_id: "R", name: "Iron Ravens", slug: "iron-ravens", color: "#999",
-  gp: 0, w: 0, l: 0, otl: 0, pts: 0, gf: 0, ga: 0, diff: 0, ...o,
+  gp: 0, w: 0, l: 0, otl: 0, pts: 0, gf: 0, ga: 0, diff: 0, pim: 0, ...o,
 });
 
 const game = (o: Partial<FinalGame>): FinalGame => ({

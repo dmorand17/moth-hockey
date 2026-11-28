@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSeasonFinalizeInputs, getStandings } from "@/lib/queries";
+import { DEFAULT_TIEBREAKERS, VALID_TIE_KEYS } from "@/lib/standings";
 import {
   FINALIZE_AWARDS,
   computeSeasonTotals,
@@ -101,6 +102,7 @@ export async function createSeason(formData: FormData): Promise<ActionResult> {
       default_location: defaultLocation,
       period_length_minutes: periodLength,
       point_system,
+      tiebreakers: DEFAULT_TIEBREAKERS,
       is_current: false,
     })
     .select("id")
@@ -477,7 +479,7 @@ export async function updateStandingsRules(formData: FormData): Promise<ActionRe
   const tiebreakers = formData
     .getAll("tiebreakers")
     .map(String)
-    .filter((k) => ["wins", "diff", "gf", "ga", "h2h"].includes(k));
+    .filter((k) => (VALID_TIE_KEYS as readonly string[]).includes(k));
 
   if (!id || (pointSystem !== "2-1-0" && pointSystem !== "3-2-1")) {
     return fail("Check all required fields.");

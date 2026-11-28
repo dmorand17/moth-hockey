@@ -74,7 +74,7 @@ async function loadGame(db: Db, gameId: string) {
 function standingFor(rows: StandingsRow[], teamId: string): StandingsRow {
   return (
     rows.find((r) => r.team_id === teamId) ?? {
-      team_id: teamId, name: "", slug: "", color: "", gp: 0, w: 0, l: 0, otl: 0, pts: 0, gf: 0, ga: 0, diff: 0,
+      team_id: teamId, name: "", slug: "", color: "", gp: 0, w: 0, l: 0, otl: 0, pts: 0, gf: 0, ga: 0, diff: 0, pim: 0,
     }
   );
 }

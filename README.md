@@ -28,9 +28,9 @@ stored as aggregates.
 | Feature             | What it does                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------ |
 | **Home**            | Standings, league leaders, recent results, upcoming games, and the Locker Room board. |
-| **Season picker**   | A season dropdown in the site header switches Home, Teams, Standings, Schedule and Stats to a past season. The choice lasts for the browser session; a `?season=<id>` link overrides it. |
+| **Season picker**   | A season dropdown in the site header switches Home, team pages, Standings, Schedule and Stats to a past season. The choice lasts for the browser session; a `?season=<id>` link overrides it. |
 | **Standings**       | Per-season point system (3-2-1 or 2-1-0) with full tiebreakers (pts → fewest PIM → fewest goals against → most goals for, then team name). |
-| **Teams & rosters** | Per-team roster grouped by forwards / defense / goalies with each player's season stats, plus team record, schedule, and a captain badge. Past-season teams open via `?season=<id>`. |
+| **Team pages**      | Per-team roster grouped by forwards / defense / goalies with each player's season stats, plus team record, schedule, and a captain badge. Past-season teams open via `?season=<id>`. |
 | **Schedule**        | Full season schedule with a shareable team filter (`/schedule?team=<slug>`), and playoff round chips. |
 | **Game pages**      | Box score with goal and penalty-shot log (OT and shootout), a projected line and AI-written preview before the game, and an AI recap after it. |
 | **Player profiles** | Career stats per season plus all-time totals, interactive award badges, and captain history.     |
@@ -154,9 +154,9 @@ See [`docs/RELEASING.md`](docs/RELEASING.md) for tagging releases.
 
 ## Screenshots
 
-|                    Standings                    |                  Teams                  |
+|                    Standings                    |                Team page                |
 | :---------------------------------------------: | :-------------------------------------: |
-|  ![Standings table](docs/images/standings.png)  |  ![Teams list](docs/images/teams.png)   |
+|  ![Standings table](docs/images/standings.png)  | ![Team roster with stats](docs/images/team.png) |
 |                   **Stats**                     |               **Box score**             |
 |     ![League stats](docs/images/stats.png)      | ![Game box score](docs/images/boxscore.png) |
 |                **Season recap**                 |                                         |

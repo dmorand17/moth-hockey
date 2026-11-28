@@ -114,10 +114,10 @@ export default async function TeamPage({ params, searchParams }: PageProps) {
       {/* Header */}
       <section className="rise">
         <Link
-          href={`/teams${seasonQuery(season)}`}
+          href={`/standings${seasonQuery(season)}`}
           className="text-[14px] font-semibold text-ice hover:text-ink transition-colors inline-flex items-center min-h-11"
         >
-          <span aria-hidden className="mr-1">←</span> All teams
+          <span aria-hidden className="mr-1">←</span> Standings
         </Link>
         <div className="mt-2 panel overflow-clip flex">
           <span aria-hidden className="swatch w-1 shrink-0" style={{ background: team.color }} />

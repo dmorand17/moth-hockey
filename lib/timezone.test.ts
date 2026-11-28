@@ -4,6 +4,7 @@ import {
   leagueDateKey,
   leagueTimeOfDay,
   leagueWeekday,
+  shiftLeagueWeeks,
   startOfLeagueDay,
 } from "./timezone";
 
@@ -43,5 +44,18 @@ describe("league date and time helpers", () => {
 
   test("does not roll a late Eastern game onto the next calendar day", () => {
     expect(leagueDateKey("2026-12-02T02:30:00.000Z")).toBe("2026-12-01");
+  });
+});
+
+describe("shiftLeagueWeeks", () => {
+  test("keeps the wall-clock time across the fall DST change", () => {
+    // 8:20 PM EDT Oct 27 → 8:20 PM EST Nov 3 (offset changes from -4 to -5).
+    const shifted = shiftLeagueWeeks(buildScheduledAt("2026-10-27", "20:20"), 1);
+    expect(shifted).toBe(buildScheduledAt("2026-11-03", "20:20"));
+  });
+
+  test("skipping then un-skipping restores the original instant", () => {
+    const original = buildScheduledAt("2026-10-27", "21:30");
+    expect(shiftLeagueWeeks(shiftLeagueWeeks(original, 1), -1)).toBe(original);
   });
 });

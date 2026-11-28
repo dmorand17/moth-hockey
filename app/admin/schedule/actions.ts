@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentSeason } from "@/lib/queries";
 import { buildScheduledAt } from "@/lib/schedule-config";
-import { startOfLeagueDay } from "@/lib/timezone";
+import { shiftLeagueWeeks, startOfLeagueDay } from "@/lib/timezone";
 import { ok, fail, type ActionResult } from "@/lib/action-result";
 
 type Status = "scheduled" | "live" | "final";
@@ -135,25 +135,9 @@ export async function skipWeek(formData: FormData): Promise<ActionResult> {
     .maybeSingle();
   if (existingSkip) return fail("That week is already recorded as skipped.");
 
-  // Push every still-scheduled game on/after that date out by 7 days.
-  const { data: games, error: fetchErr } = await supabase
-    .from("games")
-    .select("id, scheduled_at")
-    .eq("season_id", season.id)
-    .eq("status", "scheduled")
-    .gte("scheduled_at", fromIso);
-  if (fetchErr) return fail(fetchErr.message);
-
-  for (const g of games ?? []) {
-    const next = new Date(
-      new Date(g.scheduled_at).getTime() + 7 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-    const { error: updErr } = await supabase
-      .from("games")
-      .update({ scheduled_at: next, updated_at: new Date().toISOString() })
-      .eq("id", g.id);
-    if (updErr) return fail(updErr.message);
-  }
+  // Push every still-scheduled game on/after that date out by a week.
+  const shiftErr = await shiftScheduledGames(season.id, fromIso, 1);
+  if (shiftErr) return fail(shiftErr);
 
   const { error: insErr } = await supabase
     .from("schedule_skips")
@@ -172,10 +156,51 @@ export async function removeScheduleSkip(formData: FormData): Promise<ActionResu
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return fail("Check all required fields (home team ≠ away team, valid date).");
 
+  const { data: skip, error: getErr } = await supabase
+    .from("schedule_skips")
+    .select("season_id, skip_date")
+    .eq("id", id)
+    .single();
+  if (getErr) return fail(getErr.message);
+
+  // Undo the skip: the games it pushed now sit a week after the skipped date,
+  // so pull every still-scheduled game from there on back by a week.
+  const fromIso = shiftLeagueWeeks(startOfLeagueDay(skip.skip_date), 1);
+  const shiftErr = await shiftScheduledGames(skip.season_id, fromIso, -1);
+  if (shiftErr) return fail(shiftErr);
+
   const { error } = await supabase.from("schedule_skips").delete().eq("id", id);
   if (error) return fail(error.message);
 
   revalidatePath("/admin/schedule");
   revalidatePath("/schedule");
-  return ok("Skip note removed.");
+  return ok("Skip undone — later games moved back a week.");
+}
+
+/** Move every still-scheduled game at/after `fromIso` by `weeks`. Returns an error message or null. */
+async function shiftScheduledGames(
+  seasonId: string,
+  fromIso: string,
+  weeks: number,
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data: games, error: fetchErr } = await supabase
+    .from("games")
+    .select("id, scheduled_at")
+    .eq("season_id", seasonId)
+    .eq("status", "scheduled")
+    .gte("scheduled_at", fromIso);
+  if (fetchErr) return fetchErr.message;
+
+  for (const g of games ?? []) {
+    const { error: updErr } = await supabase
+      .from("games")
+      .update({
+        scheduled_at: shiftLeagueWeeks(g.scheduled_at, weeks),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", g.id);
+    if (updErr) return updErr.message;
+  }
+  return null;
 }

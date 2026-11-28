@@ -27,10 +27,10 @@ stored as aggregates.
 
 | Feature             | What it does                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------ |
-| **Home**            | Current-season standings, league leaders, recent results, upcoming games, and the Locker Room board. |
+| **Home**            | Standings, league leaders, recent results, upcoming games, and the Locker Room board, with a season picker (`/?season=<id>`) that carries the chosen season through to Teams, Stats, Standings and Schedule links. |
 | **Standings**       | Per-season point system (3-2-1 or 2-1-0) with full tiebreakers (pts → fewest PIM → fewest goals against → most goals for, then team name). |
-| **Teams & rosters** | Per-team roster grouped by forwards / defense / goalies, plus team stats, schedule, and a captain badge. |
-| **Schedule**        | Full season schedule with a shareable team filter (`/schedule?team=<slug>`) and playoff round chips. |
+| **Teams & rosters** | Per-team roster grouped by forwards / defense / goalies with each player's season stats, plus team record, schedule, and a captain badge. Season picker; past-season teams open via `?season=<id>`. |
+| **Schedule**        | Full season schedule with a season picker, a shareable team filter (`/schedule?team=<slug>`), and playoff round chips. |
 | **Game pages**      | Box score with goal and penalty-shot log (OT and shootout), a projected line and AI-written preview before the game, and an AI recap after it. |
 | **Player profiles** | Career stats per season plus all-time totals, interactive award badges, and captain history.     |
 | **Stats**           | Season leaders (points, goals, assists, penalties, goalies; subs don't count toward leaders) and paginated all-time stats. |

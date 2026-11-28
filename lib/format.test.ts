@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatShortDate, maskClockInput, teamAbbr } from "./format";
+import { formatDate, formatShortDate, formatTime, maskClockInput, teamAbbr } from "./format";
 
 describe("maskClockInput", () => {
   test("shifts digits in from the right with a colon always present", () => {
@@ -39,10 +39,23 @@ describe("teamAbbr", () => {
 });
 
 describe("formatShortDate", () => {
-  test("month and day without a weekday", () => {
+  test("month and day without a weekday, in Eastern", () => {
     const out = formatShortDate("2026-04-12T23:00:00Z");
-    expect(out).toContain("Apr");
-    expect(out).toMatch(/1[12]/); // local day may shift by timezone
-    expect(out).not.toMatch(/Sun|Sat|Mon/);
+    expect(out).toBe("Apr 12");
+  });
+});
+
+describe("formatDate and formatTime", () => {
+  test("show Eastern wall-clock time, not the host timezone", () => {
+    // 8:20 PM EST stored correctly as 01:20 UTC the next day.
+    expect(formatTime("2026-12-02T01:20:00.000Z")).toBe("8:20 PM");
+    expect(formatTime("2026-12-02T02:30:00.000Z")).toBe("9:30 PM");
+    expect(formatDate("2026-12-02T01:20:00.000Z")).toBe("Tue, Dec 1");
+  });
+
+  test("a 20:20 UTC instant is 3:20 PM Eastern in winter", () => {
+    // Values stored as 20:20Z (the previous generator bug) display as 3:20 PM
+    // once the formatter is pinned to Eastern, until those rows are rewritten.
+    expect(formatTime("2026-12-01T20:20:00.000Z")).toBe("3:20 PM");
   });
 });

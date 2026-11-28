@@ -501,7 +501,7 @@ export default async function PlayerPage({
                   {captainHistory.map((row) => (
                     <li key={row.season_id} className="flex items-center gap-2">
                       <span aria-hidden className="swatch h-2 w-2 rounded-full shrink-0" style={{ background: row.team_color }} />
-                      <Link href={`/teams/${row.team_slug}`} className="text-ink hover:text-ice transition-colors min-h-11 inline-flex items-center">
+                      <Link href={`/teams/${row.team_slug}?season=${row.season_id}`} className="text-ink hover:text-ice transition-colors min-h-11 inline-flex items-center">
                         {row.team_name}
                       </Link>
                       <span className="text-ink-faint">{row.season_name}</span>
@@ -551,7 +551,7 @@ export default async function PlayerPage({
                           )}
                         </th>
                         <td className="hidden sm:table-cell">
-                          {r.team ? <TeamBadge {...r.team} size="sm" /> : <span className="text-ink-faint">—</span>}
+                          {r.team ? <TeamBadge {...r.team} size="sm" seasonId={r.isCurrent ? undefined : r.season_id} /> : <span className="text-ink-faint">—</span>}
                         </td>
                         {statCols.map((c) => (
                           <td

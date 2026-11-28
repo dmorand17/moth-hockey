@@ -6,16 +6,27 @@ import { ScrollFade } from "@/components/ScrollFade";
 import { TeamBadge } from "@/components/TeamBadge";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
-import { getChampionTeamId, getCurrentSeason, getStandings, getUpcomingGames, getRecentResults, getScoringLeaders } from "@/lib/queries";
-import { seasonSlug } from "@/lib/seasons";
+import {
+  getChampionTeamId,
+  getSavedScoringLeaders,
+  getSeasons,
+  getSelectedSeason,
+  getStandings,
+  getUpcomingGames,
+  getRecentResults,
+  getScoringLeaders,
+} from "@/lib/queries";
+import { seasonQuery, seasonSlug } from "@/lib/seasons";
+import { SeasonSelect } from "@/components/SeasonSelect";
 import { NoSeason } from "@/components/NoSeason";
 import { getSessionIfRole } from "@/lib/auth";
 import { HomeBoard } from "@/components/HomeBoard";
 
-type SearchParams = Promise<{ before?: string; boardSeason?: string }>;
+type SearchParams = Promise<{ before?: string; boardSeason?: string; season?: string }>;
 
 export default async function Home({ searchParams }: { searchParams: SearchParams }) {
-  const [season, { before, boardSeason }] = await Promise.all([getCurrentSeason(), searchParams]);
+  const { before, boardSeason, season: seasonParam } = await searchParams;
+  const season = await getSelectedSeason(seasonParam);
   if (!season) {
     return (
       <div className="space-y-8 md:space-y-12">
@@ -25,11 +36,16 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
     );
   }
 
-  const [standings, upcoming, recent, leaders, championId] = await Promise.all([
+  // A past season (picked with ?season=) shows its final state: no upcoming
+  // games, leaders from the saved season totals, and links that stay on it.
+  const isPast = !season.is_current;
+  const q = seasonQuery(season);
+  const [seasons, standings, upcoming, recent, leaders, championId] = await Promise.all([
+    getSeasons(),
     getStandings(season.id),
-    getUpcomingGames(season.id, 3),
+    isPast ? Promise.resolve([]) : getUpcomingGames(season.id, 3),
     getRecentResults(season.id, 3),
-    getScoringLeaders(season.id),
+    isPast ? getSavedScoringLeaders(season.id) : getScoringLeaders(season.id),
     season.finalized_at ? getChampionTeamId(season.id) : Promise.resolve(null),
   ]);
   const champion = standings.find((r) => r.team_id === championId);
@@ -57,21 +73,26 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
           className="block w-full h-auto rounded-lg border border-rule sm:w-[400px] md:w-[460px] lg:w-[560px] sm:shrink-0"
         />
         {/* Phones: title and games-played share one row to keep the hero short. */}
-        <div className="min-w-0 flex items-baseline justify-between gap-3 sm:block">
+        <div className="min-w-0 flex flex-wrap items-baseline justify-between gap-x-3 sm:block">
           <p className="eyebrow hidden sm:block">Mostly Over The Hill Hockey League</p>
           <h1 className="font-display text-[28px] leading-8 sm:text-[40px] sm:leading-[44px] md:text-[56px] md:leading-[64px] tracking-[0.02em]">
             <span className="sr-only">M.O.T.H Hockey — </span>
             {season.name}
           </h1>
           <p className="text-[14px] leading-5 text-ink-faint whitespace-nowrap">
-            <span className="hidden sm:inline">Season in progress · </span>
+            {!isPast && <span className="hidden sm:inline">Season in progress · </span>}
             {totalGames} {totalGames === 1 ? "game" : "games"} played
           </p>
+          {seasons.length > 1 && (
+            <div className="basis-full mt-2 sm:mt-3">
+              <SeasonSelect seasons={seasons} selectedId={season.id} />
+            </div>
+          )}
         </div>
       </section>
 
       {/* Season finished: point everyone at the recap. */}
-      {season.finalized_at && (
+      {(season.finalized_at || isPast) && (
         <Link
           href={`/seasons/${seasonSlug(season.name)}/recap`}
           className="rise panel flex items-center gap-3 p-4 md:p-5 hover:bg-board-hover hover:border-rule-strong transition-colors"
@@ -90,7 +111,7 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
       {/* PHONES: scores strip first — latest results, then upcoming */}
       {recent.length + upcoming.length > 0 && (
         <section className="md:hidden rise delay-1">
-          <SectionHeader eyebrow="Latest & next" title="Scores" linkHref="/schedule" linkLabel="Schedule" />
+          <SectionHeader eyebrow="Latest & next" title="Scores" linkHref={`/schedule${q}`} linkLabel="Schedule" />
           <ScrollFade className="-mx-4">
             <ul className="flex gap-3 px-4 pb-1">
               {[...recent.map((g) => ({ ...g, status: "final" as const })), ...upcoming].map((g) => (
@@ -118,50 +139,59 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         {/* MAIN COLUMN */}
         <div className="space-y-8 md:space-y-10 min-w-0">
           <section className="rise delay-1">
-            <SectionHeader eyebrow="League table" title="Standings" linkHref="/standings" linkLabel="Full standings" />
-            <DataTable caption={`${season.name} standings`}>
-                <thead>
-                  <tr>
-                    <th scope="col" className="text-left w-10 pl-4">#</th>
-                    <th scope="col" className="text-left">Team</th>
-                    <th scope="col" className="text-right sm:w-14">GP</th>
-                    <th scope="col" className="text-right sm:w-14 sm:hidden">W-L-OTL</th>
-                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">W</th>
-                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">L</th>
-                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">OTL</th>
-                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
-                    <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
-                    <th scope="col" className="text-right sm:w-14 pr-4">PTS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {standings.map((row, i) => (
-                    <tr key={row.team_id}>
-                      <td className={`pl-4 ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>
-                        {i + 1}
-                        {i === 0 && <span className="sr-only"> (first place)</span>}
-                      </td>
-                      <td className="max-w-0 w-full">
-                        <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap />
-                      </td>
-                      <td className="text-right text-ink-dim">{row.gp}</td>
-                      <td className="text-right text-ink-dim whitespace-nowrap sm:hidden">
-                        {row.w}-{row.l}-{row.otl}
-                      </td>
-                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.w}</td>
-                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.l}</td>
-                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.otl}</td>
-                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.gf}</td>
-                      <td className="text-right text-ink-dim hidden sm:table-cell">{row.ga}</td>
-                      <td className="text-right pr-4 font-bold text-ink">{row.pts}</td>
+            <SectionHeader eyebrow="League table" title="Standings" linkHref={`/standings${q}`} linkLabel="Full standings" />
+            {isPast && totalGames === 0 ? (
+              <EmptyState
+                compact
+                title={`Game-by-game records aren't on file for ${season.name}.`}
+                linkHref={`/standings${q}`}
+                linkLabel="Final standings"
+              />
+            ) : (
+              <DataTable caption={`${season.name} standings`}>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="text-left w-10 pl-4">#</th>
+                      <th scope="col" className="text-left">Team</th>
+                      <th scope="col" className="text-right sm:w-14">GP</th>
+                      <th scope="col" className="text-right sm:w-14 sm:hidden">W-L-OTL</th>
+                      <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">W</th>
+                      <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">L</th>
+                      <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">OTL</th>
+                      <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GF</th>
+                      <th scope="col" className="text-right sm:w-14 hidden sm:table-cell">GA</th>
+                      <th scope="col" className="text-right sm:w-14 pr-4">PTS</th>
                     </tr>
-                  ))}
-                </tbody>
-            </DataTable>
+                  </thead>
+                  <tbody>
+                    {standings.map((row, i) => (
+                      <tr key={row.team_id}>
+                        <td className={`pl-4 ${i === 0 ? "text-gold font-bold" : "text-ink-faint"}`}>
+                          {i + 1}
+                          {i === 0 && <span className="sr-only"> (first place)</span>}
+                        </td>
+                        <td className="max-w-0 w-full">
+                          <TeamBadge name={row.name} slug={row.slug} color={row.color} className="max-w-full" wrap seasonId={isPast ? season.id : undefined} />
+                        </td>
+                        <td className="text-right text-ink-dim">{row.gp}</td>
+                        <td className="text-right text-ink-dim whitespace-nowrap sm:hidden">
+                          {row.w}-{row.l}-{row.otl}
+                        </td>
+                        <td className="text-right text-ink-dim hidden sm:table-cell">{row.w}</td>
+                        <td className="text-right text-ink-dim hidden sm:table-cell">{row.l}</td>
+                        <td className="text-right text-ink-dim hidden sm:table-cell">{row.otl}</td>
+                        <td className="text-right text-ink-dim hidden sm:table-cell">{row.gf}</td>
+                        <td className="text-right text-ink-dim hidden sm:table-cell">{row.ga}</td>
+                        <td className="text-right pr-4 font-bold text-ink">{row.pts}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+              </DataTable>
+            )}
           </section>
 
           <section className="hidden md:block">
-            <SectionHeader eyebrow="Latest" title="Recent results" linkHref="/schedule" linkLabel="Schedule" />
+            <SectionHeader eyebrow="Latest" title="Recent results" linkHref={`/schedule${q}`} linkLabel="Schedule" />
             {recent.length === 0 ? (
               <EmptyState compact title="No results yet — first puck drops soon." />
             ) : (
@@ -186,34 +216,36 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
             )}
           </section>
 
-          <section className="hidden md:block">
-            <SectionHeader eyebrow="Next up" title="Upcoming" />
-            {upcoming.length === 0 ? (
-              <EmptyState compact title="No upcoming games." linkHref="/schedule" linkLabel="Full schedule" />
-            ) : (
-              <GameList>
-                {upcoming.map((g) => (
-                  <GameRow
-                    key={g.id}
-                    id={g.id}
-                    scheduled_at={g.scheduled_at}
-                    status={g.status}
-                    home_team={g.home_team}
-                    away_team={g.away_team}
-                    kind={g.kind}
-                    playoff_round={g.playoff_round}
-                    showDate
-                  />
-                ))}
-              </GameList>
-            )}
-          </section>
+          {!isPast && (
+            <section className="hidden md:block">
+              <SectionHeader eyebrow="Next up" title="Upcoming" />
+              {upcoming.length === 0 ? (
+                <EmptyState compact title="No upcoming games." linkHref="/schedule" linkLabel="Full schedule" />
+              ) : (
+                <GameList>
+                  {upcoming.map((g) => (
+                    <GameRow
+                      key={g.id}
+                      id={g.id}
+                      scheduled_at={g.scheduled_at}
+                      status={g.status}
+                      home_team={g.home_team}
+                      away_team={g.away_team}
+                      kind={g.kind}
+                      playoff_round={g.playoff_round}
+                      showDate
+                    />
+                  ))}
+                </GameList>
+              )}
+            </section>
+          )}
         </div>
 
         {/* SIDEBAR */}
         <aside className="space-y-8 md:space-y-10 min-w-0 min-[900px]:sticky min-[900px]:top-[calc(var(--header-h)+24px)]" aria-label="League leaders">
           <section className="rise delay-2">
-            <SectionHeader eyebrow={season.name} title="League leaders" linkHref="/stats" linkLabel="All stats" />
+            <SectionHeader eyebrow={season.name} title="League leaders" linkHref={`/stats${q}`} linkLabel="All stats" />
             {/* One 3-up row: a player who leads several categories reads once per tile, compactly. */}
             <ul className="grid grid-cols-3 gap-2">
               {leaderRows.map(({ label, unit, key, player }) => (

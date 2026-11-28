@@ -4,12 +4,11 @@
 // (result order) and invent what's missing (the weekday).
 import type { GoalieRecord, KeyMatchup, Lineup, ProjectedRoster, Projection, Scorer, TeamForm } from "@/lib/matchup";
 import { formatClock, formatPeriod } from "@/lib/format";
+import { LEAGUE_TIME_ZONE } from "@/lib/timezone";
 
 export type WriteUpKind = "preview" | "recap";
 
-// The league plays in US Eastern. Nothing else in the app pins a timezone;
-// server-rendered dates otherwise follow the host (UTC on Vercel).
-export const LEAGUE_TIME_ZONE = "America/New_York";
+export { LEAGUE_TIME_ZONE };
 
 export const SYSTEM_PROMPT = `You write short game write-ups for M.O.T.H. ("Mostly Over The Hill"), a friendly adult rec hockey league. Readers are the players themselves.
 

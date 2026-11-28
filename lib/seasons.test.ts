@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { recapState, recapTarget, seasonSlug, type RecapSeason } from "./seasons";
+import { recapState, recapTarget, seasonQuery, seasonSlug, type RecapSeason } from "./seasons";
 
 const s = (name: string, start_date: string, extra: Partial<RecapSeason> = {}): RecapSeason => ({
   id: name,
@@ -8,6 +8,15 @@ const s = (name: string, start_date: string, extra: Partial<RecapSeason> = {}): 
   is_current: false,
   finalized_at: null,
   ...extra,
+});
+
+describe("seasonQuery", () => {
+  test("is empty for the current season", () => {
+    expect(seasonQuery({ id: "abc", is_current: true })).toBe("");
+  });
+  test("names a past season by id", () => {
+    expect(seasonQuery({ id: "abc", is_current: false })).toBe("?season=abc");
+  });
 });
 
 describe("seasonSlug", () => {

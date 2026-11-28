@@ -3,9 +3,9 @@ import { recapState, seasonSlug } from "@/lib/seasons";
 import { TeamBadge } from "@/components/TeamBadge";
 import { DataTable } from "@/components/DataTable";
 import { SectionHeader } from "@/components/SectionHeader";
-import { SeasonSelect } from "@/components/SeasonSelect";
 import {
   getSeasons,
+  selectedSeasonId,
   getStandings,
   getHistoricalStandings,
   getChampionTeamId,
@@ -75,10 +75,10 @@ function pointsSummary(system: PointSystem): { label: string; value: string }[] 
 export default async function StandingsPage({ searchParams }: { searchParams: SearchParams }) {
   const { season: seasonParam } = await searchParams;
 
-  const seasons = await getSeasons();
+  const [seasons, seasonId] = await Promise.all([getSeasons(), selectedSeasonId(seasonParam)]);
   if (seasons.length === 0) return <NoSeason />;
   const season =
-    seasons.find((s) => s.id === seasonParam) ??
+    seasons.find((s) => s.id === seasonId) ??
     seasons.find((s) => s.is_current) ??
     seasons[0];
 
@@ -100,7 +100,6 @@ export default async function StandingsPage({ searchParams }: { searchParams: Se
         as="h1"
         action={
           <>
-            <SeasonSelect seasons={seasons} selectedId={season.id} />
             {recapHref && (
               <Link
                 href={recapHref}

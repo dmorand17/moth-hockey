@@ -6,7 +6,7 @@ import { GameList, GameRow } from "@/components/GameRow";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSeasonFinalizeInputs, getStandings } from "@/lib/queries";
+import { getSeasonFinalizeInputs, getStandings, selectedSeasonId } from "@/lib/queries";
 import { computeSeasonTotals, type SeasonTotals } from "@/lib/season-finalize";
 import { seasonQuery } from "@/lib/seasons";
 import { teamAbbr } from "@/lib/format";
@@ -16,8 +16,8 @@ type PageProps = {
   searchParams: Promise<{ season?: string }>;
 };
 
-// Slugs repeat across seasons, so resolve the team in the requested season
-// (?season=<id>), else the current season, else the most recent season that
+// Slugs repeat across seasons, so resolve the team in the selected season
+// (?season=<id> or the header picker), else the current season, else the most recent season that
 // had a team with this slug.
 async function resolveTeam(slug: string, seasonId: string | undefined) {
   const supabase = await createSupabaseServerClient();
@@ -37,7 +37,7 @@ async function resolveTeam(slug: string, seasonId: string | undefined) {
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const [{ slug }, { season: seasonParam }] = await Promise.all([params, searchParams]);
-  const resolved = await resolveTeam(slug, seasonParam);
+  const resolved = await resolveTeam(slug, await selectedSeasonId(seasonParam));
   if (!resolved) return { title: "Team" };
   const { team, season } = resolved;
   return { title: team.name, description: `${team.name} roster, record and schedule for ${season.name}.` };
@@ -59,7 +59,7 @@ type TeamGame = {
 
 export default async function TeamPage({ params, searchParams }: PageProps) {
   const [{ slug }, { season: seasonParam }] = await Promise.all([params, searchParams]);
-  const resolved = await resolveTeam(slug, seasonParam);
+  const resolved = await resolveTeam(slug, await selectedSeasonId(seasonParam));
   if (!resolved) notFound();
   const { team, season } = resolved;
   const supabase = await createSupabaseServerClient();

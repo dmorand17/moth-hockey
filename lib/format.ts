@@ -1,3 +1,5 @@
+import { LEAGUE_TIME_ZONE } from "./timezone";
+
 export function formatClock(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -21,6 +23,7 @@ export function formatPeriod(period: number, decidedIn?: string | null): string 
 
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
+    timeZone: LEAGUE_TIME_ZONE,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -29,11 +32,16 @@ export function formatDate(iso: string): string {
 
 // "Apr 12" — for narrow columns where the weekday doesn't fit.
 export function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", {
+    timeZone: LEAGUE_TIME_ZONE,
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", {
+    timeZone: LEAGUE_TIME_ZONE,
     hour: "numeric",
     minute: "2-digit",
   });

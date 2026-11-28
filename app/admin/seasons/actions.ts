@@ -22,6 +22,7 @@ import {
   type PlayoffRound,
   type WeekdayIdx,
 } from "@/lib/season-schedule";
+import { leagueTimeOfDay, leagueWeekday } from "@/lib/timezone";
 
 type SeasonType = "spring" | "summer" | "fall" | "winter";
 
@@ -427,10 +428,7 @@ export async function reservePlayoffs(formData: FormData): Promise<ActionResult>
   const weekday = new Date(ly, lm - 1, ld).getDay() as WeekdayIdx;
 
   // Distinct time-of-day slots used on that last game night, in order.
-  const hhmm = (iso: string) => {
-    const d = new Date(iso);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  };
+  const hhmm = (iso: string) => leagueTimeOfDay(iso);
   const nightTimes = Array.from(
     new Set(regular.filter((g) => localDateKey(g.scheduled_at) === lastDateKey).map((g) => hhmm(g.scheduled_at))),
   ).sort();
@@ -549,12 +547,9 @@ export async function generatePlayoffs(formData: FormData): Promise<ActionResult
   const missingRounds = order.filter((r) => !existingRounds.has(r));
   if (missingRounds.length > 0) {
     if (regular.length === 0) return fail("Finish all regular-season games before generating playoffs.");
-    const hhmm = (iso: string) => {
-      const d = new Date(iso);
-      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    };
+    const hhmm = (iso: string) => leagueTimeOfDay(iso);
     const times = Array.from(new Set(regular.map((g) => hhmm(g.scheduled_at)))).sort();
-    const weekday = new Date(regular[0].scheduled_at).getDay() as WeekdayIdx;
+    const weekday = leagueWeekday(regular[0].scheduled_at) as WeekdayIdx;
     const allSlots = playoffSlots(season.start_date, weekday, times, regular.length, order.length);
     const slotsByRound = new Map(order.map((r, i) => [r, allSlots[i]]));
     const { data: inserted, error: insErr } = await supabase

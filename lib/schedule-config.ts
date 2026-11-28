@@ -6,7 +6,4 @@ export const COMMON_GAME_TIMES: GameTime[] = [
   { label: "9:30 PM", value: "21:30" },
 ];
 
-/** Combine "YYYY-MM-DD" + "HH:mm" (interpreted as local time) and return a UTC ISO string. */
-export function buildScheduledAt(date: string, time: string): string {
-  return new Date(`${date}T${time}:00`).toISOString();
-}
+export { buildScheduledAt } from "./timezone";
